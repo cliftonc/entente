@@ -1,0 +1,26 @@
+name = "entente-server"
+main = "src/api/index.ts"
+compatibility_date = "2024-12-02"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+NODE_ENV = "production"
+
+# Static assets binding
+[assets]
+directory = "./dist/ui"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# Database bindings would be configured here for Neon PostgreSQL
+# [env.production]
+# [[env.production.d1_databases]]
+# binding = "DB"
+# database_name = "entente-production"
+# database_id = "your-database-id"
+
+# [env.staging]
+# [[env.staging.d1_databases]]
+# binding = "DB"
+# database_name = "entente-staging"
+# database_id = "your-staging-database-id"

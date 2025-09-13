@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "allowJs": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@entente/types": ["./packages/types/src"],
+      "@entente/client": ["./packages/client/src"],
+      "@entente/provider": ["./packages/provider/src"],
+      "@entente/fixtures": ["./packages/fixtures/src"],
+      "@entente/cli": ["./packages/cli/src"]
+    }
+  },
+  "include": ["packages/*/src/**/*", "apps/*/src/**/*"],
+  "exclude": ["node_modules", "**/dist", "**/build", "**/.turbo"]
+}

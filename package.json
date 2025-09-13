@@ -1,0 +1,38 @@
+{
+  "name": "entente",
+  "version": "0.1.0",
+  "description": "Schema-first contract testing with centralized management",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r dev",
+    "test": "pnpm -r test",
+    "lint": "biome check .",
+    "lint:fix": "biome check . --write",
+    "format": "biome format . --write",
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "server:dev": "pnpm --filter @entente/server dev",
+    "server:build": "pnpm --filter @entente/server build",
+    "cli": "pnpm --filter @entente/cli build && node packages/cli/dist/cli.js"
+  },
+  "keywords": [
+    "contract-testing",
+    "openapi",
+    "testing",
+    "api",
+    "schema-first"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

@@ -1,0 +1,185 @@
+import { createServer } from 'http'
+import { URL } from 'url'
+import open from 'open'
+import chalk from 'chalk'
+import { loadConfig, saveConfig, updateConfig, clearConfig } from './config.js'
+
+const CALLBACK_PORT = 8765
+
+export async function loginFlow(serverUrl: string): Promise<void> {
+  console.log(chalk.blue('🔐 Starting authentication flow...'))
+
+  const config = await loadConfig()
+
+  // Start local callback server
+  const { server, callbackUrl } = await startCallbackServer()
+
+  try {
+    // Open browser to auth endpoint
+    const authUrl = `${serverUrl}/auth/cli?redirect_uri=${encodeURIComponent(callbackUrl)}`
+    console.log(chalk.gray(`Opening browser to: ${authUrl}`))
+
+    await open(authUrl)
+    console.log(chalk.yellow('⏳ Waiting for authentication in browser...'))
+
+    // Wait for callback with API key
+    const apiKey = await waitForCallback(server)
+
+    if (!apiKey) {
+      throw new Error('No API key received from callback')
+    }
+
+    // Get user info to store username
+    const userInfo = await getUserInfo(serverUrl, apiKey)
+
+    // Save config
+    await updateConfig({
+      apiKey,
+      serverUrl,
+      username: userInfo.username,
+    })
+
+    console.log(chalk.green('✅ Authentication successful!'))
+    console.log(chalk.gray(`Logged in as: ${userInfo.username}`))
+    console.log(chalk.gray(`Server: ${serverUrl}`))
+
+  } catch (error) {
+    console.error(chalk.red('❌ Authentication failed:'), error instanceof Error ? error.message : 'Unknown error')
+    throw error
+  } finally {
+    server.close()
+  }
+}
+
+export async function logoutFlow(): Promise<void> {
+  const config = await loadConfig()
+
+  if (!config.apiKey) {
+    console.log(chalk.yellow('ℹ️  Not currently logged in'))
+    return
+  }
+
+  await clearConfig()
+  console.log(chalk.green('✅ Logged out successfully'))
+}
+
+export async function whoAmI(): Promise<void> {
+  const config = await loadConfig()
+
+  if (!config.apiKey || !config.username) {
+    console.log(chalk.yellow('ℹ️  Not currently logged in'))
+    console.log(chalk.gray('Run "entente login" to authenticate'))
+    return
+  }
+
+  try {
+    const userInfo = await getUserInfo(config.serverUrl!, config.apiKey)
+    console.log(chalk.green(`Logged in as: ${userInfo.username}`))
+    console.log(chalk.gray(`Server: ${config.serverUrl}`))
+    console.log(chalk.gray(`API Key: ${config.apiKey.substring(0, 12)}...`))
+  } catch (error) {
+    console.log(chalk.red('❌ Invalid credentials'))
+    console.log(chalk.gray('Run "entente login" to re-authenticate'))
+  }
+}
+
+async function startCallbackServer(): Promise<{ server: any, callbackUrl: string }> {
+  return new Promise((resolve, reject) => {
+    const server = createServer((req, res) => {
+      const url = new URL(req.url!, `http://localhost:${CALLBACK_PORT}`)
+
+      if (url.pathname === '/callback') {
+        const apiKey = url.searchParams.get('key')
+        const error = url.searchParams.get('error')
+
+        if (error) {
+          res.writeHead(400, { 'Content-Type': 'text/html' })
+          res.end(`
+            <html>
+              <body style="font-family: system-ui; padding: 40px; text-align: center;">
+                <h1 style="color: #dc2626;">Authentication Failed</h1>
+                <p>Error: ${error}</p>
+                <p>You can close this browser window and try again.</p>
+              </body>
+            </html>
+          `)
+          server.emit('auth-error', error)
+          return
+        }
+
+        if (apiKey) {
+          res.writeHead(200, { 'Content-Type': 'text/html' })
+          res.end(`
+            <html>
+              <body style="font-family: system-ui; padding: 40px; text-align: center;">
+                <h1 style="color: #059669;">Authentication Successful!</h1>
+                <p>You have been authenticated with the Entente CLI.</p>
+                <p style="color: #6b7280;">You can close this browser window and return to your terminal.</p>
+              </body>
+            </html>
+          `)
+          server.emit('auth-success', apiKey)
+          return
+        }
+      }
+
+      res.writeHead(404, { 'Content-Type': 'text/plain' })
+      res.end('Not found')
+    })
+
+    server.listen(CALLBACK_PORT, () => {
+      resolve({
+        server,
+        callbackUrl: `http://localhost:${CALLBACK_PORT}/callback`
+      })
+    })
+
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        reject(new Error(`Port ${CALLBACK_PORT} is already in use. Please close any other applications using this port and try again.`))
+      } else {
+        reject(err)
+      }
+    })
+  })
+}
+
+async function waitForCallback(server: any): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Authentication timeout (5 minutes)'))
+    }, 5 * 60 * 1000) // 5 minutes
+
+    server.once('auth-success', (apiKey: string) => {
+      clearTimeout(timeout)
+      resolve(apiKey)
+    })
+
+    server.once('auth-error', (error: string) => {
+      clearTimeout(timeout)
+      reject(new Error(error))
+    })
+  })
+}
+
+async function getUserInfo(serverUrl: string, apiKey: string): Promise<{ username: string }> {
+  const response = await fetch(`${serverUrl}/auth/session`, {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to get user info: ${response.status} ${response.statusText}`)
+  }
+
+  const data = await response.json()
+
+  if (!data.authenticated || !data.user) {
+    throw new Error('Invalid API key or user not found')
+  }
+
+  return {
+    username: data.user.username,
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["./worker-configuration.d.ts", "vite/client"],
+    "jsx": "react-jsx"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist", "build", ".wrangler"],
+  "references": [
+    { "path": "../../packages/types" },
+    { "path": "../../packages/fixtures" }
+  ]
+}
