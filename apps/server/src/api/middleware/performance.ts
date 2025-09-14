@@ -25,9 +25,9 @@ export async function performanceMiddleware(c: Context, next: Next) {
   // Log detailed timings if we have them
   if (Object.keys(timings).length > 0) {
     console.log('📊 Detailed timings:')
-    Object.entries(timings).forEach(([operation, duration]) => {
+    for (const [operation, duration] of Object.entries(timings)) {
       console.log(`   ${operation}: ${duration}ms`)
-    })
+    }
   }
 }
 

@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'fs'
-import { join } from 'path'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 export function getGitSha(): string | null {
   try {
@@ -39,7 +39,7 @@ export function getGitSha(): string | null {
 
     // HEAD contains a direct SHA
     return head
-  } catch (error) {
+  } catch (_error) {
     return null
   }
 }

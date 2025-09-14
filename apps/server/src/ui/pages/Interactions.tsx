@@ -89,7 +89,7 @@ function Interactions() {
         </div>
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <div className="skeleton h-6 w-48 mb-4"></div>
+            <div className="skeleton h-6 w-48 mb-4" />
             <div className="overflow-x-auto">
               <table className="table table-zebra">
                 <thead>
@@ -108,28 +108,28 @@ function Interactions() {
                   {[1, 2, 3, 4, 5].map(i => (
                     <tr key={i}>
                       <td>
-                        <div className="skeleton h-4 w-24"></div>
+                        <div className="skeleton h-4 w-24" />
                       </td>
                       <td>
-                        <div className="skeleton h-4 w-20"></div>
+                        <div className="skeleton h-4 w-20" />
                       </td>
                       <td>
-                        <div className="skeleton h-4 w-16"></div>
+                        <div className="skeleton h-4 w-16" />
                       </td>
                       <td>
-                        <div className="skeleton h-4 w-12"></div>
+                        <div className="skeleton h-4 w-12" />
                       </td>
                       <td>
-                        <div className="skeleton h-4 w-16"></div>
+                        <div className="skeleton h-4 w-16" />
                       </td>
                       <td>
-                        <div className="skeleton h-4 w-12"></div>
+                        <div className="skeleton h-4 w-12" />
                       </td>
                       <td>
-                        <div className="skeleton h-4 w-16"></div>
+                        <div className="skeleton h-4 w-16" />
                       </td>
                       <td>
-                        <div className="skeleton h-4 w-12"></div>
+                        <div className="skeleton h-4 w-12" />
                       </td>
                     </tr>
                   ))}
@@ -158,7 +158,7 @@ function Interactions() {
               strokeLinejoin="round"
               strokeWidth="2"
               d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
+            />
           </svg>
           <span>Error loading interactions data</span>
         </div>

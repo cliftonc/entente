@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           error: null,
         })
       }
-    } catch (error) {
+    } catch (_error) {
       setAuthState({
         authenticated: false,
         user: null,
@@ -153,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             error: null,
           })
         }
-      } catch (error) {
+      } catch (_error) {
         // If auth check fails or times out, assume not authenticated
         setAuthState({
           authenticated: false,

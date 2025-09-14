@@ -31,7 +31,7 @@ describe('createProvider', () => {
   })
 
   it('should create a provider with full config', async () => {
-    const { readFileSync } = vi.mocked(await import('fs'))
+    const { readFileSync } = vi.mocked(await import('node:fs'))
     readFileSync.mockReturnValue(JSON.stringify(mockPackageJson))
 
     const provider = createProvider(mockProviderConfig)
@@ -43,7 +43,7 @@ describe('createProvider', () => {
   })
 
   it('should use package.json fallbacks when config is incomplete', async () => {
-    const { readFileSync } = vi.mocked(await import('fs'))
+    const { readFileSync } = vi.mocked(await import('node:fs'))
     readFileSync.mockReturnValue(JSON.stringify(mockPackageJson))
 
     const provider = createProvider(mockProviderConfigWithoutProvider)
@@ -52,7 +52,7 @@ describe('createProvider', () => {
   })
 
   it('should warn when using fallback values', async () => {
-    const { readFileSync } = vi.mocked(await import('fs'))
+    const { readFileSync } = vi.mocked(await import('node:fs'))
     readFileSync.mockReturnValue(JSON.stringify(mockPackageJsonFallback))
 
     createProvider(mockProviderConfigWithoutProvider)
@@ -63,7 +63,7 @@ describe('createProvider', () => {
   })
 
   it('should handle package.json read errors gracefully', async () => {
-    const { readFileSync } = vi.mocked(await import('fs'))
+    const { readFileSync } = vi.mocked(await import('node:fs'))
     readFileSync.mockImplementation(() => {
       throw new Error('File not found')
     })
@@ -76,7 +76,7 @@ describe('createProvider', () => {
 
   describe('verify method', () => {
     it('should skip verification when using fallback values', async () => {
-      const { readFileSync } = vi.mocked(await import('fs'))
+      const { readFileSync } = vi.mocked(await import('node:fs'))
       readFileSync.mockReturnValue(JSON.stringify(mockPackageJsonFallback))
 
       const provider = createProvider(mockProviderConfigWithoutProvider)
@@ -90,7 +90,7 @@ describe('createProvider', () => {
     })
 
     it('should fetch verification tasks and process them', async () => {
-      const { readFileSync } = vi.mocked(await import('fs'))
+      const { readFileSync } = vi.mocked(await import('node:fs'))
       readFileSync.mockReturnValue(JSON.stringify(mockPackageJson))
 
       const mockFetch = vi.mocked(global.fetch)
@@ -130,7 +130,7 @@ describe('createProvider', () => {
     })
 
     it('should handle fetch errors gracefully', async () => {
-      const { readFileSync } = vi.mocked(await import('fs'))
+      const { readFileSync } = vi.mocked(await import('node:fs'))
       readFileSync.mockReturnValue(JSON.stringify(mockPackageJson))
 
       const mockFetch = vi.mocked(global.fetch)
@@ -142,7 +142,7 @@ describe('createProvider', () => {
     })
 
     it('should call state handlers for interactions', async () => {
-      const { readFileSync } = vi.mocked(await import('fs'))
+      const { readFileSync } = vi.mocked(await import('node:fs'))
       readFileSync.mockReturnValue(JSON.stringify(mockPackageJson))
 
       const mockFetch = vi.mocked(global.fetch)
@@ -173,7 +173,7 @@ describe('createProvider', () => {
     })
 
     it('should call cleanup after each interaction', async () => {
-      const { readFileSync } = vi.mocked(await import('fs'))
+      const { readFileSync } = vi.mocked(await import('node:fs'))
       readFileSync.mockReturnValue(JSON.stringify(mockPackageJson))
 
       const mockFetch = vi.mocked(global.fetch)
@@ -206,7 +206,7 @@ describe('createProvider', () => {
 
   describe('getVerificationTasks method', () => {
     it('should return empty array when using fallback values', async () => {
-      const { readFileSync } = vi.mocked(await import('fs'))
+      const { readFileSync } = vi.mocked(await import('node:fs'))
       readFileSync.mockReturnValue(JSON.stringify(mockPackageJsonFallback))
 
       const provider = createProvider(mockProviderConfigWithoutProvider)
@@ -219,7 +219,7 @@ describe('createProvider', () => {
     })
 
     it('should fetch verification tasks from API', async () => {
-      const { readFileSync } = vi.mocked(await import('fs'))
+      const { readFileSync } = vi.mocked(await import('node:fs'))
       readFileSync.mockReturnValue(JSON.stringify(mockPackageJson))
 
       const mockFetch = vi.mocked(global.fetch)
@@ -243,7 +243,7 @@ describe('createProvider', () => {
     })
 
     it('should handle API errors', async () => {
-      const { readFileSync } = vi.mocked(await import('fs'))
+      const { readFileSync } = vi.mocked(await import('node:fs'))
       readFileSync.mockReturnValue(JSON.stringify(mockPackageJson))
 
       const mockFetch = vi.mocked(global.fetch)

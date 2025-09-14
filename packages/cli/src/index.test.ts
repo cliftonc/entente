@@ -198,7 +198,7 @@ describe('CLI Core Functions', () => {
       }
       mockFetch.mockResolvedValue(mockResponse)
 
-      const result = await canIDeploy({
+      const _result = await canIDeploy({
         consumer: 'legacy-consumer',
         version: '1.0.0',
         environment: 'production',

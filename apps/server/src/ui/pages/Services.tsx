@@ -42,10 +42,10 @@ function Services() {
           {[1, 2, 3, 4, 5, 6].map(i => (
             <div key={i} className="card bg-base-100 shadow-xl">
               <div className="card-body">
-                <div className="skeleton h-6 w-32 mb-4"></div>
-                <div className="skeleton h-4 w-16 mb-4"></div>
-                <div className="skeleton h-16 w-full mb-4"></div>
-                <div className="skeleton h-4 w-24"></div>
+                <div className="skeleton h-6 w-32 mb-4" />
+                <div className="skeleton h-4 w-16 mb-4" />
+                <div className="skeleton h-16 w-full mb-4" />
+                <div className="skeleton h-4 w-24" />
               </div>
             </div>
           ))}
@@ -70,7 +70,7 @@ function Services() {
               strokeLinejoin="round"
               strokeWidth="2"
               d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
+            />
           </svg>
           <span>Error loading services data</span>
         </div>

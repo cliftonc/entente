@@ -1,3 +1,4 @@
+import type { ClientInteraction, ServiceDependency } from '@entente/types'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
@@ -19,60 +20,78 @@ function ConsumerDetail() {
     error: consumerError,
   } = useQuery({
     queryKey: ['consumer', name],
-    queryFn: () => consumerApi.getOne(name!),
+    queryFn: () => {
+      if (!name) throw new Error('Consumer name is required')
+      return consumerApi.getOne(name)
+    },
     enabled: !!name,
   })
 
   const { data: deployments, isLoading: deploymentsLoading } = useQuery({
     queryKey: ['deployments', name],
-    queryFn: () => deploymentApi.getHistory(name!),
+    queryFn: () => {
+      if (!name) throw new Error('Consumer name is required')
+      return deploymentApi.getHistory(name)
+    },
     enabled: !!name,
   })
 
   const { data: fixtures, isLoading: fixturesLoading } = useQuery({
     queryKey: ['fixtures', 'all', name],
-    queryFn: () => fixtureApi.getAllByService(name!),
+    queryFn: () => {
+      if (!name) throw new Error('Consumer name is required')
+      return fixtureApi.getAllByService(name)
+    },
     enabled: !!name,
   })
 
   const { data: verificationResults, isLoading: verificationLoading } = useQuery({
     queryKey: ['verification', 'consumer', name],
-    queryFn: () => verificationApi.getByConsumer(name!),
+    queryFn: () => {
+      if (!name) throw new Error('Consumer name is required')
+      return verificationApi.getByConsumer(name)
+    },
     enabled: !!name,
   })
 
   // Fetch interactions for this consumer (interactions where this service is the consumer)
   const { data: interactions, isLoading: interactionsLoading } = useQuery({
     queryKey: ['interactions', 'consumer', name],
-    queryFn: () => interactionApi.getByConsumer(name!, 'latest'),
+    queryFn: () => {
+      if (!name) throw new Error('Consumer name is required')
+      return interactionApi.getByConsumer(name, 'latest')
+    },
     enabled: !!name,
   })
 
   // Fetch dependencies for this consumer (providers this consumer depends on)
   const { data: dependencies, isLoading: dependenciesLoading } = useQuery({
     queryKey: ['dependencies', 'consumer', name],
-    queryFn: () => dependenciesApi.getByConsumer(name!),
+    queryFn: () => {
+      if (!name) throw new Error('Consumer name is required')
+      return dependenciesApi.getByConsumer(name)
+    },
     enabled: !!name,
   })
 
   if (consumerLoading) {
     return (
       <div className="space-y-6">
-        <div className="skeleton h-8 w-64"></div>
+        <div className="skeleton h-8 w-64" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="card bg-base-100 shadow-xl">
               <div className="card-body">
-                <div className="skeleton h-6 w-32 mb-4"></div>
-                <div className="skeleton h-20 w-full"></div>
+                <div className="skeleton h-6 w-32 mb-4" />
+                <div className="skeleton h-20 w-full" />
               </div>
             </div>
           </div>
           <div className="space-y-4">
             <div className="card bg-base-100 shadow-xl">
               <div className="card-body">
-                <div className="skeleton h-6 w-24 mb-4"></div>
-                <div className="skeleton h-16 w-full"></div>
+                <div className="skeleton h-6 w-24 mb-4" />
+                <div className="skeleton h-16 w-full" />
               </div>
             </div>
           </div>
@@ -91,7 +110,7 @@ function ConsumerDetail() {
     )
   }
 
-  const recentVerification = verificationResults?.[0]
+  const _recentVerification = verificationResults?.[0]
   const activeDeployments = deployments?.filter(d => d.active === true) || []
   const pendingFixtures = fixtures?.filter(f => f.status === 'pending') || []
   const approvedFixtures = fixtures?.filter(f => f.status === 'approved') || []
@@ -184,7 +203,7 @@ function ConsumerDetail() {
               </div>
 
               {verificationLoading ? (
-                <div className="skeleton h-16 w-full"></div>
+                <div className="skeleton h-16 w-full" />
               ) : verificationResults && verificationResults.length > 0 ? (
                 <div className="space-y-3">
                   {verificationResults.slice(0, 3).map(verification => (
@@ -288,8 +307,8 @@ function ConsumerDetail() {
 
               {interactionsLoading ? (
                 <div className="space-y-3">
-                  <div className="skeleton h-16 w-full"></div>
-                  <div className="skeleton h-16 w-full"></div>
+                  <div className="skeleton h-16 w-full" />
+                  <div className="skeleton h-16 w-full" />
                 </div>
               ) : interactions && interactions.length > 0 ? (
                 <div className="space-y-4">
@@ -324,7 +343,7 @@ function ConsumerDetail() {
                           acc[provider].push(interaction)
                           return acc
                         },
-                        {} as Record<string, any[]>
+                        {} as Record<string, ClientInteraction[]>
                       )
                     )
                       .slice(0, 3)
@@ -420,13 +439,13 @@ function ConsumerDetail() {
               <h2 className="card-title">Provider Dependencies</h2>
               {dependenciesLoading ? (
                 <div className="space-y-2">
-                  <div className="skeleton h-4 w-full"></div>
-                  <div className="skeleton h-4 w-3/4"></div>
-                  <div className="skeleton h-4 w-1/2"></div>
+                  <div className="skeleton h-4 w-full" />
+                  <div className="skeleton h-4 w-3/4" />
+                  <div className="skeleton h-4 w-1/2" />
                 </div>
               ) : dependencies && dependencies.length > 0 ? (
                 <div className="space-y-3">
-                  {dependencies.map((dep: any) => (
+                  {dependencies.map((dep: ServiceDependency) => (
                     <div
                       key={dep.id}
                       className="flex items-center justify-between p-3 border rounded-lg"
@@ -506,7 +525,7 @@ function ConsumerDetail() {
                 </Link>
               </div>
               {deploymentsLoading ? (
-                <div className="skeleton h-20 w-full"></div>
+                <div className="skeleton h-20 w-full" />
               ) : activeDeployments.length > 0 ? (
                 <div className="space-y-3">
                   {activeDeployments.slice(0, 3).map((deployment, idx) => (
@@ -582,7 +601,7 @@ function ConsumerDetail() {
                 </Link>
               </div>
               {fixturesLoading ? (
-                <div className="skeleton h-16 w-full"></div>
+                <div className="skeleton h-16 w-full" />
               ) : pendingFixtures.length > 0 ? (
                 <div className="space-y-3">
                   {pendingFixtures.slice(0, 3).map(fixture => (

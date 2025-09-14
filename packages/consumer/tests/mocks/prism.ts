@@ -21,7 +21,7 @@ export const createMockPrismHttp = () => {
   }
 
   const mockHttpServer: MockHttpServer = {
-    listen: vi.fn().mockImplementation((port, callback) => {
+    listen: vi.fn().mockImplementation((_port, callback) => {
       if (callback) callback()
     }),
     close: vi.fn().mockImplementation(callback => {
@@ -62,15 +62,15 @@ export const setupPrismMock = () => {
       pathname: string
       searchParams: Map<string, string>
 
-      constructor(url: string, base?: string) {
+      constructor(url: string, _base?: string) {
         const [pathname, search] = url.split('?')
         this.pathname = pathname
         this.searchParams = new Map()
         if (search) {
-          search.split('&').forEach(param => {
+          for (const param of search.split('&')) {
             const [key, value] = param.split('=')
             this.searchParams.set(key, decodeURIComponent(value))
-          })
+          }
         }
       }
 

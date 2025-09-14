@@ -1,3 +1,4 @@
+import type { ClientInteraction, Fixture, FixtureUpdate, OpenAPISpec } from '@entente/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fixtureApi } from '../utils/api'
 
@@ -102,7 +103,7 @@ export function useCreateSpec() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ service, data }: { service: string; data: any }) => {
+    mutationFn: async ({ service, data }: { service: string; data: OpenAPISpec }) => {
       const response = await fetch(`/api/specs/${service}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -121,7 +122,7 @@ export function useUpdateFixture() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    mutationFn: async ({ id, data }: { id: string; data: FixtureUpdate }) => {
       const response = await fetch(`/api/fixtures/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -140,7 +141,7 @@ export function useRecordInteraction() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (interactionData: any) => {
+    mutationFn: async (interactionData: ClientInteraction) => {
       const response = await fetch('/api/interactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -3,7 +3,7 @@ import { vi } from 'vitest'
 export const createMockFs = () => {
   const mockFiles: Record<string, string> = {}
 
-  const readFileSync = vi.fn().mockImplementation((path: string, encoding?: string) => {
+  const readFileSync = vi.fn().mockImplementation((path: string, _encoding?: string) => {
     const content = mockFiles[path]
     if (content === undefined) {
       const error = new Error(`ENOENT: no such file or directory, open '${path}'`)
@@ -26,7 +26,9 @@ export const createMockFs = () => {
   }
 
   const clearMockFiles = () => {
-    Object.keys(mockFiles).forEach(key => delete mockFiles[key])
+    for (const key of Object.keys(mockFiles)) {
+      delete mockFiles[key]
+    }
   }
 
   return {

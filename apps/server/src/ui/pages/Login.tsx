@@ -48,7 +48,7 @@ export default function Login() {
           >
             {isLoading ? (
               <>
-                <span className="loading loading-spinner loading-sm"></span>
+                <span className="loading loading-spinner loading-sm" />
                 Connecting...
               </>
             ) : (

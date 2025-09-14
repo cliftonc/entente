@@ -1,4 +1,4 @@
-import { createHash } from 'crypto'
+import { createHash } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import type { Context, Next } from 'hono'
 import { getCookie } from 'hono/cookie'
@@ -39,7 +39,7 @@ export async function authMiddleware(c: Context, next: Next) {
   // Try API key authentication first
   const authHeader = c.req.header('Authorization')
 
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  if (authHeader?.startsWith('Bearer ')) {
     const db = c.get('db')
     const apiKey = authHeader.substring(7)
 

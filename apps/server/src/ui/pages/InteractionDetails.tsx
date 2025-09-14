@@ -12,7 +12,10 @@ function InteractionDetails() {
     error,
   } = useQuery({
     queryKey: ['interaction', id],
-    queryFn: () => interactionApi.getById(id!),
+    queryFn: () => {
+      if (!id) throw new Error('Interaction ID is required')
+      return interactionApi.getById(id)
+    },
     enabled: !!id,
   })
 
@@ -35,10 +38,10 @@ function InteractionDetails() {
 
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <div className="skeleton h-6 w-48 mb-4"></div>
-            <div className="skeleton h-4 w-full mb-2"></div>
-            <div className="skeleton h-4 w-3/4 mb-2"></div>
-            <div className="skeleton h-32 w-full"></div>
+            <div className="skeleton h-6 w-48 mb-4" />
+            <div className="skeleton h-4 w-full mb-2" />
+            <div className="skeleton h-4 w-3/4 mb-2" />
+            <div className="skeleton h-32 w-full" />
           </div>
         </div>
       </div>
@@ -69,7 +72,7 @@ function InteractionDetails() {
               strokeLinejoin="round"
               strokeWidth="2"
               d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
+            />
           </svg>
           <span>Failed to load interaction details</span>
         </div>
@@ -101,7 +104,7 @@ function InteractionDetails() {
               strokeLinejoin="round"
               strokeWidth="2"
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"
-            ></path>
+            />
           </svg>
           <span>The requested interaction could not be found.</span>
         </div>

@@ -76,7 +76,7 @@ app.get('/heritage/oldest', async c => {
     const limitParam = c.req.query('limit')
     const limit = limitParam ? Number.parseInt(limitParam, 10) : 5
 
-    if (isNaN(limit) || limit < 1) {
+    if (Number.isNaN(limit) || limit < 1) {
       return c.json(
         {
           error: 'validation_error',
@@ -153,7 +153,7 @@ app.post(
 
       if (filters.region) {
         castles = castles.filter(castle =>
-          castle.region.toLowerCase().includes(filters.region!.toLowerCase())
+          castle.region.toLowerCase().includes(filters.region?.toLowerCase())
         )
       }
 
@@ -261,11 +261,11 @@ const generateVisitRecommendation = (castle: {
 
   if (age < 200) {
     return 'Perfect for those interested in more recent architectural styles.'
-  } else if (age < 500) {
-    return 'Great example of medieval French architecture and history.'
-  } else {
-    return 'A rare glimpse into ancient French heritage and medieval life.'
   }
+  if (age < 500) {
+    return 'Great example of medieval French architecture and history.'
+  }
+  return 'A rare glimpse into ancient French heritage and medieval life.'
 }
 
 export default app

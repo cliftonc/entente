@@ -1,5 +1,5 @@
-import { readFileSync } from 'fs'
-import { join } from 'path'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { createClient } from '@entente/consumer'
 import type { Fixture } from '@entente/types'
 import dotenv from 'dotenv'
@@ -119,9 +119,9 @@ describe('Castle Client Consumer Contract Tests', () => {
       const castles = await castleApi.getCastlesByRegion(region)
 
       expect(Array.isArray(castles)).toBe(true)
-      castles.forEach(castle => {
+      for (const castle of castles) {
         expect(castle.region.toLowerCase()).toContain(region.toLowerCase())
-      })
+      }
     })
 
     it('should get oldest castles', async () => {
@@ -181,7 +181,7 @@ describe('Castle Client Consumer Contract Tests', () => {
 
   describe('Recording Interactions', () => {
     it('should record interactions in CI environment', async () => {
-      const isRecording = process.env.CI === 'true'
+      const _isRecording = process.env.CI === 'true'
 
       await castleApi.getAllCastles()
 

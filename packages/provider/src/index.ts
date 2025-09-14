@@ -1,5 +1,5 @@
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type {
   ClientInteraction,
   Fixture,
@@ -37,7 +37,7 @@ const getPackageInfo = (): { name: string; version: string } => {
       name: packageJson.name || 'unknown-service',
       version: packageJson.version || '0.0.0',
     }
-  } catch (error) {
+  } catch (_error) {
     // Fallback if package.json can't be read
     return {
       name: 'unknown-service',
@@ -63,7 +63,7 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
 
   if (usingFallbackName || usingFallbackVersion) {
     console.warn(
-      `⚠️  Entente provider using fallback values - verification will be skipped. Please provide provider name/version or ensure package.json exists.`
+      '⚠️  Entente provider using fallback values - verification will be skipped. Please provide provider name/version or ensure package.json exists.'
     )
     console.warn(`   Provider: ${resolvedConfig.provider}${usingFallbackName ? ' (fallback)' : ''}`)
     console.warn(
@@ -75,7 +75,7 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
     verify: async (options: VerifyOptions): Promise<ProviderVerificationResults> => {
       // Skip verification if using fallback values
       if (usingFallbackName || usingFallbackVersion) {
-        console.log(`🚫 Skipping provider verification - provider info unavailable`)
+        console.log('🚫 Skipping provider verification - provider info unavailable')
 
         return {
           taskId: null,
@@ -168,7 +168,7 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
 
           // Update dependency status based on verification results for this task
           const allPassed = taskResults.every(r => r.success)
-          const dependencyStatus = allPassed ? 'verified' : 'failed'
+          const _dependencyStatus = allPassed ? 'verified' : 'failed'
 
           // Note: In a real implementation, we'd need the dependency ID
           // For now, this serves as a placeholder for the status update logic
@@ -190,7 +190,7 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
     getVerificationTasks: (environment?: string): Promise<VerificationTask[]> => {
       // Skip getting tasks if using fallback values
       if (usingFallbackName || usingFallbackVersion) {
-        console.log(`🚫 Skipping verification task retrieval - provider info unavailable`)
+        console.log('🚫 Skipping verification task retrieval - provider info unavailable')
         return Promise.resolve([])
       }
 
@@ -447,7 +447,7 @@ const validateResponseContent = (
     if (expected.length > 0 && actual.length === 0) {
       return {
         success: false,
-        error: `Expected non-empty array but got empty array`,
+        error: 'Expected non-empty array but got empty array',
       }
     }
     return { success: true }

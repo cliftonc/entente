@@ -1,4 +1,9 @@
-import type { ClientInteraction, VerificationResults, VerificationTask } from '@entente/types'
+import type {
+  ClientInteraction,
+  VerificationResult,
+  VerificationResults,
+  VerificationTask,
+} from '@entente/types'
 import { Hono } from 'hono'
 
 import { and, count, desc, eq, gte } from 'drizzle-orm'
@@ -55,7 +60,7 @@ verificationRouter.get('/result/:id', async c => {
     return c.json({ error: 'Verification result not found' }, 404)
   }
 
-  const resultData = dbResult.results as any[]
+  const resultData = dbResult.results as VerificationResult[]
   const total = resultData.length
   const passed = resultData.filter(r => r.success).length
 
@@ -153,7 +158,7 @@ verificationRouter.get('/', async c => {
     .limit(limit)
 
   const results = dbResults.map(result => {
-    const resultData = result.results as any[]
+    const resultData = result.results as VerificationResult[]
     const total = resultData.length
     const passed = resultData.filter(r => r.success).length
 
@@ -371,7 +376,7 @@ verificationRouter.get('/:provider/history', async c => {
     .limit(limit)
 
   const history = dbHistory.map(result => {
-    const results = result.results as any[]
+    const results = result.results as VerificationResult[]
     const total = results.length
     const passed = results.filter(r => r.success).length
 
@@ -418,11 +423,11 @@ verificationRouter.get('/:provider/stats', async c => {
   let totalPassed = 0
   const uniqueConsumers = new Set<string>()
 
-  recentResults.forEach(result => {
-    const results = result.results as any[]
+  for (const result of recentResults) {
+    const results = result.results as VerificationResult[]
     totalTests += results.length
     totalPassed += results.filter(r => r.success).length
-  })
+  }
 
   // Get unique consumers from verification tasks
   const relatedTasks = await db.query.verificationTasks.findMany({
@@ -430,7 +435,9 @@ verificationRouter.get('/:provider/stats', async c => {
     columns: { consumer: true },
   })
 
-  relatedTasks.forEach(task => uniqueConsumers.add(task.consumer))
+  for (const task of relatedTasks) {
+    uniqueConsumers.add(task.consumer)
+  }
 
   const averagePassRate = totalTests > 0 ? totalPassed / totalTests : 0
 
@@ -438,7 +445,7 @@ verificationRouter.get('/:provider/stats', async c => {
   const recentTrends = recentResults
     .slice(0, 7)
     .map(result => {
-      const results = result.results as any[]
+      const results = result.results as VerificationResult[]
       const passRate =
         results.length > 0 ? results.filter(r => r.success).length / results.length : 0
       return {
@@ -508,7 +515,7 @@ verificationRouter.get('/consumer/:consumer/history', async c => {
   const filteredHistory = dbHistory.filter(result => taskIds.includes(result.taskId))
 
   const history = filteredHistory.map(result => {
-    const results = result.results as any[]
+    const results = result.results as VerificationResult[]
     const total = results.length
     const passed = results.filter(r => r.success).length
 

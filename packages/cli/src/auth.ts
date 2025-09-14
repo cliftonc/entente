@@ -1,5 +1,5 @@
-import { createServer } from 'http'
-import { URL } from 'url'
+import { type Server, createServer } from 'node:http'
+import { URL } from 'node:url'
 import chalk from 'chalk'
 import open from 'open'
 import { clearConfig, loadConfig, saveConfig, updateConfig } from './config.js'
@@ -9,7 +9,7 @@ const CALLBACK_PORT = 8765
 export async function loginFlow(serverUrl: string): Promise<void> {
   console.log(chalk.blue('🔐 Starting authentication flow...'))
 
-  const config = await loadConfig()
+  const _config = await loadConfig()
 
   // Start local callback server
   const { server, callbackUrl } = await startCallbackServer()
@@ -75,20 +75,30 @@ export async function whoAmI(): Promise<void> {
   }
 
   try {
-    const userInfo = await getUserInfo(config.serverUrl!, config.apiKey)
+    if (!config.serverUrl) {
+      console.log(chalk.red('❌ No server URL configured'))
+      console.log(chalk.gray('Run "entente login" to authenticate'))
+      return
+    }
+    const userInfo = await getUserInfo(config.serverUrl, config.apiKey)
     console.log(chalk.green(`Logged in as: ${userInfo.username}`))
     console.log(chalk.gray(`Server: ${config.serverUrl}`))
     console.log(chalk.gray(`API Key: ${config.apiKey.substring(0, 12)}...`))
-  } catch (error) {
+  } catch (_error) {
     console.log(chalk.red('❌ Invalid credentials'))
     console.log(chalk.gray('Run "entente login" to re-authenticate'))
   }
 }
 
-async function startCallbackServer(): Promise<{ server: any; callbackUrl: string }> {
+async function startCallbackServer(): Promise<{ server: Server; callbackUrl: string }> {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
-      const url = new URL(req.url!, `http://localhost:${CALLBACK_PORT}`)
+      if (!req.url) {
+        res.writeHead(400)
+        res.end('Bad Request')
+        return
+      }
+      const url = new URL(req.url, `http://localhost:${CALLBACK_PORT}`)
 
       if (url.pathname === '/callback') {
         const apiKey = url.searchParams.get('key')
@@ -136,7 +146,7 @@ async function startCallbackServer(): Promise<{ server: any; callbackUrl: string
       })
     })
 
-    server.on('error', (err: any) => {
+    server.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
         reject(
           new Error(
@@ -150,7 +160,7 @@ async function startCallbackServer(): Promise<{ server: any; callbackUrl: string
   })
 }
 
-async function waitForCallback(server: any): Promise<string | null> {
+async function waitForCallback(server: Server): Promise<string | null> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(
       () => {

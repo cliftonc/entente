@@ -43,7 +43,7 @@ function Deployments() {
     queryFn: () =>
       selectedEnvironment === 'ALL'
         ? deploymentApi.getActiveForAllEnvs()
-        : deploymentApi.getActive(selectedEnvironment + '&include_inactive=true'),
+        : deploymentApi.getActive(`${selectedEnvironment}&include_inactive=true`),
   })
 
   // Filter deployments by provider, consumer, and status
@@ -113,19 +113,19 @@ function Deployments() {
           {[1, 2, 3].map(i => (
             <div key={i} className="stats shadow">
               <div className="stat">
-                <div className="skeleton h-4 w-20 mb-2"></div>
-                <div className="skeleton h-8 w-12 mb-2"></div>
-                <div className="skeleton h-3 w-24"></div>
+                <div className="skeleton h-4 w-20 mb-2" />
+                <div className="skeleton h-8 w-12 mb-2" />
+                <div className="skeleton h-3 w-24" />
               </div>
             </div>
           ))}
         </div>
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <div className="skeleton h-6 w-48 mb-4"></div>
+            <div className="skeleton h-6 w-48 mb-4" />
             <div className="space-y-4">
               {[1, 2, 3].map(i => (
-                <div key={i} className="skeleton h-12 w-full"></div>
+                <div key={i} className="skeleton h-12 w-full" />
               ))}
             </div>
           </div>
@@ -148,7 +148,7 @@ function Deployments() {
               strokeLinejoin="round"
               strokeWidth="2"
               d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
+            />
           </svg>
           <span>Error loading deployments data</span>
         </div>
@@ -357,7 +357,7 @@ function Deployments() {
                             className={`w-2 h-2 rounded-full ${
                               deployment.active ? 'bg-success' : 'bg-error'
                             }`}
-                          ></div>
+                          />
                           <span className="text-sm">
                             {deployment.active ? 'Active' : 'Inactive'}
                           </span>

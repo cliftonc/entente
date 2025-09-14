@@ -15,7 +15,7 @@ serve(
   },
   info => {
     console.log(`🏰 Castle Client is running on http://localhost:${info.port}`)
-    console.log('🔧 Health check available at: http://localhost:' + info.port + '/health')
-    console.log('📋 French Heritage API at: http://localhost:' + info.port + '/french-heritage')
+    console.log(`🔧 Health check available at: http://localhost:${info.port}/health`)
+    console.log(`📋 French Heritage API at: http://localhost:${info.port}/french-heritage`)
   }
 )

@@ -1,3 +1,4 @@
+import type { Fixture } from '@entente/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -30,7 +31,7 @@ function Fixtures() {
   } = useQuery({
     queryKey: ['fixtures', providerFilter, statusFilter],
     queryFn: () => {
-      const params: any = {}
+      const params: { provider?: string; status?: string } = {}
       if (providerFilter) params.provider = providerFilter
       if (statusFilter !== 'all') params.status = statusFilter
       return fixtureApi.getAll(params)
@@ -102,7 +103,7 @@ function Fixtures() {
 
   // Approve all mutations
   const approveAllMutation = useMutation({
-    mutationFn: async (fixtures: any[]) => {
+    mutationFn: async (fixtures: Fixture[]) => {
       const promises = fixtures.map(fixture =>
         fixtureApi.approve(fixture.id, user?.username || 'unknown')
       )
@@ -113,15 +114,15 @@ function Fixtures() {
     },
   })
 
-  const handleApprove = (fixture: any) => {
+  const handleApprove = (fixture: Fixture) => {
     approveMutation.mutate({ id: fixture.id })
   }
 
-  const handleReject = (fixture: any) => {
+  const handleReject = (fixture: Fixture) => {
     rejectMutation.mutate({ id: fixture.id })
   }
 
-  const handleRevoke = (fixture: any) => {
+  const handleRevoke = (fixture: Fixture) => {
     revokeMutation.mutate({ id: fixture.id })
   }
 
@@ -139,15 +140,15 @@ function Fixtures() {
             <h1 className="text-3xl font-bold text-base-content">Fixtures</h1>
             <p className="text-base-content/70 mt-1">Manage test fixtures and approve proposals</p>
           </div>
-          <div className="skeleton h-10 w-32"></div>
+          <div className="skeleton h-10 w-32" />
         </div>
-        <div className="skeleton h-16 w-full"></div>
+        <div className="skeleton h-16 w-full" />
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <div className="skeleton h-6 w-48 mb-4"></div>
+            <div className="skeleton h-6 w-48 mb-4" />
             <div className="space-y-4">
               {[1, 2, 3].map(i => (
-                <div key={i} className="skeleton h-12 w-full"></div>
+                <div key={i} className="skeleton h-12 w-full" />
               ))}
             </div>
           </div>
@@ -170,7 +171,7 @@ function Fixtures() {
               strokeLinejoin="round"
               strokeWidth="2"
               d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
+            />
           </svg>
           <span>Error loading fixtures data</span>
         </div>
@@ -202,7 +203,7 @@ function Fixtures() {
           onClick={handleApproveAll}
         >
           {approveAllMutation.isPending ? (
-            <span className="loading loading-spinner loading-sm mr-2"></span>
+            <span className="loading loading-spinner loading-sm mr-2" />
           ) : (
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -351,7 +352,7 @@ function Fixtures() {
                               >
                                 {approveMutation.isPending &&
                                 approveMutation.variables?.id === fixture.id ? (
-                                  <span className="loading loading-spinner loading-xs"></span>
+                                  <span className="loading loading-spinner loading-xs" />
                                 ) : (
                                   'Approve'
                                 )}
@@ -366,7 +367,7 @@ function Fixtures() {
                               >
                                 {rejectMutation.isPending &&
                                 rejectMutation.variables?.id === fixture.id ? (
-                                  <span className="loading loading-spinner loading-xs"></span>
+                                  <span className="loading loading-spinner loading-xs" />
                                 ) : (
                                   'Reject'
                                 )}
@@ -383,7 +384,7 @@ function Fixtures() {
                             >
                               {revokeMutation.isPending &&
                               revokeMutation.variables?.id === fixture.id ? (
-                                <span className="loading loading-spinner loading-xs"></span>
+                                <span className="loading loading-spinner loading-xs" />
                               ) : (
                                 'Reject'
                               )}
@@ -399,7 +400,7 @@ function Fixtures() {
                             >
                               {approveMutation.isPending &&
                               approveMutation.variables?.id === fixture.id ? (
-                                <span className="loading loading-spinner loading-xs"></span>
+                                <span className="loading loading-spinner loading-xs" />
                               ) : (
                                 'Approve'
                               )}

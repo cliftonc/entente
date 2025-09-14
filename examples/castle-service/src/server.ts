@@ -13,9 +13,9 @@ serve(
   },
   info => {
     console.log(`🏰 Castle Service is running on http://localhost:${info.port}`)
-    console.log('📚 Swagger UI documentation: http://localhost:' + info.port + '/docs')
-    console.log('📋 OpenAPI specification: http://localhost:' + info.port + '/openapi.json')
-    console.log('🔧 Health check: http://localhost:' + info.port + '/health')
-    console.log('🚀 Root redirects to docs: http://localhost:' + info.port + '/')
+    console.log(`📚 Swagger UI documentation: http://localhost:${info.port}/docs`)
+    console.log(`📋 OpenAPI specification: http://localhost:${info.port}/openapi.json`)
+    console.log(`🔧 Health check: http://localhost:${info.port}/health`)
+    console.log(`🚀 Root redirects to docs: http://localhost:${info.port}/`)
   }
 )

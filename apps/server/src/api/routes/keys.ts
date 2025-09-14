@@ -1,8 +1,9 @@
-import { createHash } from 'crypto'
+import { createHash } from 'node:crypto'
 import type { ApiKey, CreateKeyRequest, RevokeKeyRequest } from '@entente/types'
 import { and, desc, eq, isNull } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { keys } from '../../db/schema'
+import type { DbConnection } from '../../db/types'
 import { generateApiKey } from '../utils/keys'
 
 export const keysRouter = new Hono()
@@ -162,13 +163,13 @@ keysRouter.delete('/:id', async c => {
 })
 
 // Update key usage (internal function for middleware)
-export async function updateKeyUsage(db: any, keyHash: string): Promise<void> {
+export async function updateKeyUsage(db: DbConnection, keyHash: string): Promise<void> {
   await db.update(keys).set({ lastUsedAt: new Date() }).where(eq(keys.keyHash, keyHash))
 }
 
 // Validate API key (internal function for middleware)
 export async function validateApiKey(
-  db: any,
+  db: DbConnection,
   apiKey: string
 ): Promise<{ valid: boolean; tenantId?: string; permissions?: string[] }> {
   if (!apiKey.startsWith('ent_')) {

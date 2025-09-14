@@ -234,7 +234,7 @@ authRouter.get('/session', async c => {
 
   // Try API key authentication first
   const authHeader = c.req.header('Authorization')
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  if (authHeader?.startsWith('Bearer ')) {
     const apiKey = authHeader.substring(7)
     const { validateApiKey } = await import('./keys')
     const validation = await validateApiKey(db, apiKey)

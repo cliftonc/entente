@@ -1,5 +1,11 @@
 import { generateFixtureHash, validateFixtureData } from '@entente/fixtures'
-import type { Fixture, FixtureProposal, FixtureUpdate } from '@entente/types'
+import type {
+  Fixture,
+  FixtureCreation,
+  FixtureData,
+  FixtureProposal,
+  FixtureUpdate,
+} from '@entente/types'
 import { Hono } from 'hono'
 
 import { and, asc, desc, eq } from 'drizzle-orm'
@@ -37,11 +43,11 @@ fixturesRouter.post('/', async c => {
       service: existingFixture.service,
       serviceVersion: existingFixture.serviceVersion,
       operation: existingFixture.operation,
-      status: existingFixture.status as any,
-      source: existingFixture.source as any,
+      status: existingFixture.status as 'draft' | 'approved' | 'deprecated',
+      source: existingFixture.source as 'consumer' | 'provider' | 'manual',
       priority: existingFixture.priority,
-      data: existingFixture.data as any,
-      createdFrom: existingFixture.createdFrom as any,
+      data: existingFixture.data as FixtureData,
+      createdFrom: existingFixture.createdFrom as FixtureCreation,
       createdAt: existingFixture.createdAt,
       approvedBy: existingFixture.approvedBy || undefined,
       approvedAt: existingFixture.approvedAt || undefined,
@@ -78,11 +84,11 @@ fixturesRouter.post('/', async c => {
       service: newFixture.service,
       serviceVersion: newFixture.serviceVersion,
       operation: newFixture.operation,
-      status: newFixture.status as any,
-      source: newFixture.source as any,
+      status: newFixture.status as 'draft' | 'approved' | 'deprecated',
+      source: newFixture.source as 'consumer' | 'provider' | 'manual',
       priority: newFixture.priority,
-      data: newFixture.data as any,
-      createdFrom: newFixture.createdFrom as any,
+      data: newFixture.data as FixtureData,
+      createdFrom: newFixture.createdFrom as FixtureCreation,
       createdAt: newFixture.createdAt,
       approvedBy: newFixture.approvedBy || undefined,
       approvedAt: newFixture.approvedAt || undefined,
@@ -90,9 +96,17 @@ fixturesRouter.post('/', async c => {
     }
 
     return c.json(fixture, 201)
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle unique constraint violation (race condition)
-    if (error.code === '23505' && error.constraint?.includes('tenant_hash_unique')) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === '23505' &&
+      'constraint' in error &&
+      typeof error.constraint === 'string' &&
+      error.constraint.includes('tenant_hash_unique')
+    ) {
       const existingFixture = await db.query.fixtures.findFirst({
         where: and(eq(fixtures.tenantId, tenantId), eq(fixtures.hash, hash)),
       })
@@ -103,11 +117,11 @@ fixturesRouter.post('/', async c => {
           service: existingFixture.service,
           serviceVersion: existingFixture.serviceVersion,
           operation: existingFixture.operation,
-          status: existingFixture.status as any,
-          source: existingFixture.source as any,
+          status: existingFixture.status as 'draft' | 'approved' | 'deprecated',
+          source: existingFixture.source as 'consumer' | 'provider' | 'manual',
           priority: existingFixture.priority,
-          data: existingFixture.data as any,
-          createdFrom: existingFixture.createdFrom as any,
+          data: existingFixture.data as FixtureData,
+          createdFrom: existingFixture.createdFrom as FixtureCreation,
           approvedBy: existingFixture.approvedBy || undefined,
           approvedAt: existingFixture.approvedAt || undefined,
           notes: existingFixture.notes || undefined,
@@ -136,7 +150,7 @@ fixturesRouter.get('/', async c => {
 
   // Filter by status if provided
   if (status) {
-    whereConditions.push(eq(fixtures.status, status as any))
+    whereConditions.push(eq(fixtures.status, status as 'draft' | 'approved' | 'deprecated'))
   }
 
   // The service field can be either a provider or consumer name
@@ -154,11 +168,11 @@ fixturesRouter.get('/', async c => {
     service: f.service,
     serviceVersion: f.serviceVersion,
     operation: f.operation,
-    status: f.status as any,
-    source: f.source as any,
+    status: f.status as 'draft' | 'approved' | 'deprecated',
+    source: f.source as 'consumer' | 'provider' | 'manual',
     priority: f.priority,
-    data: f.data as any,
-    createdFrom: f.createdFrom as any,
+    data: f.data as FixtureData,
+    createdFrom: f.createdFrom as FixtureCreation,
     createdAt: f.createdAt,
     approvedBy: f.approvedBy || undefined,
     approvedAt: f.approvedAt || undefined,
@@ -194,11 +208,11 @@ fixturesRouter.get('/pending', async c => {
     service: f.service,
     serviceVersion: f.serviceVersion,
     operation: f.operation,
-    status: f.status as any,
-    source: f.source as any,
+    status: f.status as 'draft' | 'approved' | 'deprecated',
+    source: f.source as 'consumer' | 'provider' | 'manual',
     priority: f.priority,
-    data: f.data as any,
-    createdFrom: f.createdFrom as any,
+    data: f.data as FixtureData,
+    createdFrom: f.createdFrom as FixtureCreation,
     createdAt: f.createdAt,
     approvedBy: f.approvedBy || undefined,
     approvedAt: f.approvedAt || undefined,
@@ -220,7 +234,7 @@ fixturesRouter.get('/service/:service', async c => {
   const whereConditions = [
     eq(fixtures.tenantId, tenantId),
     eq(fixtures.service, service),
-    eq(fixtures.status, status as any),
+    eq(fixtures.status, status as 'draft' | 'approved' | 'deprecated'),
   ]
 
   if (version) whereConditions.push(eq(fixtures.serviceVersion, version))
@@ -235,11 +249,11 @@ fixturesRouter.get('/service/:service', async c => {
     service: f.service,
     serviceVersion: f.serviceVersion,
     operation: f.operation,
-    status: f.status as any,
-    source: f.source as any,
+    status: f.status as 'draft' | 'approved' | 'deprecated',
+    source: f.source as 'consumer' | 'provider' | 'manual',
     priority: f.priority,
-    data: f.data as any,
-    createdFrom: f.createdFrom as any,
+    data: f.data as FixtureData,
+    createdFrom: f.createdFrom as FixtureCreation,
     createdAt: f.createdAt,
     approvedBy: f.approvedBy || undefined,
     approvedAt: f.approvedAt || undefined,
@@ -269,11 +283,11 @@ fixturesRouter.get('/by-id/:id', async c => {
     service: dbFixture.service,
     serviceVersion: dbFixture.serviceVersion,
     operation: dbFixture.operation,
-    status: dbFixture.status as any,
-    source: dbFixture.source as any,
+    status: dbFixture.status as 'draft' | 'approved' | 'deprecated',
+    source: dbFixture.source as 'consumer' | 'provider' | 'manual',
     priority: dbFixture.priority,
-    data: dbFixture.data as any,
-    createdFrom: dbFixture.createdFrom as any,
+    data: dbFixture.data as FixtureData,
+    createdFrom: dbFixture.createdFrom as FixtureCreation,
     createdAt: dbFixture.createdAt,
     approvedBy: dbFixture.approvedBy || undefined,
     approvedAt: dbFixture.approvedAt || undefined,
@@ -303,7 +317,7 @@ fixturesRouter.get('/:operation', async c => {
       eq(fixtures.operation, operation),
       eq(fixtures.service, service),
       eq(fixtures.serviceVersion, version),
-      eq(fixtures.status, status as any)
+      eq(fixtures.status, status as 'draft' | 'approved' | 'deprecated')
     ),
     orderBy: [desc(fixtures.priority), desc(fixtures.createdAt)],
   })
@@ -313,11 +327,11 @@ fixturesRouter.get('/:operation', async c => {
     service: f.service,
     serviceVersion: f.serviceVersion,
     operation: f.operation,
-    status: f.status as any,
-    source: f.source as any,
+    status: f.status as 'draft' | 'approved' | 'deprecated',
+    source: f.source as 'consumer' | 'provider' | 'manual',
     priority: f.priority,
-    data: f.data as any,
-    createdFrom: f.createdFrom as any,
+    data: f.data as FixtureData,
+    createdFrom: f.createdFrom as FixtureCreation,
     createdAt: f.createdAt,
     approvedBy: f.approvedBy || undefined,
     approvedAt: f.approvedAt || undefined,
@@ -359,11 +373,11 @@ fixturesRouter.post('/:id/approve', async c => {
     service: updatedFixture.service,
     serviceVersion: updatedFixture.serviceVersion,
     operation: updatedFixture.operation,
-    status: updatedFixture.status as any,
-    source: updatedFixture.source as any,
+    status: updatedFixture.status as 'draft' | 'approved' | 'deprecated',
+    source: updatedFixture.source as 'consumer' | 'provider' | 'manual',
     priority: updatedFixture.priority,
-    data: updatedFixture.data as any,
-    createdFrom: updatedFixture.createdFrom as any,
+    data: updatedFixture.data as FixtureData,
+    createdFrom: updatedFixture.createdFrom as FixtureCreation,
     createdAt: updatedFixture.createdAt,
     approvedBy: updatedFixture.approvedBy || undefined,
     approvedAt: updatedFixture.approvedAt || undefined,
@@ -386,7 +400,12 @@ fixturesRouter.put('/:id', async c => {
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
-  const updateData: any = {}
+  const updateData: Partial<{
+    status: 'draft' | 'approved' | 'deprecated'
+    priority: number
+    data: FixtureData
+    notes: string
+  }> = {}
   if (updates.status) updateData.status = updates.status
   if (updates.priority !== undefined) updateData.priority = updates.priority
   if (updates.data) updateData.data = updates.data
@@ -407,11 +426,11 @@ fixturesRouter.put('/:id', async c => {
     service: updatedFixture.service,
     serviceVersion: updatedFixture.serviceVersion,
     operation: updatedFixture.operation,
-    status: updatedFixture.status as any,
-    source: updatedFixture.source as any,
+    status: updatedFixture.status as 'draft' | 'approved' | 'deprecated',
+    source: updatedFixture.source as 'consumer' | 'provider' | 'manual',
     priority: updatedFixture.priority,
-    data: updatedFixture.data as any,
-    createdFrom: updatedFixture.createdFrom as any,
+    data: updatedFixture.data as FixtureData,
+    createdFrom: updatedFixture.createdFrom as FixtureCreation,
     createdAt: updatedFixture.createdAt,
     approvedBy: updatedFixture.approvedBy || undefined,
     approvedAt: updatedFixture.approvedAt || undefined,
@@ -455,11 +474,11 @@ fixturesRouter.post('/:id/reject', async c => {
     service: updatedFixture.service,
     serviceVersion: updatedFixture.serviceVersion,
     operation: updatedFixture.operation,
-    status: updatedFixture.status as any,
-    source: updatedFixture.source as any,
+    status: updatedFixture.status as 'draft' | 'approved' | 'deprecated',
+    source: updatedFixture.source as 'consumer' | 'provider' | 'manual',
     priority: updatedFixture.priority,
-    data: updatedFixture.data as any,
-    createdFrom: updatedFixture.createdFrom as any,
+    data: updatedFixture.data as FixtureData,
+    createdFrom: updatedFixture.createdFrom as FixtureCreation,
     createdAt: updatedFixture.createdAt,
     approvedBy: updatedFixture.approvedBy || undefined,
     approvedAt: updatedFixture.approvedAt || undefined,
@@ -507,11 +526,11 @@ fixturesRouter.post('/:id/revoke', async c => {
     service: updatedFixture.service,
     serviceVersion: updatedFixture.serviceVersion,
     operation: updatedFixture.operation,
-    status: updatedFixture.status as any,
-    source: updatedFixture.source as any,
+    status: updatedFixture.status as 'draft' | 'approved' | 'deprecated',
+    source: updatedFixture.source as 'consumer' | 'provider' | 'manual',
     priority: updatedFixture.priority,
-    data: updatedFixture.data as any,
-    createdFrom: updatedFixture.createdFrom as any,
+    data: updatedFixture.data as FixtureData,
+    createdFrom: updatedFixture.createdFrom as FixtureCreation,
     createdAt: updatedFixture.createdAt,
     approvedBy: updatedFixture.approvedBy || undefined,
     approvedAt: updatedFixture.approvedAt || undefined,

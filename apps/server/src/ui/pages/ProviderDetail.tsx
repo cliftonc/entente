@@ -1,3 +1,4 @@
+import type { ClientInteraction } from '@entente/types'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
@@ -18,53 +19,68 @@ function ProviderDetail() {
     error: providerError,
   } = useQuery({
     queryKey: ['provider', name],
-    queryFn: () => providerApi.getOne(name!),
+    queryFn: () => {
+      if (!name) throw new Error('Provider name is required')
+      return providerApi.getOne(name)
+    },
     enabled: !!name,
   })
 
   const { data: verificationResults, isLoading: verificationLoading } = useQuery({
     queryKey: ['verification', 'history', name],
-    queryFn: () => verificationApi.getByProvider(name!),
+    queryFn: () => {
+      if (!name) throw new Error('Provider name is required')
+      return verificationApi.getByProvider(name)
+    },
     enabled: !!name,
   })
 
   const { data: deployments, isLoading: deploymentsLoading } = useQuery({
     queryKey: ['deployments', name],
-    queryFn: () => deploymentApi.getHistory(name!),
+    queryFn: () => {
+      if (!name) throw new Error('Provider name is required')
+      return deploymentApi.getHistory(name)
+    },
     enabled: !!name,
   })
 
   const { data: fixtures, isLoading: fixturesLoading } = useQuery({
     queryKey: ['fixtures', 'all', name],
-    queryFn: () => fixtureApi.getAllByService(name!),
+    queryFn: () => {
+      if (!name) throw new Error('Provider name is required')
+      return fixtureApi.getAllByService(name)
+    },
     enabled: !!name,
   })
 
   // Fetch interactions for this provider (interactions where this service is the provider)
   const { data: interactions, isLoading: interactionsLoading } = useQuery({
     queryKey: ['interactions', 'provider', name],
-    queryFn: () => interactionApi.getByService(name!, 'latest'),
+    queryFn: () => {
+      if (!name) throw new Error('Provider name is required')
+      return interactionApi.getByService(name, 'latest')
+    },
     enabled: !!name,
   })
 
   if (providerLoading) {
     return (
       <div className="space-y-6">
-        <div className="skeleton h-8 w-64"></div>
+        <div className="skeleton h-8 w-64" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="card bg-base-100 shadow-xl">
               <div className="card-body">
-                <div className="skeleton h-6 w-32 mb-4"></div>
-                <div className="skeleton h-20 w-full"></div>
+                <div className="skeleton h-6 w-32 mb-4" />
+                <div className="skeleton h-20 w-full" />
               </div>
             </div>
           </div>
           <div className="space-y-4">
             <div className="card bg-base-100 shadow-xl">
               <div className="card-body">
-                <div className="skeleton h-6 w-24 mb-4"></div>
-                <div className="skeleton h-16 w-full"></div>
+                <div className="skeleton h-6 w-24 mb-4" />
+                <div className="skeleton h-16 w-full" />
               </div>
             </div>
           </div>
@@ -83,7 +99,7 @@ function ProviderDetail() {
     )
   }
 
-  const recentVerification = verificationResults?.[0]
+  const _recentVerification = verificationResults?.[0]
   const activeDeployments = deployments?.filter(d => d.active === true) || []
   const pendingFixtures = fixtures?.filter(f => f.status === 'pending') || []
 
@@ -175,7 +191,7 @@ function ProviderDetail() {
               </div>
 
               {verificationLoading ? (
-                <div className="skeleton h-16 w-full"></div>
+                <div className="skeleton h-16 w-full" />
               ) : verificationResults && verificationResults.length > 0 ? (
                 <div className="space-y-3">
                   {verificationResults.slice(0, 3).map(verification => (
@@ -276,8 +292,8 @@ function ProviderDetail() {
 
               {interactionsLoading ? (
                 <div className="space-y-3">
-                  <div className="skeleton h-16 w-full"></div>
-                  <div className="skeleton h-16 w-full"></div>
+                  <div className="skeleton h-16 w-full" />
+                  <div className="skeleton h-16 w-full" />
                 </div>
               ) : interactions && interactions.length > 0 ? (
                 <div className="space-y-4">
@@ -312,7 +328,7 @@ function ProviderDetail() {
                           acc[consumer].push(interaction)
                           return acc
                         },
-                        {} as Record<string, any[]>
+                        {} as Record<string, ClientInteraction[]>
                       )
                     )
                       .slice(0, 3)
@@ -415,7 +431,7 @@ function ProviderDetail() {
                 </Link>
               </div>
               {deploymentsLoading ? (
-                <div className="skeleton h-20 w-full"></div>
+                <div className="skeleton h-20 w-full" />
               ) : activeDeployments.length > 0 ? (
                 <div className="space-y-3">
                   {activeDeployments.slice(0, 3).map((deployment, idx) => (
@@ -491,7 +507,7 @@ function ProviderDetail() {
                 </Link>
               </div>
               {fixturesLoading ? (
-                <div className="skeleton h-16 w-full"></div>
+                <div className="skeleton h-16 w-full" />
               ) : pendingFixtures.length > 0 ? (
                 <div className="space-y-3">
                   {pendingFixtures.slice(0, 3).map(fixture => (

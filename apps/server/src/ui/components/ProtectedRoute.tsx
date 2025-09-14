@@ -14,7 +14,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     return (
       <div className="min-h-screen bg-base-200 flex items-center justify-center">
         <div className="text-center">
-          <span className="loading loading-spinner loading-md text-primary"></span>
+          <span className="loading loading-spinner loading-md text-primary" />
           <p className="mt-2 text-sm text-base-content/70">Checking authentication...</p>
         </div>
       </div>

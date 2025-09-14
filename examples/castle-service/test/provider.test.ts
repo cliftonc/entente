@@ -61,7 +61,7 @@ describe('Castle Service Provider Verification', () => {
       },
     })
 
-    console.log(`\n📊 Provider verification completed`)
+    console.log('\n📊 Provider verification completed')
     console.log(`📋 Total interactions tested: ${results.results.length}`)
 
     const successfulResults = results.results.filter(r => r.success)
@@ -72,9 +72,9 @@ describe('Castle Service Provider Verification', () => {
 
     if (failedResults.length > 0) {
       console.log('\n❌ Failed verifications:')
-      failedResults.forEach(result => {
+      for (const result of failedResults) {
         console.log(`  - ${result.interactionId}: ${result.error}`)
-      })
+      }
     }
 
     // Better assertions

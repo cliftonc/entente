@@ -2,7 +2,7 @@ import { and, desc, eq } from 'drizzle-orm'
 import { db } from './client'
 import * as schema from './schema'
 
-const DEFAULT_TENANT_ID = 'default-tenant'
+const _DEFAULT_TENANT_ID = 'default-tenant'
 
 export async function ensureDefaultTenant() {
   const existing = await db.query.tenants.findFirst({

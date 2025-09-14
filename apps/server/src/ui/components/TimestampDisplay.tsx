@@ -44,7 +44,7 @@ function TimestampDisplay({ timestamp, className = '' }: TimestampDisplayProps) 
   const date = useMemo(() => {
     if (!timestamp) return null
     const parsedDate = timestamp instanceof Date ? timestamp : new Date(timestamp)
-    return isNaN(parsedDate.getTime()) ? null : parsedDate
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate
   }, [timestamp])
 
   const formattedTime = useMemo(() => {

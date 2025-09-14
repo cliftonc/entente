@@ -32,7 +32,7 @@ type UIStore = UIState & UIActions
 
 export const useUIStore = create<UIStore>()(
   devtools(
-    (set, get) => ({
+    (set, _get) => ({
       // Initial state
       sidebarCollapsed: false,
       theme: 'system',

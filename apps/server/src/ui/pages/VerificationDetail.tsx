@@ -1,3 +1,4 @@
+import type { VerificationResult } from '@entente/types'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -7,7 +8,7 @@ import { verificationApi } from '../utils/api'
 
 function VerificationDetail() {
   const { id } = useParams<{ id: string }>()
-  const [selectedResult, setSelectedResult] = useState<any>(null)
+  const [selectedResult, setSelectedResult] = useState<VerificationResult | null>(null)
   const [showModal, setShowModal] = useState(false)
 
   const {
@@ -16,11 +17,14 @@ function VerificationDetail() {
     error,
   } = useQuery({
     queryKey: ['verification', id],
-    queryFn: () => verificationApi.getById(id!),
+    queryFn: () => {
+      if (!id) throw new Error('Verification ID is required')
+      return verificationApi.getById(id)
+    },
     enabled: !!id,
   })
 
-  const openModal = (result: any) => {
+  const openModal = (result: VerificationResult) => {
     setSelectedResult(result)
     setShowModal(true)
   }
@@ -49,10 +53,10 @@ function VerificationDetail() {
 
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <div className="skeleton h-6 w-48 mb-4"></div>
-            <div className="skeleton h-4 w-full mb-2"></div>
-            <div className="skeleton h-4 w-3/4 mb-2"></div>
-            <div className="skeleton h-32 w-full"></div>
+            <div className="skeleton h-6 w-48 mb-4" />
+            <div className="skeleton h-4 w-full mb-2" />
+            <div className="skeleton h-4 w-3/4 mb-2" />
+            <div className="skeleton h-32 w-full" />
           </div>
         </div>
       </div>
@@ -83,7 +87,7 @@ function VerificationDetail() {
               strokeLinejoin="round"
               strokeWidth="2"
               d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
+            />
           </svg>
           <span>Failed to load verification details</span>
         </div>
@@ -115,7 +119,7 @@ function VerificationDetail() {
               strokeLinejoin="round"
               strokeWidth="2"
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"
-            ></path>
+            />
           </svg>
           <span>The requested verification could not be found.</span>
         </div>
@@ -243,7 +247,7 @@ function VerificationDetail() {
                 </thead>
                 <tbody>
                   {verification.results.map((result, index) => (
-                    <tr key={index}>
+                    <tr key={result.interactionId || `result-${index}`}>
                       <td>#{index + 1}</td>
                       <td>
                         <span className="badge badge-outline">
@@ -303,7 +307,10 @@ function VerificationDetail() {
               {verification.results
                 .filter(result => !result.success)
                 .map((result, index) => (
-                  <div key={index} className="card bg-base-100 shadow border border-error/20">
+                  <div
+                    key={result.interactionId || `failed-${index}`}
+                    className="card bg-base-100 shadow border border-error/20"
+                  >
                     <div className="card-body">
                       <div className="font-semibold">
                         {result.interaction?.method || 'Unknown'}{' '}
@@ -397,7 +404,7 @@ function VerificationDetail() {
               </button>
             </div>
           </div>
-          <div className="modal-backdrop" onClick={closeModal}></div>
+          <div className="modal-backdrop" onClick={closeModal} />
         </div>
       )}
     </div>

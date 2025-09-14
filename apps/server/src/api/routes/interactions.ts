@@ -1,14 +1,15 @@
 import { generateInteractionHash } from '@entente/fixtures'
-import type { ClientInteraction } from '@entente/types'
+import type { ClientInfo, ClientInteraction, HTTPRequest, HTTPResponse } from '@entente/types'
 import { and, avg, count, desc, eq, gte } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { interactions, serviceDependencies, services, verificationTasks } from '../../db/schema'
+import type { DbConnection } from '../../db/types'
 
 export const interactionsRouter = new Hono()
 
 // Helper function to create/update verification tasks when interactions are recorded
 async function createVerificationTaskFromInteraction(
-  db: any,
+  db: DbConnection,
   tenantId: string,
   providerId: string | null,
   consumerId: string | null,
@@ -87,9 +88,9 @@ async function createVerificationTaskFromInteraction(
       console.log(
         `✅ Created verification task with ${allInteractions.length} interactions for ${consumerName}@${consumerVersion} -> ${providerName}`
       )
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle unique constraint violation (race condition)
-      if (error.code === '23505') {
+      if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
         console.log(
           `📋 Race condition detected for verification task: ${consumerName}@${consumerVersion} -> ${providerName}`
         )
@@ -102,7 +103,7 @@ async function createVerificationTaskFromInteraction(
 
 // Helper function to create/update verification tasks when interactions are recorded
 async function createDependencyFromInteraction(
-  db: any,
+  db: DbConnection,
   tenantId: string,
   providerId: string | null,
   consumerId: string | null,
@@ -144,9 +145,9 @@ async function createDependencyFromInteraction(
       console.log(
         `✅ Created dependendcy for ${consumerName}@${consumerVersion} -> ${providerName}`
       )
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle unique constraint violation (race condition)
-      if (error.code === '23505') {
+      if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
         console.log(
           `📋 Race condition detected for dependency: ${consumerName}@${consumerVersion} -> ${providerName}`
         )
@@ -200,25 +201,22 @@ interactionsRouter.get('/', async c => {
     .orderBy(desc(interactions.timestamp))
     .limit(limit)
 
-  const clientInteractions: ClientInteraction[] = dbInteractions.map(
-    interaction =>
-      ({
-        id: interaction.id,
-        service: interaction.service,
-        consumer: interaction.consumer,
-        consumerVersion: interaction.consumerVersion,
-        consumerGitSha: interaction.consumerGitSha,
-        consumerGitRepositoryUrl: interaction.consumerGitRepositoryUrl,
-        environment: interaction.environment,
-        operation: interaction.operation,
-        request: interaction.request as any,
-        response: interaction.response as any,
-        timestamp: interaction.timestamp,
-        duration: interaction.duration,
-        clientInfo: interaction.clientInfo as any,
-        provider: interaction.service,
-      }) as any
-  )
+  const clientInteractions: ClientInteraction[] = dbInteractions.map(interaction => ({
+    id: interaction.id,
+    service: interaction.service,
+    consumer: interaction.consumer,
+    consumerVersion: interaction.consumerVersion,
+    consumerGitSha: interaction.consumerGitSha,
+    consumerGitRepositoryUrl: interaction.consumerGitRepositoryUrl,
+    environment: interaction.environment,
+    operation: interaction.operation,
+    request: interaction.request as HTTPRequest,
+    response: interaction.response as HTTPResponse,
+    timestamp: interaction.timestamp,
+    duration: interaction.duration,
+    clientInfo: interaction.clientInfo as ClientInfo,
+    provider: interaction.service,
+  }))
 
   console.log(
     `📋 Retrieved ${clientInteractions.length} interactions with filters: provider=${provider || 'all'}, consumer=${consumer || 'all'}`
@@ -248,11 +246,11 @@ interactionsRouter.get('/by-id/:id', async c => {
     consumerVersion: interaction.consumerVersion,
     environment: interaction.environment,
     operation: interaction.operation,
-    request: interaction.request as any,
-    response: interaction.response as any,
+    request: interaction.request as HTTPRequest,
+    response: interaction.response as HTTPResponse,
     timestamp: interaction.timestamp,
     duration: interaction.duration,
-    clientInfo: interaction.clientInfo as any,
+    clientInfo: interaction.clientInfo as ClientInfo,
   }
 
   return c.json(clientInteraction)
@@ -325,11 +323,11 @@ interactionsRouter.post('/', async c => {
       consumerVersion: existingInteraction.consumerVersion,
       environment: existingInteraction.environment,
       operation: existingInteraction.operation,
-      request: existingInteraction.request as any,
-      response: existingInteraction.response as any,
+      request: existingInteraction.request as HTTPRequest,
+      response: existingInteraction.response as HTTPResponse,
       timestamp: existingInteraction.timestamp,
       duration: existingInteraction.duration,
-      clientInfo: existingInteraction.clientInfo as any,
+      clientInfo: existingInteraction.clientInfo as ClientInfo,
     }
 
     return c.json({ status: 'duplicate', interaction: clientInteraction }, 200)
@@ -363,9 +361,17 @@ interactionsRouter.post('/', async c => {
     )
 
     return c.json({ status: 'recorded', id: newInteraction.id }, 201)
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle unique constraint violation (race condition)
-    if (error.code === '23505' && error.constraint?.includes('tenant_hash_unique')) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === '23505' &&
+      'constraint' in error &&
+      typeof error.constraint === 'string' &&
+      error.constraint.includes('tenant_hash_unique')
+    ) {
       console.log(
         `📋 Race condition detected for interaction: ${interaction.consumer} -> ${interaction.service}.${interaction.operation}`
       )
@@ -382,11 +388,11 @@ interactionsRouter.post('/', async c => {
           consumerVersion: existingInteraction.consumerVersion,
           environment: existingInteraction.environment,
           operation: existingInteraction.operation,
-          request: existingInteraction.request as any,
-          response: existingInteraction.response as any,
+          request: existingInteraction.request as HTTPRequest,
+          response: existingInteraction.response as HTTPResponse,
           timestamp: existingInteraction.timestamp,
           duration: existingInteraction.duration,
-          clientInfo: existingInteraction.clientInfo as any,
+          clientInfo: existingInteraction.clientInfo as ClientInfo,
         }
 
         return c.json({ status: 'duplicate', interaction: clientInteraction }, 200)
@@ -401,7 +407,7 @@ interactionsRouter.post('/', async c => {
 // Get recorded interactions for a service
 interactionsRouter.get('/:service', async c => {
   const service = c.req.param('service')
-  const version = c.req.query('version')
+  const _version = c.req.query('version')
   const consumer = c.req.query('consumer')
   const environment = c.req.query('environment')
 
@@ -428,11 +434,11 @@ interactionsRouter.get('/:service', async c => {
     consumerVersion: interaction.consumerVersion,
     environment: interaction.environment,
     operation: interaction.operation,
-    request: interaction.request as any,
-    response: interaction.response as any,
+    request: interaction.request as HTTPRequest,
+    response: interaction.response as HTTPResponse,
     timestamp: interaction.timestamp,
     duration: interaction.duration,
-    clientInfo: interaction.clientInfo as any,
+    clientInfo: interaction.clientInfo as ClientInfo,
   }))
 
   return c.json(clientInteractions)
@@ -441,7 +447,7 @@ interactionsRouter.get('/:service', async c => {
 // Get interaction statistics
 interactionsRouter.get('/:service/stats', async c => {
   const service = c.req.param('service')
-  const version = c.req.query('version')
+  const _version = c.req.query('version')
   const days = Number.parseInt(c.req.query('days') || '7')
 
   const { tenantId } = c.get('session')
@@ -544,11 +550,11 @@ interactionsRouter.get('/consumer/:consumer', async c => {
     consumerVersion: interaction.consumerVersion,
     environment: interaction.environment,
     operation: interaction.operation,
-    request: interaction.request as any,
-    response: interaction.response as any,
+    request: interaction.request as HTTPRequest,
+    response: interaction.response as HTTPResponse,
     timestamp: interaction.timestamp,
     duration: interaction.duration,
-    clientInfo: interaction.clientInfo as any,
+    clientInfo: interaction.clientInfo as ClientInfo,
     provider: interaction.service, // Add provider field for consistency
   }))
 
@@ -664,12 +670,22 @@ interactionsRouter.post('/batch', async c => {
         const pairKey = `${consumer.id}:${interaction.consumerVersion}:${provider.id}`
         consumerProviderPairs.add(pairKey)
       }
-    } catch (error: any) {
-      if (error.code === '23505' && error.constraint?.includes('tenant_hash_unique')) {
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === '23505' &&
+        'constraint' in error &&
+        typeof error.constraint === 'string' &&
+        error.constraint.includes('tenant_hash_unique')
+      ) {
         results.duplicates++
       } else {
         results.errors++
-        console.error(`Failed to record interaction: ${error.message}`)
+        console.error(
+          `Failed to record interaction: ${error instanceof Error ? error.message : String(error)}`
+        )
       }
     }
   }
@@ -712,8 +728,10 @@ interactionsRouter.post('/batch', async c => {
           consumerVersion
         )
       }
-    } catch (error: any) {
-      console.error(`Failed to create verification task for ${pairKey}: ${error.message}`)
+    } catch (error: unknown) {
+      console.error(
+        `Failed to create verification task for ${pairKey}: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
   }
 

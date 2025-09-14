@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises'
 import { createFixtureManager } from '@entente/fixtures'
 import type {
   CanIDeployOptions,
@@ -13,7 +14,6 @@ import type {
   UploadOptions,
 } from '@entente/types'
 import chalk from 'chalk'
-import fs from 'fs/promises'
 import { getApiKey, getServerUrl } from './config.js'
 import { getGitRepositoryUrl, getGitSha } from './git-utils.js'
 
@@ -52,7 +52,7 @@ export const uploadSpec = async (options: UploadOptions): Promise<void> => {
   const { service, version, branch = 'main', environment, spec: specPath } = options
 
   // Read OpenAPI spec from file
-  const fs = await import('fs/promises')
+  const fs = await import('node:fs/promises')
 
   let spec: OpenAPISpec
   try {
@@ -79,10 +79,10 @@ export const uploadSpec = async (options: UploadOptions): Promise<void> => {
       )
 
       // Try to find package.json in current directory
-      let packageJson: Record<string, unknown> = {}
+      let _packageJson: Record<string, unknown> = {}
       try {
         const packageContent = await fs.readFile('./package.json', 'utf-8')
-        packageJson = JSON.parse(packageContent)
+        _packageJson = JSON.parse(packageContent)
         console.log(
           chalk.blue('📦'),
           `Found package.json, registering provider service ${service}...`
@@ -94,10 +94,10 @@ export const uploadSpec = async (options: UploadOptions): Promise<void> => {
           packagePath: './package.json',
           description: `Auto-registered provider for ${service}`,
         })
-      } catch (pkgError) {
+      } catch (_pkgError) {
         console.log(
           chalk.yellow('⚠️'),
-          `No package.json found, creating minimal provider registration...`
+          'No package.json found, creating minimal provider registration...'
         )
 
         // Create minimal provider registration
@@ -249,29 +249,28 @@ export const approveFixtures = async (options: {
   if (testRun) {
     // Bulk approve fixtures from a test run
     return fixtureManager.bulkApprove(testRun, approver)
-  } else {
-    // Get pending fixtures and approve them one by one
-    const pendingFixtures = await fixtureManager.getPending(service)
-
-    let approvedCount = 0
-    for (const fixture of pendingFixtures) {
-      try {
-        await fixtureManager.approve(fixture.id, approver, 'CLI bulk approval')
-        approvedCount++
-      } catch (error) {
-        console.error(`Failed to approve fixture ${fixture.id}:`, error)
-      }
-    }
-
-    return approvedCount
   }
+  // Get pending fixtures and approve them one by one
+  const pendingFixtures = await fixtureManager.getPending(service)
+
+  let approvedCount = 0
+  for (const fixture of pendingFixtures) {
+    try {
+      await fixtureManager.approve(fixture.id, approver, 'CLI bulk approval')
+      approvedCount++
+    } catch (error) {
+      console.error(`Failed to approve fixture ${fixture.id}:`, error)
+    }
+  }
+
+  return approvedCount
 }
 
 export const listFixtures = async (options: {
   service?: string
   status?: string
 }): Promise<void> => {
-  const { service, status = 'draft' } = options
+  const { service } = options
   const serviceUrl = await getServerUrl()
   const apiKey = await getApiKey()
 

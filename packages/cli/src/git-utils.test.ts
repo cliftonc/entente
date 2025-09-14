@@ -16,9 +16,9 @@ describe('Git Utilities', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // Reset environment variables
-    delete process.env.COMMIT_SHA
-    delete process.env.GITHUB_SHA
-    delete process.env.GIT_COMMIT
+    process.env.COMMIT_SHA = undefined
+    process.env.GITHUB_SHA = undefined
+    process.env.GIT_COMMIT = undefined
   })
 
   describe('getGitSha', () => {
@@ -57,7 +57,7 @@ describe('Git Utilities', () => {
     })
 
     it('should read SHA from git HEAD file when direct SHA', () => {
-      mockExistsSync.mockImplementation((path) => {
+      mockExistsSync.mockImplementation(path => {
         const pathStr = path.toString()
         return pathStr.includes('.git') && (pathStr.endsWith('/.git') || pathStr.endsWith('/HEAD'))
       })
@@ -73,11 +73,13 @@ describe('Git Utilities', () => {
     })
 
     it('should follow reference when HEAD points to branch', () => {
-      mockExistsSync.mockImplementation((path) => {
+      mockExistsSync.mockImplementation(path => {
         const pathStr = path.toString()
         return (
           pathStr.includes('.git') &&
-          (pathStr.endsWith('/.git') || pathStr.endsWith('/HEAD') || pathStr.includes('/refs/heads/main'))
+          (pathStr.endsWith('/.git') ||
+            pathStr.endsWith('/HEAD') ||
+            pathStr.includes('/refs/heads/main'))
         )
       })
       mockReadFileSync
@@ -106,7 +108,7 @@ describe('Git Utilities', () => {
     })
 
     it('should return null if HEAD file not found', () => {
-      mockExistsSync.mockImplementation((path) => {
+      mockExistsSync.mockImplementation(path => {
         const pathStr = path.toString()
         return pathStr.endsWith('/.git')
       })
@@ -119,7 +121,7 @@ describe('Git Utilities', () => {
     })
 
     it('should return null if branch reference file not found', () => {
-      mockExistsSync.mockImplementation((path) => {
+      mockExistsSync.mockImplementation(path => {
         const pathStr = path.toString()
         return pathStr.endsWith('/.git') || pathStr.endsWith('/HEAD')
       })
@@ -268,7 +270,7 @@ describe('Git Utilities', () => {
 
   describe('Git Directory Walking', () => {
     it('should find .git directory in parent directories', () => {
-      mockExistsSync.mockImplementation((path) => {
+      mockExistsSync.mockImplementation(path => {
         const pathStr = path.toString()
         return pathStr.includes('/parent/.git')
       })

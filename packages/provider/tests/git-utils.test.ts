@@ -12,9 +12,9 @@ describe('getGitSha', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // Clear environment variables
-    delete process.env.COMMIT_SHA
-    delete process.env.GITHUB_SHA
-    delete process.env.GIT_COMMIT
+    process.env.COMMIT_SHA = undefined
+    process.env.GITHUB_SHA = undefined
+    process.env.GIT_COMMIT = undefined
   })
 
   afterEach(() => {
@@ -56,7 +56,7 @@ describe('getGitSha', () => {
   })
 
   it('should read from .git/HEAD when no env vars are set', async () => {
-    const { existsSync, readFileSync } = vi.mocked(await import('fs'))
+    const { existsSync, readFileSync } = vi.mocked(await import('node:fs'))
 
     // Mock finding .git directory
     existsSync.mockImplementation(path => {
@@ -77,7 +77,7 @@ describe('getGitSha', () => {
   })
 
   it('should follow ref when HEAD points to a branch', async () => {
-    const { existsSync, readFileSync } = vi.mocked(await import('fs'))
+    const { existsSync, readFileSync } = vi.mocked(await import('node:fs'))
 
     // Mock finding .git directory
     existsSync.mockReturnValue(true)
@@ -101,7 +101,7 @@ describe('getGitSha', () => {
   })
 
   it('should return null when .git directory is not found', async () => {
-    const { existsSync } = vi.mocked(await import('fs'))
+    const { existsSync } = vi.mocked(await import('node:fs'))
     existsSync.mockReturnValue(false)
 
     const result = getGitSha()
@@ -110,7 +110,7 @@ describe('getGitSha', () => {
   })
 
   it('should return null when HEAD file does not exist', async () => {
-    const { existsSync } = vi.mocked(await import('fs'))
+    const { existsSync } = vi.mocked(await import('node:fs'))
 
     existsSync.mockImplementation(path => {
       if (typeof path === 'string' && path.includes('.git') && !path.includes('HEAD')) {
@@ -125,7 +125,7 @@ describe('getGitSha', () => {
   })
 
   it('should return null when referenced branch file does not exist', async () => {
-    const { existsSync, readFileSync } = vi.mocked(await import('fs'))
+    const { existsSync, readFileSync } = vi.mocked(await import('node:fs'))
 
     existsSync.mockImplementation(path => {
       if (typeof path === 'string' && path.includes('.git') && !path.includes('refs/heads')) {
@@ -142,7 +142,7 @@ describe('getGitSha', () => {
   })
 
   it('should handle file system errors gracefully', async () => {
-    const { existsSync } = vi.mocked(await import('fs'))
+    const { existsSync } = vi.mocked(await import('node:fs'))
     existsSync.mockImplementation(() => {
       throw new Error('File system error')
     })
@@ -153,7 +153,7 @@ describe('getGitSha', () => {
   })
 
   it('should handle read file errors gracefully', async () => {
-    const { existsSync, readFileSync } = vi.mocked(await import('fs'))
+    const { existsSync, readFileSync } = vi.mocked(await import('node:fs'))
     existsSync.mockReturnValue(true)
     readFileSync.mockImplementation(() => {
       throw new Error('Read error')
@@ -165,7 +165,7 @@ describe('getGitSha', () => {
   })
 
   it('should traverse up directory tree to find .git', async () => {
-    const { existsSync } = vi.mocked(await import('fs'))
+    const { existsSync } = vi.mocked(await import('node:fs'))
 
     // Mock the existsSync to return false for all paths (simulating no .git found)
     existsSync.mockReturnValue(false)

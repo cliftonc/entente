@@ -1,6 +1,6 @@
-import { execSync } from 'child_process'
-import { existsSync, readFileSync } from 'fs'
-import { join } from 'path'
+import { execSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import chalk from 'chalk'
 
 export interface GitInfo {
@@ -46,7 +46,7 @@ export function getGitSha(): string | null {
 
     // HEAD contains a direct SHA
     return head
-  } catch (error) {
+  } catch (_error) {
     console.log(
       chalk.yellow('⚠️'),
       'Could not get git SHA - not in a git repository or git not available'
@@ -72,7 +72,7 @@ export async function getGitRepositoryUrl(): Promise<string | null> {
     }
 
     return remoteUrl
-  } catch (error) {
+  } catch (_error) {
     console.log(chalk.yellow('⚠️'), 'Could not get git repository URL')
     return null
   }

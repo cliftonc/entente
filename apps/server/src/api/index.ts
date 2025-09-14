@@ -1,3 +1,4 @@
+import type { VerificationResult } from '@entente/types'
 import { and, count, desc, eq } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { Hono } from 'hono'
@@ -207,7 +208,7 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
         // Check if all results in the verification passed
         let isVerified = false
         if (verification?.results) {
-          const results = verification.results as any[]
+          const results = verification.results as VerificationResult[]
           isVerified = results.length > 0 && results.every(r => r.success === true)
         }
 
@@ -310,7 +311,7 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
         // Check if all results in the verification passed
         let isVerified = false
         if (verification?.results) {
-          const results = verification.results as any[]
+          const results = verification.results as VerificationResult[]
           isVerified = results.length > 0 && results.every(r => r.success === true)
           console.log(`[DEBUG] All results passed: ${isVerified}`)
         } else {

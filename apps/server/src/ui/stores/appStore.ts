@@ -66,7 +66,7 @@ type AppStore = AppState & AppActions
 
 export const useAppStore = create<AppStore>()(
   devtools(
-    (set, get) => ({
+    (set, _get) => ({
       // Initial state
       services: [],
       interactions: [],

@@ -177,10 +177,18 @@ export const prioritizeFixtures = (fixtures: Fixture[]): Fixture[] => {
 }
 
 // Extract operation ID from OpenAPI spec operations (preferred method)
+// OpenAPI operation from spec
+interface SpecOperation {
+  method: string
+  path: string
+  iid?: string
+  operationId?: string
+}
+
 export const extractOperationFromSpec = (
   method: string,
   path: string,
-  operations: any[]
+  operations: SpecOperation[]
 ): string => {
   if (!operations || operations.length === 0) {
     return extractOperationFromPath(method, path)

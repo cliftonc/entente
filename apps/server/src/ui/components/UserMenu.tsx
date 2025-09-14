@@ -22,10 +22,7 @@ export default function UserMenu() {
           )}
         </div>
       </div>
-      <ul
-        tabIndex={0}
-        className="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow"
-      >
+      <ul className="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow">
         <li className="menu-title">
           <span>{user.name}</span>
           <span className="text-xs opacity-60">@{user.username}</span>

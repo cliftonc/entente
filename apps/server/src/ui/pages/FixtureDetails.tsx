@@ -1,3 +1,4 @@
+import type { HTTPRequest, HTTPResponse } from '@entente/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
@@ -8,7 +9,7 @@ function FixtureDetails() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
+  const _navigate = useNavigate()
 
   const {
     data: fixture,
@@ -16,14 +17,19 @@ function FixtureDetails() {
     error,
   } = useQuery({
     queryKey: ['fixture', id],
-    queryFn: () => fixtureApi.getById(id!),
+    queryFn: () => {
+      if (!id) throw new Error('Fixture ID is required')
+      return fixtureApi.getById(id)
+    },
     enabled: !!id,
   })
 
   // Approve fixture mutation
   const approveMutation = useMutation({
-    mutationFn: ({ notes }: { notes?: string }) =>
-      fixtureApi.approve(id!, user?.username || 'unknown', notes),
+    mutationFn: ({ notes }: { notes?: string }) => {
+      if (!id) throw new Error('Fixture ID is required')
+      return fixtureApi.approve(id, user?.username || 'unknown', notes)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fixture', id] })
       queryClient.invalidateQueries({ queryKey: ['fixtures'] })
@@ -32,8 +38,10 @@ function FixtureDetails() {
 
   // Reject fixture mutation
   const rejectMutation = useMutation({
-    mutationFn: ({ notes }: { notes?: string }) =>
-      fixtureApi.reject(id!, user?.username || 'unknown', notes),
+    mutationFn: ({ notes }: { notes?: string }) => {
+      if (!id) throw new Error('Fixture ID is required')
+      return fixtureApi.reject(id, user?.username || 'unknown', notes)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fixture', id] })
       queryClient.invalidateQueries({ queryKey: ['fixtures'] })
@@ -42,8 +50,10 @@ function FixtureDetails() {
 
   // Revoke fixture mutation
   const revokeMutation = useMutation({
-    mutationFn: ({ notes }: { notes?: string }) =>
-      fixtureApi.revoke(id!, user?.username || 'unknown', notes),
+    mutationFn: ({ notes }: { notes?: string }) => {
+      if (!id) throw new Error('Fixture ID is required')
+      return fixtureApi.revoke(id, user?.username || 'unknown', notes)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fixture', id] })
       queryClient.invalidateQueries({ queryKey: ['fixtures'] })
@@ -85,10 +95,10 @@ function FixtureDetails() {
 
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <div className="skeleton h-6 w-48 mb-4"></div>
-            <div className="skeleton h-4 w-full mb-2"></div>
-            <div className="skeleton h-4 w-3/4 mb-2"></div>
-            <div className="skeleton h-32 w-full"></div>
+            <div className="skeleton h-6 w-48 mb-4" />
+            <div className="skeleton h-4 w-full mb-2" />
+            <div className="skeleton h-4 w-3/4 mb-2" />
+            <div className="skeleton h-32 w-full" />
           </div>
         </div>
       </div>
@@ -119,7 +129,7 @@ function FixtureDetails() {
               strokeLinejoin="round"
               strokeWidth="2"
               d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
+            />
           </svg>
           <span>Failed to load fixture details</span>
         </div>
@@ -151,7 +161,7 @@ function FixtureDetails() {
               strokeLinejoin="round"
               strokeWidth="2"
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"
-            ></path>
+            />
           </svg>
           <span>The requested fixture could not be found.</span>
         </div>
@@ -186,7 +196,7 @@ function FixtureDetails() {
                 disabled={approveMutation.isPending}
               >
                 {approveMutation.isPending ? (
-                  <span className="loading loading-spinner loading-sm mr-2"></span>
+                  <span className="loading loading-spinner loading-sm mr-2" />
                 ) : (
                   <svg
                     className="w-5 h-5 mr-2"
@@ -210,7 +220,7 @@ function FixtureDetails() {
                 disabled={rejectMutation.isPending}
               >
                 {rejectMutation.isPending ? (
-                  <span className="loading loading-spinner loading-sm mr-2"></span>
+                  <span className="loading loading-spinner loading-sm mr-2" />
                 ) : (
                   <svg
                     className="w-5 h-5 mr-2"
@@ -236,7 +246,7 @@ function FixtureDetails() {
               disabled={revokeMutation.isPending}
             >
               {revokeMutation.isPending ? (
-                <span className="loading loading-spinner loading-sm mr-2"></span>
+                <span className="loading loading-spinner loading-sm mr-2" />
               ) : (
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -256,7 +266,7 @@ function FixtureDetails() {
               disabled={approveMutation.isPending}
             >
               {approveMutation.isPending ? (
-                <span className="loading loading-spinner loading-sm mr-2"></span>
+                <span className="loading loading-spinner loading-sm mr-2" />
               ) : (
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -355,8 +365,8 @@ function FixtureDetails() {
         <div className="card-body">
           <h2 className="card-title">HTTP Request & Response</h2>
           {(() => {
-            const request = fixture.data.request as any
-            const response = fixture.data.response as any
+            const request = fixture.data.request as HTTPRequest | undefined
+            const response = fixture.data.response as HTTPResponse | undefined
 
             if (!request && !response) {
               return (

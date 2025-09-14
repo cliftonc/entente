@@ -1,3 +1,4 @@
+import type { VerificationResult } from '@entente/types'
 import { and, count, desc, eq, gte } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { deployments, fixtures, interactions, services, verificationResults } from '../../db/schema'
@@ -71,17 +72,17 @@ statsRouter.get('/dashboard', async c => {
         )
       )
 
-    const totalVerifications = verificationResults30Days.length
+    const _totalVerifications = verificationResults30Days.length
 
     // Calculate actual pass rate from verification results
     let totalTests = 0
     let totalPassed = 0
 
-    verificationResults30Days.forEach(verification => {
-      const results = verification.results as any[]
+    for (const verification of verificationResults30Days) {
+      const results = verification.results as VerificationResult[]
       totalTests += results.length
       totalPassed += results.filter(r => r.success).length
-    })
+    }
 
     const verificationRate = totalTests > 0 ? (totalPassed / totalTests) * 100 : 0
 
@@ -106,19 +107,21 @@ statsRouter.get('/dashboard', async c => {
       { total: number; passed: number; interactions: number }
     >()
 
-    recentVerifications.forEach(verification => {
-      const results = verification.results as any[]
+    for (const verification of recentVerifications) {
+      const results = verification.results as VerificationResult[]
       const serviceName = verification.provider
 
       if (!servicePassRates.has(serviceName)) {
         servicePassRates.set(serviceName, { total: 0, passed: 0, interactions: 0 })
       }
 
-      const serviceStats = servicePassRates.get(serviceName)!
-      serviceStats.total += results.length
-      serviceStats.passed += results.filter(r => r.success).length
-      serviceStats.interactions += 1 // Count verification runs as interactions
-    })
+      const serviceStats = servicePassRates.get(serviceName)
+      if (serviceStats) {
+        serviceStats.total += results.length
+        serviceStats.passed += results.filter(r => r.success).length
+        serviceStats.interactions += 1 // Count verification runs as interactions
+      }
+    }
 
     // Get interaction counts for services that have verifications
     const serviceInteractionCounts = await db
@@ -131,11 +134,12 @@ statsRouter.get('/dashboard', async c => {
       .groupBy(interactions.service)
 
     // Merge interaction counts with verification data
-    serviceInteractionCounts.forEach(item => {
-      if (servicePassRates.has(item.service)) {
-        servicePassRates.get(item.service)!.interactions = item.count
+    for (const item of serviceInteractionCounts) {
+      const serviceStats = servicePassRates.get(item.service)
+      if (serviceStats) {
+        serviceStats.interactions = item.count
       }
-    })
+    }
 
     const serviceHealth = Array.from(servicePassRates.entries())
       .map(([serviceName, stats]) => {

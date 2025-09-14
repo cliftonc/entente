@@ -6,9 +6,9 @@ describe('git-utils', () => {
     vi.resetModules()
 
     // Clear environment variables
-    delete process.env.COMMIT_SHA
-    delete process.env.GITHUB_SHA
-    delete process.env.GIT_COMMIT
+    process.env.COMMIT_SHA = undefined
+    process.env.GITHUB_SHA = undefined
+    process.env.GIT_COMMIT = undefined
   })
 
   describe('getGitSha', () => {

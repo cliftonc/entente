@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { services } from '../../db/schema'
+import type { DbService } from '../../db/types'
 
 export const servicesRouter = new Hono()
 
@@ -28,7 +29,7 @@ servicesRouter.post('/', async c => {
     ),
   })
 
-  let service: any
+  let service: DbService
   let isNew = false
 
   if (existing) {

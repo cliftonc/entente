@@ -1,4 +1,14 @@
 // API utility functions for UI components
+import type {
+  ClientInteraction,
+  DeploymentState,
+  Fixture,
+  OpenAPISpec,
+  Service,
+  ServiceDependency,
+  VerificationResults,
+  VerificationTask,
+} from '@entente/types'
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -36,22 +46,26 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 // Services API functions (unified)
 export const serviceApi = {
   getAll: (type?: 'consumer' | 'provider') =>
-    fetchApi<any[]>(`/services${type ? `?type=${type}` : ''}`),
+    fetchApi<Service[]>(`/services${type ? `?type=${type}` : ''}`),
   getOne: (name: string, type: 'consumer' | 'provider') =>
-    fetchApi<any>(`/services/${name}/${type}`),
+    fetchApi<Service>(`/services/${name}/${type}`),
   create: (service: {
     name: string
     type: 'consumer' | 'provider'
     description?: string
-    packageJson: any
-  }) => fetchApi<any>('/services', { method: 'POST', body: JSON.stringify(service) }),
+    packageJson: Record<string, unknown>
+  }) => fetchApi<Service>('/services', { method: 'POST', body: JSON.stringify(service) }),
   update: (
     name: string,
     type: 'consumer' | 'provider',
-    updates: { description?: string; packageJson?: any }
-  ) => fetchApi<any>(`/services/${name}/${type}`, { method: 'PUT', body: JSON.stringify(updates) }),
+    updates: { description?: string; packageJson?: Record<string, unknown> }
+  ) =>
+    fetchApi<Service>(`/services/${name}/${type}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    }),
   delete: (name: string, type: 'consumer' | 'provider') =>
-    fetchApi<any>(`/services/${name}/${type}`, { method: 'DELETE' }),
+    fetchApi<{ success: boolean }>(`/services/${name}/${type}`, { method: 'DELETE' }),
 }
 
 // Consumer API functions (legacy - now wraps services API)
@@ -80,15 +94,21 @@ export const interactionApi = {
     if (params?.environment) searchParams.set('environment', params.environment)
     if (params?.limit) searchParams.set('limit', params.limit.toString())
     const queryString = searchParams.toString()
-    return fetchApi<any[]>(`/interactions${queryString ? `?${queryString}` : ''}`)
+    return fetchApi<ClientInteraction[]>(`/interactions${queryString ? `?${queryString}` : ''}`)
   },
   getByService: (service: string, version: string) =>
-    fetchApi<any[]>(`/interactions/${service}?version=${version}`),
+    fetchApi<ClientInteraction[]>(`/interactions/${service}?version=${version}`),
   getByConsumer: (consumer: string, version = 'latest') =>
-    fetchApi<any[]>(`/interactions/consumer/${consumer}?version=${version}`),
-  getById: (id: string) => fetchApi<any>(`/interactions/by-id/${id}`),
+    fetchApi<ClientInteraction[]>(`/interactions/consumer/${consumer}?version=${version}`),
+  getById: (id: string) => fetchApi<ClientInteraction>(`/interactions/by-id/${id}`),
   getStats: (service: string, version: string) =>
-    fetchApi<any>(`/interactions/${service}/stats?version=${version}`),
+    fetchApi<{
+      totalInteractions: number
+      uniqueConsumers: number
+      averageDuration: number
+      operationBreakdown: Array<{ operation: string; count: number }>
+      consumerBreakdown: Array<{ consumer: string; count: number }>
+    }>(`/interactions/${service}/stats?version=${version}`),
 }
 
 // Fixture API functions
@@ -105,32 +125,32 @@ export const fixtureApi = {
     if (params?.consumer) searchParams.set('consumer', params.consumer)
     if (params?.status) searchParams.set('status', params.status)
     const queryString = searchParams.toString()
-    return fetchApi<any[]>(`/fixtures${queryString ? `?${queryString}` : ''}`)
+    return fetchApi<Fixture[]>(`/fixtures${queryString ? `?${queryString}` : ''}`)
   },
   getPending: (service?: string) =>
-    fetchApi<any[]>(`/fixtures/pending${service ? `?service=${service}` : ''}`),
+    fetchApi<Fixture[]>(`/fixtures/pending${service ? `?service=${service}` : ''}`),
   getByService: (service: string, status?: string) =>
-    fetchApi<any[]>(`/fixtures/service/${service}${status ? `?status=${status}` : ''}`),
+    fetchApi<Fixture[]>(`/fixtures/service/${service}${status ? `?status=${status}` : ''}`),
   getAllByService: (service: string) =>
     Promise.all([
-      fetchApi<any[]>(`/fixtures/service/${service}?status=approved`),
-      fetchApi<any[]>(`/fixtures/service/${service}?status=draft`),
+      fetchApi<Fixture[]>(`/fixtures/service/${service}?status=approved`),
+      fetchApi<Fixture[]>(`/fixtures/service/${service}?status=draft`),
     ]).then(([approved, draft]) => [...approved, ...draft]),
   getByOperation: (operation: string, service: string, version: string) =>
-    fetchApi<any[]>(`/fixtures/${operation}?service=${service}&version=${version}`),
-  getById: (id: string) => fetchApi<any>(`/fixtures/by-id/${id}`),
+    fetchApi<Fixture[]>(`/fixtures/${operation}?service=${service}&version=${version}`),
+  getById: (id: string) => fetchApi<Fixture>(`/fixtures/by-id/${id}`),
   approve: (id: string, approvedBy: string, notes?: string) =>
-    fetchApi<any>(`/fixtures/${id}/approve`, {
+    fetchApi<{ success: boolean }>(`/fixtures/${id}/approve`, {
       method: 'POST',
       body: JSON.stringify({ approvedBy, notes }),
     }),
   reject: (id: string, rejectedBy: string, notes?: string) =>
-    fetchApi<any>(`/fixtures/${id}/reject`, {
+    fetchApi<{ success: boolean }>(`/fixtures/${id}/reject`, {
       method: 'POST',
       body: JSON.stringify({ rejectedBy, notes }),
     }),
   revoke: (id: string, revokedBy: string, notes?: string) =>
-    fetchApi<any>(`/fixtures/${id}/revoke`, {
+    fetchApi<{ success: boolean }>(`/fixtures/${id}/revoke`, {
       method: 'POST',
       body: JSON.stringify({ revokedBy, notes }),
     }),
@@ -139,19 +159,24 @@ export const fixtureApi = {
 // Deployment API functions
 export const deploymentApi = {
   getActive: (environment?: string) =>
-    fetchApi<any[]>(
+    fetchApi<DeploymentState[]>(
       `/deployments/active${environment ? `?environment=${environment}` : '?environment=production'}`
     ),
-  getSummary: () => fetchApi<any>('/deployments/summary'),
+  getSummary: () =>
+    fetchApi<{
+      totalDeployments: number
+      activeDeployments: number
+      environments: string[]
+    }>('/deployments/summary'),
   getHistory: (service: string, environment?: string) =>
-    fetchApi<any[]>(
+    fetchApi<DeploymentState[]>(
       `/deployments/${service}/history${environment ? `?environment=${environment}` : ''}`
     ),
   getEnvironments: () => fetchApi<string[]>('/deployments/environments'),
   getActiveForAllEnvs: async () => {
     const environments = await fetchApi<string[]>('/deployments/environments')
     const deploymentPromises = environments.map(env =>
-      fetchApi<any[]>(`/deployments/active?environment=${env}&include_inactive=true`)
+      fetchApi<DeploymentState[]>(`/deployments/active?environment=${env}&include_inactive=true`)
     )
     const results = await Promise.all(deploymentPromises)
     return results.flat()
@@ -160,38 +185,52 @@ export const deploymentApi = {
 
 // Verification API functions
 export const verificationApi = {
-  getAll: () => fetchApi<any[]>('/verification'),
-  getById: (id: string) => fetchApi<any>(`/verification/result/${id}`),
-  getByProvider: (provider: string) => fetchApi<any[]>(`/verification/${provider}/history`),
+  getAll: () => fetchApi<VerificationResults[]>('/verification'),
+  getById: (id: string) => fetchApi<VerificationResults>(`/verification/result/${id}`),
+  getByProvider: (provider: string) =>
+    fetchApi<VerificationResults[]>(`/verification/${provider}/history`),
   getByConsumer: (consumer: string) =>
-    fetchApi<any[]>(`/verification/consumer/${consumer}/history`),
-  getTasks: (provider: string) => fetchApi<any[]>(`/verification/${provider}`),
-  getStats: (provider: string) => fetchApi<any>(`/verification/${provider}/stats`),
+    fetchApi<VerificationResults[]>(`/verification/consumer/${consumer}/history`),
+  getTasks: (provider: string) => fetchApi<VerificationTask[]>(`/verification/${provider}`),
+  getStats: (provider: string) =>
+    fetchApi<{
+      totalTasks: number
+      passedTasks: number
+      failedTasks: number
+      pendingTasks: number
+    }>(`/verification/${provider}/stats`),
 }
 
 // Spec API functions
 export const specApi = {
   getByService: (service: string, version: string) =>
-    fetchApi<any>(`/specs/${service}?version=${version}`),
-  getVersions: (service: string) => fetchApi<any[]>(`/specs/${service}/versions`),
+    fetchApi<OpenAPISpec>(`/specs/${service}?version=${version}`),
+  getVersions: (service: string) =>
+    fetchApi<
+      Array<{
+        version: string
+        uploadedAt: string
+        branch?: string
+      }>
+    >(`/specs/${service}/versions`),
 }
 
 // Dependencies API functions
 export const dependenciesApi = {
   getByConsumer: (consumer: string, environment?: string) => {
     const params = environment ? `?environment=${environment}` : ''
-    return fetchApi<any[]>(`/dependencies/consumer/${consumer}${params}`)
+    return fetchApi<ServiceDependency[]>(`/dependencies/consumer/${consumer}${params}`)
   },
   getByProvider: (provider: string, environment?: string) => {
     const params = environment ? `?environment=${environment}` : ''
-    return fetchApi<any[]>(`/dependencies/provider/${provider}${params}`)
+    return fetchApi<ServiceDependency[]>(`/dependencies/provider/${provider}${params}`)
   },
   getAll: (environment?: string, status?: string) => {
     const params = new URLSearchParams()
     if (environment) params.set('environment', environment)
     if (status) params.set('status', status)
     const queryString = params.toString()
-    return fetchApi<any[]>(`/dependencies${queryString ? `?${queryString}` : ''}`)
+    return fetchApi<ServiceDependency[]>(`/dependencies${queryString ? `?${queryString}` : ''}`)
   },
 }
 
@@ -203,7 +242,12 @@ export const statsApi = {
       totalInteractions: number
       pendingFixtures: number
       verificationRate: number
-      recentDeployments: any[]
-      serviceHealth: any[]
+      recentDeployments: DeploymentState[]
+      serviceHealth: Array<{
+        service: string
+        status: 'healthy' | 'warning' | 'critical'
+        lastDeployment?: string
+        errorRate?: number
+      }>
     }>('/stats/dashboard'),
 }

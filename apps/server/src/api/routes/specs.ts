@@ -2,6 +2,7 @@ import type { OpenAPISpec, SpecMetadata } from '@entente/types'
 import { and, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { services, specs } from '../../db/schema'
+import type { DbSpec } from '../../db/types'
 
 export const specsRouter = new Hono()
 
@@ -48,7 +49,7 @@ specsRouter.post('/:service', async c => {
     ),
   })
 
-  let resultSpec: any
+  let resultSpec: DbSpec
   let isNew = false
 
   if (existingSpec) {

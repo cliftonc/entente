@@ -92,25 +92,25 @@ function Verification() {
               Monitor provider verification results and contract compliance
             </p>
           </div>
-          <div className="skeleton h-10 w-40"></div>
+          <div className="skeleton h-10 w-40" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[1, 2, 3].map(i => (
             <div key={i} className="stats shadow">
               <div className="stat">
-                <div className="skeleton h-4 w-24 mb-2"></div>
-                <div className="skeleton h-8 w-16 mb-2"></div>
-                <div className="skeleton h-3 w-20"></div>
+                <div className="skeleton h-4 w-24 mb-2" />
+                <div className="skeleton h-8 w-16 mb-2" />
+                <div className="skeleton h-3 w-20" />
               </div>
             </div>
           ))}
         </div>
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <div className="skeleton h-6 w-48 mb-4"></div>
+            <div className="skeleton h-6 w-48 mb-4" />
             <div className="space-y-4">
               {[1, 2, 3].map(i => (
-                <div key={i} className="skeleton h-12 w-full"></div>
+                <div key={i} className="skeleton h-12 w-full" />
               ))}
             </div>
           </div>
@@ -135,7 +135,7 @@ function Verification() {
               strokeLinejoin="round"
               strokeWidth="2"
               d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
+            />
           </svg>
           <span>Error loading verification data</span>
         </div>

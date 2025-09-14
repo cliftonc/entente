@@ -24,9 +24,9 @@ function Dashboard() {
           {[1, 2, 3, 4].map(i => (
             <div key={i} className="stats shadow">
               <div className="stat">
-                <div className="skeleton h-4 w-20 mb-2"></div>
-                <div className="skeleton h-8 w-16 mb-2"></div>
-                <div className="skeleton h-3 w-24"></div>
+                <div className="skeleton h-4 w-20 mb-2" />
+                <div className="skeleton h-8 w-16 mb-2" />
+                <div className="skeleton h-3 w-24" />
               </div>
             </div>
           ))}
@@ -49,7 +49,7 @@ function Dashboard() {
               strokeLinejoin="round"
               strokeWidth="2"
               d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
+            />
           </svg>
           <span>Error loading dashboard data</span>
         </div>
@@ -157,9 +157,9 @@ function Dashboard() {
               {dashboardStats?.recentDeployments?.length === 0 ? (
                 <div className="text-center text-base-content/70 py-8">No recent deployments</div>
               ) : (
-                dashboardStats?.recentDeployments?.slice(0, 5).map((deployment, index) => (
+                dashboardStats?.recentDeployments?.slice(0, 5).map(deployment => (
                   <div
-                    key={index}
+                    key={`${deployment.service}-${deployment.version}-${deployment.environment}`}
                     className="flex items-center justify-between p-3 bg-base-200 rounded-lg"
                   >
                     <div>
@@ -217,9 +217,9 @@ function Dashboard() {
                   No service health data available
                 </div>
               ) : (
-                dashboardStats?.serviceHealth?.map((service, index) => (
+                dashboardStats?.serviceHealth?.map(service => (
                   <div
-                    key={index}
+                    key={service.name}
                     className="flex items-center justify-between hover:bg-base-200 p-2 rounded-lg transition-colors"
                   >
                     <div className="flex items-center gap-3">

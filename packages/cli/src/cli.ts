@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { promises as fs } from 'fs'
+import { promises as fs } from 'node:fs'
 import chalk from 'chalk'
 import { Command } from 'commander'
 import { loginFlow, logoutFlow, whoAmI } from './auth.js'

@@ -42,7 +42,7 @@ export const setupDefaultMocks = () => {
   )
 
   // Setup default fetch responses
-  mocks.fetch.fetch.mockImplementation((url: string, options?: any) => {
+  mocks.fetch.fetch.mockImplementation((url: string, _options?: any) => {
     if (url.includes('/api/specs/')) {
       return Promise.resolve(
         mocks.fetch.mockSuccess({
