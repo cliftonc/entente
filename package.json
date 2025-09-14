@@ -14,7 +14,9 @@
     "clean": "pnpm -r clean && rm -rf node_modules",
     "server:dev": "pnpm --filter @entente/server dev",
     "server:build": "pnpm --filter @entente/server build",
-    "cli": "pnpm --filter @entente/cli build && node packages/cli/dist/cli.js"
+    "cli": "pnpm --filter @entente/cli build && node packages/cli/dist/cli.js",
+    "version-and-publish": "./scripts/version-and-publish.sh",
+    "version-and-publish:dry-run": "./scripts/version-and-publish-dry-run.sh"
   },
   "keywords": ["contract-testing", "openapi", "testing", "api", "schema-first"],
   "author": "Your Name",
