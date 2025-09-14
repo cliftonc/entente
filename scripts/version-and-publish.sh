@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 PACKAGES=(
   "types"
   "fixtures"
-  "client"
+  "consumer"
   "provider"
   "cli"
 )
@@ -50,10 +50,51 @@ fi
 echo -e "${GREEN}🔨 Building all packages...${NC}"
 pnpm build
 
-echo -e "${GREEN}🧪 Running tests...${NC}"
-pnpm test
+echo -e "${GREEN}🧪 Running build and test for each package...${NC}"
 
-# Process each package in order
+# Process each package in order - build and test first
+for PACKAGE in "${PACKAGES[@]}"; do
+  PACKAGE_DIR="packages/$PACKAGE"
+
+  if [ ! -d "$PACKAGE_DIR" ]; then
+    echo -e "${YELLOW}⚠️  Skipping $PACKAGE (directory not found)${NC}"
+    continue
+  fi
+
+  echo -e "${GREEN}🔨 Building and testing @entente/$PACKAGE...${NC}"
+
+  cd "$PACKAGE_DIR"
+
+  # Build the package
+  echo "  📦 Building @entente/$PACKAGE..."
+  if pnpm build; then
+    echo "  ✅ Build successful"
+  else
+    echo -e "${RED}❌ Build failed for @entente/$PACKAGE${NC}"
+    cd ../..
+    exit 1
+  fi
+
+  # Run tests if test script exists
+  if grep -q '"test"' package.json; then
+    echo "  🧪 Testing @entente/$PACKAGE..."
+    if pnpm test; then
+      echo "  ✅ Tests passed"
+    else
+      echo -e "${RED}❌ Tests failed for @entente/$PACKAGE${NC}"
+      cd ../..
+      exit 1
+    fi
+  else
+    echo "  ⚠️  No test script found, skipping tests"
+  fi
+
+  cd ../..
+done
+
+echo -e "${GREEN}✅ All packages built and tested successfully!${NC}"
+
+# Process each package in order for versioning and publishing
 for PACKAGE in "${PACKAGES[@]}"; do
   PACKAGE_DIR="packages/$PACKAGE"
 
@@ -76,10 +117,6 @@ for PACKAGE in "${PACKAGES[@]}"; do
   # Get new version
   NEW_VERSION=$(node -p "require('./package.json').version")
   echo -e "  ${GREEN}New version: $NEW_VERSION${NC}"
-
-  # Build the package
-  echo "  Building..."
-  pnpm build
 
   # Go back to root for git operations
   cd ../..
