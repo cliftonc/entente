@@ -57,8 +57,9 @@ describe('Git Utilities', () => {
     })
 
     it('should read SHA from git HEAD file when direct SHA', () => {
-      mockExistsSync.mockImplementation(path => {
-        return path.includes('.git') && (path.endsWith('/.git') || path.endsWith('/HEAD'))
+      mockExistsSync.mockImplementation((path) => {
+        const pathStr = path.toString()
+        return pathStr.includes('.git') && (pathStr.endsWith('/.git') || pathStr.endsWith('/HEAD'))
       })
       mockReadFileSync.mockReturnValue('abc123def456\n')
 
@@ -72,10 +73,11 @@ describe('Git Utilities', () => {
     })
 
     it('should follow reference when HEAD points to branch', () => {
-      mockExistsSync.mockImplementation(path => {
+      mockExistsSync.mockImplementation((path) => {
+        const pathStr = path.toString()
         return (
-          path.includes('.git') &&
-          (path.endsWith('/.git') || path.endsWith('/HEAD') || path.includes('/refs/heads/main'))
+          pathStr.includes('.git') &&
+          (pathStr.endsWith('/.git') || pathStr.endsWith('/HEAD') || pathStr.includes('/refs/heads/main'))
         )
       })
       mockReadFileSync
@@ -104,8 +106,9 @@ describe('Git Utilities', () => {
     })
 
     it('should return null if HEAD file not found', () => {
-      mockExistsSync.mockImplementation(path => {
-        return path.endsWith('/.git')
+      mockExistsSync.mockImplementation((path) => {
+        const pathStr = path.toString()
+        return pathStr.endsWith('/.git')
       })
 
       vi.spyOn(process, 'cwd').mockReturnValue('/mock/cwd')
@@ -116,8 +119,9 @@ describe('Git Utilities', () => {
     })
 
     it('should return null if branch reference file not found', () => {
-      mockExistsSync.mockImplementation(path => {
-        return path.endsWith('/.git') || path.endsWith('/HEAD')
+      mockExistsSync.mockImplementation((path) => {
+        const pathStr = path.toString()
+        return pathStr.endsWith('/.git') || pathStr.endsWith('/HEAD')
       })
       mockReadFileSync.mockReturnValue('ref: refs/heads/feature\n')
 
@@ -264,8 +268,9 @@ describe('Git Utilities', () => {
 
   describe('Git Directory Walking', () => {
     it('should find .git directory in parent directories', () => {
-      mockExistsSync.mockImplementation(path => {
-        return path.includes('/parent/.git')
+      mockExistsSync.mockImplementation((path) => {
+        const pathStr = path.toString()
+        return pathStr.includes('/parent/.git')
       })
       mockReadFileSync.mockReturnValue('abc123\n')
 
