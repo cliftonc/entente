@@ -46,11 +46,7 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
   fi
 fi
 
-# Build all packages first to ensure everything works
-echo -e "${GREEN}🔨 Building all packages...${NC}"
-pnpm build
-
-echo -e "${GREEN}🧪 Running build and test for each package...${NC}"
+echo -e "${GREEN}🧪 Building and testing each package in dependency order...${NC}"
 
 # Process each package in order - build and test first
 for PACKAGE in "${PACKAGES[@]}"; do
