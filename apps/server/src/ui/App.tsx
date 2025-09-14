@@ -6,16 +6,24 @@ import ProtectedRoute from './components/ProtectedRoute'
 import AdminLayout from './components/AdminLayout'
 import Dashboard from './pages/Dashboard'
 import Services from './pages/Services'
+import ProviderDetail from './pages/ProviderDetail'
+import ConsumerDetail from './pages/ConsumerDetail'
 import Interactions from './pages/Interactions'
+import InteractionDetails from './pages/InteractionDetails'
 import Fixtures from './pages/Fixtures'
+import FixtureDetails from './pages/FixtureDetails'
 import Deployments from './pages/Deployments'
 import Verification from './pages/Verification'
+import VerificationDetail from './pages/VerificationDetail'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes
+      staleTime: 1000 * 30, // 30 seconds - fresher data, faster perceived performance
+      gcTime: 1000 * 60 * 10, // 10 minutes - shorter garbage collection
+      retry: 1, // Fail faster instead of long retries
+      retryDelay: 1000, // 1 second between retries
+      refetchOnWindowFocus: false, // Avoid unnecessary refetches
     },
   },
 })
@@ -29,10 +37,15 @@ function App() {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/services" element={<Services />} />
+              <Route path="/services/provider/:name" element={<ProviderDetail />} />
+              <Route path="/services/consumer/:name" element={<ConsumerDetail />} />
               <Route path="/interactions" element={<Interactions />} />
+              <Route path="/interactions/:id" element={<InteractionDetails />} />
               <Route path="/fixtures" element={<Fixtures />} />
+              <Route path="/fixtures/:id" element={<FixtureDetails />} />
               <Route path="/deployments" element={<Deployments />} />
               <Route path="/verification" element={<Verification />} />
+              <Route path="/verification/:id" element={<VerificationDetail />} />
             </Routes>
           </AdminLayout>
         </ProtectedRoute>

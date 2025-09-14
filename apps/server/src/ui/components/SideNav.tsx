@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useDraftFixturesCount } from '../hooks/useQueries'
 
 interface NavItem {
   path: string
@@ -27,7 +28,6 @@ const navItems: NavItem[] = [
     path: '/fixtures',
     label: 'Fixtures',
     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-    badge: '3',
   },
   {
     path: '/deployments',
@@ -43,6 +43,7 @@ const navItems: NavItem[] = [
 
 function SideNav() {
   const location = useLocation()
+  const { data: draftCount = 0 } = useDraftFixturesCount()
 
   return (
     <aside className="min-h-full w-80 bg-base-100 text-base-content">
@@ -87,7 +88,12 @@ function SideNav() {
                   />
                 </svg>
                 <span className="flex-1">{item.label}</span>
-                {item.badge && (
+                {item.path === '/fixtures' && draftCount > 0 && (
+                  <span className="badge badge-primary badge-sm">
+                    {draftCount}
+                  </span>
+                )}
+                {item.badge && item.path !== '/fixtures' && (
                   <span className="badge badge-primary badge-sm">
                     {item.badge}
                   </span>

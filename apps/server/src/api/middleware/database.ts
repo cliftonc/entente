@@ -1,6 +1,7 @@
 import type { Context, Next } from 'hono'
 import { createDatabase } from '../../db/client'
 import { getRequiredEnv } from './env'
+import { timeOperation } from './performance'
 
 // Extend Hono context with database
 declare module 'hono' {
@@ -13,7 +14,12 @@ export async function databaseMiddleware(c: Context, next: Next) {
   try {
     const env = c.get('env')
     const databaseUrl = getRequiredEnv(env, 'DATABASE_URL')
-    const db = createDatabase(databaseUrl)
+
+    // Time database connection creation
+    const db = await timeOperation(c, 'Database Connection Creation', async () => {
+      return createDatabase(databaseUrl)
+    })
+
     c.set('db', db)
 
     await next()

@@ -1,4 +1,61 @@
+import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
+import { statsApi } from '../utils/api'
+import TimestampDisplay from '../components/TimestampDisplay'
+
 function Dashboard() {
+  const {
+    data: dashboardStats,
+    isLoading,
+    error
+  } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: statsApi.getDashboard,
+  })
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-base-content">Dashboard</h1>
+          <p className="text-base-content/70 mt-1">
+            Overview of your contract testing ecosystem
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="stats shadow">
+              <div className="stat">
+                <div className="skeleton h-4 w-20 mb-2"></div>
+                <div className="skeleton h-8 w-16 mb-2"></div>
+                <div className="skeleton h-3 w-24"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-base-content">Dashboard</h1>
+          <p className="text-base-content/70 mt-1">
+            Overview of your contract testing ecosystem
+          </p>
+        </div>
+        <div className="alert alert-error">
+          <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span>Error loading dashboard data</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -11,7 +68,7 @@ function Dashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="stats shadow">
+        <Link to="/services" className="stats shadow hover:shadow-lg transition-shadow">
           <div className="stat">
             <div className="stat-figure text-primary">
               <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
@@ -19,12 +76,12 @@ function Dashboard() {
               </svg>
             </div>
             <div className="stat-title">Active Services</div>
-            <div className="stat-value">12</div>
-            <div className="stat-desc">↗︎ 2 new this week</div>
+            <div className="stat-value">{dashboardStats?.totalServices || 0}</div>
+            <div className="stat-desc">Consumers & Providers</div>
           </div>
-        </div>
+        </Link>
 
-        <div className="stats shadow">
+        <Link to="/interactions" className="stats shadow hover:shadow-lg transition-shadow">
           <div className="stat">
             <div className="stat-figure text-secondary">
               <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
@@ -32,12 +89,12 @@ function Dashboard() {
               </svg>
             </div>
             <div className="stat-title">Recorded Interactions</div>
-            <div className="stat-value">2,847</div>
-            <div className="stat-desc">↗︎ 12% from last month</div>
+            <div className="stat-value">{dashboardStats?.totalInteractions?.toLocaleString() || 0}</div>
+            <div className="stat-desc">All time total</div>
           </div>
-        </div>
+        </Link>
 
-        <div className="stats shadow">
+        <Link to="/fixtures" className="stats shadow hover:shadow-lg transition-shadow">
           <div className="stat">
             <div className="stat-figure text-accent">
               <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
@@ -45,12 +102,12 @@ function Dashboard() {
               </svg>
             </div>
             <div className="stat-title">Pending Fixtures</div>
-            <div className="stat-value">3</div>
+            <div className="stat-value">{dashboardStats?.pendingFixtures || 0}</div>
             <div className="stat-desc">Awaiting approval</div>
           </div>
-        </div>
+        </Link>
 
-        <div className="stats shadow">
+        <Link to="/verification" className="stats shadow hover:shadow-lg transition-shadow">
           <div className="stat">
             <div className="stat-figure text-success">
               <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
@@ -58,10 +115,10 @@ function Dashboard() {
               </svg>
             </div>
             <div className="stat-title">Verification Rate</div>
-            <div className="stat-value">96.3%</div>
-            <div className="stat-desc">↗︎ 1.2% improvement</div>
+            <div className="stat-value">{dashboardStats?.verificationRate || 0}%</div>
+            <div className="stat-desc">Last 30 days</div>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Recent Activity and Charts */}
@@ -69,29 +126,45 @@ function Dashboard() {
         {/* Recent Deployments */}
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <h2 className="card-title">Recent Deployments</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="card-title">Recent Deployments</h2>
+              <Link to="/deployments" className="btn btn-ghost btn-sm">
+                View All
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
             <div className="space-y-3">
-              {[
-                { service: 'order-service', version: '2.1.0', env: 'production', time: '2 hours ago' },
-                { service: 'payment-service', version: '1.8.0', env: 'staging', time: '4 hours ago' },
-                { service: 'user-service', version: '3.0.0', env: 'development', time: '1 day ago' },
-              ].map((deployment, index) => (
+              {dashboardStats?.recentDeployments?.length === 0 ? (
+                <div className="text-center text-base-content/70 py-8">
+                  No recent deployments
+                </div>
+              ) : (
+                dashboardStats?.recentDeployments?.slice(0, 5).map((deployment, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-base-200 rounded-lg">
                   <div>
-                    <div className="font-medium">{deployment.service}</div>
+                    <Link
+                      to={`/services/${deployment.type || 'provider'}/${deployment.service}`}
+                      className="font-medium hover:text-primary transition-colors"
+                    >
+                      {deployment.service}
+                    </Link>
                     <div className="text-sm text-base-content/70">v{deployment.version}</div>
                   </div>
                   <div className="text-right">
                     <div className={`badge ${
-                      deployment.env === 'production' ? 'badge-success' :
-                      deployment.env === 'staging' ? 'badge-warning' : 'badge-info'
+                      deployment.environment === 'production' ? 'badge-success' :
+                      deployment.environment === 'staging' ? 'badge-warning' : 'badge-info'
                     }`}>
-                      {deployment.env}
+                      {deployment.environment}
                     </div>
-                    <div className="text-sm text-base-content/70">{deployment.time}</div>
+                    <div className="text-sm text-base-content/70">
+                      <TimestampDisplay timestamp={deployment.deployedAt} />
+                    </div>
                   </div>
                 </div>
-              ))}
+              )))}
             </div>
           </div>
         </div>
@@ -99,64 +172,61 @@ function Dashboard() {
         {/* Service Health */}
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <h2 className="card-title">Service Health</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="card-title">Service Health</h2>
+              <Link to="/verification" className="btn btn-ghost btn-sm">
+                View All
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
             <div className="space-y-4">
-              {[
-                { name: 'order-service', status: 'healthy', interactions: 450, passRate: 98.2 },
-                { name: 'payment-service', status: 'healthy', interactions: 320, passRate: 99.1 },
-                { name: 'user-service', status: 'warning', interactions: 180, passRate: 94.5 },
-                { name: 'notification-service', status: 'healthy', interactions: 95, passRate: 97.8 },
-              ].map((service, index) => (
-                <div key={index} className="flex items-center justify-between">
+              {dashboardStats?.serviceHealth?.length === 0 ? (
+                <div className="text-center text-base-content/70 py-8">
+                  No service health data available
+                </div>
+              ) : (
+                dashboardStats?.serviceHealth?.map((service, index) => (
+                <div key={index} className="flex items-center justify-between hover:bg-base-200 p-2 rounded-lg transition-colors">
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${
                       service.status === 'healthy' ? 'bg-success' :
                       service.status === 'warning' ? 'bg-warning' : 'bg-error'
                     }`} />
                     <div>
-                      <div className="font-medium">{service.name}</div>
+                      <Link
+                        to={`/services/${service.type || 'provider'}/${service.name}`}
+                        className="font-medium hover:text-primary transition-colors"
+                      >
+                        {service.name}
+                      </Link>
                       <div className="text-sm text-base-content/70">
-                        {service.interactions} interactions
+                        <Link
+                          to={`/interactions?service=${service.name}`}
+                          className="hover:text-primary transition-colors"
+                        >
+                          {service.interactions} interactions
+                        </Link>
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-medium">{service.passRate}%</div>
+                    <Link
+                      to={`/verification?provider=${service.name}`}
+                      className="block font-medium hover:text-primary transition-colors"
+                    >
+                      {Math.round(service.passRate * 10) / 10}%
+                    </Link>
                     <div className="text-sm text-base-content/70">pass rate</div>
                   </div>
                 </div>
-              ))}
+              )))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body">
-          <h2 className="card-title">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <button className="btn btn-primary">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Upload New Spec
-            </button>
-            <button className="btn btn-secondary">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Approve Fixtures
-            </button>
-            <button className="btn btn-accent">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              Run Verification
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

@@ -1,10 +1,10 @@
 # @entente/provider
 
-Provider verification library for Entente contract testing. This package implements the provider-side functionality from the ContractFlow specification, enabling providers to verify against real recorded consumer interactions and automatically propose fixtures from successful responses.
+Provider verification library for Entente contract testing. This package implements the provider-side functionality, enabling providers to verify their implementations against real recorded consumer interactions.
 
 ## Overview
 
-The provider library allows service providers to verify their implementations against real consumer usage patterns recorded by the central Entente service. It supports fixture-based state setup, response structure validation, and automatic fixture proposal generation from successful verifications.
+The provider library allows service providers to verify their implementations against real consumer usage patterns recorded by the central Entente service. It supports state handler-based setup and response structure validation.
 
 ## Core Features
 
@@ -38,14 +38,13 @@ const results = await provider.verify({
 })
 ```
 
-### Smart Fixture Integration
+### State Management
 
-The provider implements ContractFlow's advanced fixture system:
+The provider uses state handlers for test data setup:
 
-1. **Fixture-Based Setup**: Use approved fixtures to automatically set up provider state
-2. **State Handler Fallback**: Custom setup functions for operations without fixtures
-3. **Fixture Proposal**: Generate fixture proposals from successful real responses
-4. **Priority System**: Provider fixtures have higher priority than consumer fixtures
+1. **State Handlers**: Custom setup functions for each operation
+2. **Cleanup Support**: Automatic cleanup after each verification
+3. **Environment Isolation**: Separate state management per environment
 
 ### Response Structure Validation
 
@@ -60,20 +59,17 @@ Validates that provider responses match the structure of recorded consumer inter
 ### ✅ Complete
 - Core verification workflow against recorded interactions
 - Response structure validation with deep JSON comparison
-- Fixture proposal generation from successful verifications
 - State handler system for test data setup
-- Integration with `@entente/fixtures` package
 - Functional API design
 
 ### 🔄 In Progress
-- Fixture-based state setup (basic implementation)
+- Enhanced verification reporting
 
 ### ❌ TODO - High Priority
 1. **Real Database State Setup**: Example implementations for common databases
-2. **State Extraction Utilities**: Helpers to extract current system state for fixtures
-3. **Parallel Verification**: Run multiple verifications concurrently
-4. **Enhanced Error Reporting**: Detailed failure analysis and debugging info
-5. **State Conflict Resolution**: Handle overlapping state setup requirements
+2. **Parallel Verification**: Run multiple verifications concurrently
+3. **Enhanced Error Reporting**: Detailed failure analysis and debugging info
+4. **State Conflict Resolution**: Handle overlapping state setup requirements
 
 ### ❌ TODO - Lower Priority
 - Verification result caching
@@ -130,20 +126,20 @@ describe('Order Service Provider Verification', () => {
 })
 ```
 
-### Fixture-Based Provider Setup
+### State Handler-Based Setup
 ```typescript
 const results = await provider.verify({
   baseUrl: 'http://localhost:3000',
-  fixtureBasedSetup: true,  // Use fixtures for automatic state setup
-  proposeFixtures: true,    // Generate fixture proposals from real responses
-  
-  // Fallback to state handlers when fixtures unavailable
   stateHandlers: {
-    'getOrder': async () => setupTestOrder('ord-123')
+    'getOrder': async () => setupTestOrder('ord-123'),
+    'createOrder': async () => setupTestCustomer('cust-456')
+  },
+  cleanup: async () => {
+    await cleanupTestData()
   }
 })
 
-console.log(`📋 Proposed ${results.fixtureProposals} new fixtures from successful verifications`)
+console.log(`✅ Verified ${results.results.length} interactions`)
 ```
 
 ### State Handler Implementation
@@ -173,12 +169,11 @@ const stateHandlers = {
 ## Verification Process
 
 1. **Fetch Tasks**: Get verification tasks from central service for this provider
-2. **Setup State**: Use fixtures or state handlers to prepare test data
+2. **Setup State**: Use state handlers to prepare test data
 3. **Replay Requests**: Send recorded consumer requests to real provider
 4. **Validate Responses**: Compare actual vs expected response structures
-5. **Propose Fixtures**: Create fixture proposals from successful responses
-6. **Submit Results**: Send verification results back to central service
-7. **Cleanup**: Clean up test data after each interaction
+5. **Submit Results**: Send verification results back to central service
+6. **Cleanup**: Clean up test data after each interaction
 
 ## Response Validation
 
@@ -196,7 +191,7 @@ const isValid = validateJsonStructure(expectedResponse, actualResponse)
 ### Environment Variables
 - `PROVIDER_VERSION` - Version of the provider service
 - `ENVIRONMENT` - Target environment for verification
-- `BUILD_ID` - Build identifier for fixture tracking
+- `BUILD_ID` - Build identifier for verification tracking
 
 ### Verify Options
 ```typescript
@@ -204,8 +199,6 @@ interface VerifyOptions {
   baseUrl: string                                    // Provider service URL
   environment?: string                               // Environment filter
   stateHandlers?: Record<string, () => Promise<void>> // State setup functions
-  fixtureBasedSetup?: boolean                        // Use fixtures for setup
-  proposeFixtures?: boolean                          // Generate fixture proposals
   cleanup?: () => Promise<void>                      // Cleanup function
 }
 ```
@@ -216,7 +209,7 @@ This package implements ContractFlow's core principles:
 
 - **Provider Verification**: Verify against recorded real-world usage
 - **Deployment Awareness**: Only test against actively deployed consumer versions
-- **Fixture Integration**: Smart fixture system with approval workflow
+- **State Management**: Flexible state handler system for test setup
 - **Real Data Focus**: Use actual consumer interactions, not hypothetical contracts
 - **State Management**: Flexible setup for provider testing requirements
 
@@ -236,6 +229,5 @@ pnpm test
 ## Dependencies
 
 - `@entente/types` - Shared type definitions
-- `@entente/fixtures` - Fixture management utilities
 
 The package uses functional programming patterns and native fetch for HTTP requests, avoiding external dependencies where possible.

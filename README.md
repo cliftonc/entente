@@ -11,6 +11,53 @@ Schema-first contract testing with centralized management. Entente combines Open
 - **Real Verification**: Providers verify against actual consumer usage patterns
 - **Cloud Native**: Deployable as Cloudflare Worker with Neon PostgreSQL
 
+## How Contract Testing Works in Entente
+
+### The Three-Phase Flow
+
+**1. Consumer Records Expectations (Testing Phase)**
+```
+Consumer (v1.0.0 / SHA: abc1234)
+  → Records interactions against mock server
+  → Captures: "I expect these responses for these requests"
+  → Tagged with environment context (e.g., "ci", "test", "local")
+  → Doesn't know what provider version will satisfy these expectations
+```
+
+**2. Provider Verifies Capabilities (Verification Phase)**
+```
+Provider (v2.0.0 / SHA: def5678)
+  → Fetches recorded consumer expectations
+  → Verifies: "I can satisfy these consumer expectations"
+  → Creates version linkage: "Provider def5678 ✓ Consumer abc1234"
+  → Tagged with verification environment
+```
+
+**3. Deployment Decision (can-i-deploy)**
+```
+Question: Can consumer abc1234 deploy to staging?
+  → What provider version is in staging? (e.g., def5678)
+  → Has provider def5678 verified against consumer abc1234?
+  → Decision: Safe to deploy ✓ or Not verified ✗
+```
+
+### Key Principles
+
+- **Interactions are version-agnostic** - they're consumer expectations, not contracts with specific providers
+- **Verifications create version linkages** - they prove "provider X can satisfy consumer Y"
+- **Environments serve different purposes**:
+  - For interactions: test context/quality level (ci vs local)
+  - For verifications: where verification was performed
+  - For deployments: actual runtime environment (staging, production)
+- **Git SHA versioning** - automatic, precise identification of what code was actually tested
+
+### Benefits
+
+- **Decoupled Development**: Consumers and providers evolve independently
+- **Flexible Compatibility**: One provider version can satisfy multiple consumer versions
+- **Clear Separation**: Expectations vs capabilities vs deployment state
+- **No Manual Versioning**: Git SHA eliminates version management overhead
+
 ## Architecture
 
 ### Packages

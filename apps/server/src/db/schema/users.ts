@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, text, integer } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, varchar, timestamp, text, integer, index } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -16,4 +16,10 @@ export const userSessions = pgTable('user_sessions', {
   userId: uuid('user_id').references(() => users.id).notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => ({
+  // Index for session validation joins: WHERE session.id = ? (already covered by PK)
+  // Index for user session lookups and expiration cleanup
+  userSessionIdx: index('user_sessions_user_idx').on(table.userId, table.expiresAt),
+  // Index for session expiration cleanup queries
+  expirationIdx: index('user_sessions_expiration_idx').on(table.expiresAt),
+}))

@@ -5,61 +5,51 @@ import type {
   VerificationTask,
   VerificationResult,
   VerificationResults,
+  VerificationErrorDetails,
   VerifyOptions,
   ClientInteraction,
   Fixture,
-  FixtureProposal,
 } from "@entente/types";
-import { createFixtureManager, prioritizeFixtures } from "@entente/fixtures";
+import { getGitSha } from "./git-utils.js";
+
+export interface ProviderVerificationResults {
+  taskId: string | null;
+  providerVersion: string;
+  providerGitSha?: string | null;
+  results: VerificationResult[];
+}
 
 export interface EntenteProvider {
-  verify: (
-    options: VerifyOptions,
-  ) => Promise<VerificationResults & { fixtureProposals: number }>;
+  verify: (options: VerifyOptions) => Promise<ProviderVerificationResults>;
   getVerificationTasks: (environment?: string) => Promise<VerificationTask[]>;
 }
 
 export const createProvider = (config: ProviderConfig): EntenteProvider => {
-  const fixtureManager = createFixtureManager(config.serviceUrl, config.apiKey);
 
   return {
     verify: async (
       options: VerifyOptions,
-    ): Promise<VerificationResults & { fixtureProposals: number }> => {
+    ): Promise<ProviderVerificationResults> => {
       // Get verification tasks from central service
       const tasks = await getVerificationTasks(
         config.serviceUrl,
+        config.apiKey,
         config.provider,
         options.environment,
       );
 
       const allResults: VerificationResult[] = [];
-      const fixtureProposals: FixtureProposal[] = [];
 
       for (const task of tasks) {
-        console.log(
-          `Verifying ${task.interactions.length} interactions for ${task.consumer}@${task.consumerVersion}`,
-        );
 
         for (const interaction of task.interactions) {
+
           try {
-            // Try fixture-based setup first, then fallback to state handlers
-            let setupSuccessful = false;
-
-            if (options.fixtureBasedSetup) {
-              setupSuccessful = await setupFromFixtures(
-                config.serviceUrl,
-                config.provider,
-                config.providerVersion,
-                interaction.operation,
-              );
-            }
-
-            if (!setupSuccessful && options.stateHandlers) {
+            // Use state handlers to set up provider state
+            if (options.stateHandlers) {
               const stateHandler = options.stateHandlers[interaction.operation];
               if (stateHandler) {
                 await stateHandler();
-                setupSuccessful = true;
               }
             }
 
@@ -69,49 +59,20 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
               interaction.request,
             );
 
-            // Validate response matches recorded response structure
-            const isValid = validateResponse(
+
+            // Validate response matches recorded response
+            const validation = validateResponse(
               interaction.response,
               actualResponse,
             );
 
             allResults.push({
               interactionId: interaction.id,
-              success: isValid,
-              error: isValid ? undefined : "Response structure mismatch",
+              success: validation.success,
+              error: validation.success ? undefined : validation.error,
+              errorDetails: validation.success ? undefined : validation.errorDetails,
               actualResponse,
             });
-
-            // If verification is successful and we want to propose fixtures
-            if (
-              isValid &&
-              options.proposeFixtures &&
-              actualResponse.status >= 200 &&
-              actualResponse.status < 300
-            ) {
-              const fixtureProposal: FixtureProposal = {
-                service: config.provider,
-                serviceVersion: config.providerVersion,
-                operation: interaction.operation,
-                source: "provider",
-                priority: 2, // Provider fixtures have higher priority than consumer
-                data: {
-                  request: interaction.request,
-                  response: actualResponse,
-                  state: await extractStateInformation(interaction.operation),
-                },
-                createdFrom: {
-                  type: "test_output",
-                  timestamp: new Date(),
-                  generatedBy: "provider-verification",
-                  testRun: process.env.BUILD_ID || "local",
-                },
-                notes:
-                  "Provider fixture generated from successful verification",
-              };
-
-              fixtureProposals.push(fixtureProposal);
-            }
           } catch (error) {
             allResults.push({
               interactionId: interaction.id,
@@ -128,26 +89,43 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
         }
       }
 
-      // Submit fixture proposals if any were created
-      if (fixtureProposals.length > 0) {
-        console.log(
-          `📋 Proposing ${fixtureProposals.length} fixtures from successful verifications...`,
-        );
-        await submitFixtureProposals(config.serviceUrl, fixtureProposals);
+      // Only submit results if we have tasks to verify
+      if (tasks.length > 0) {
+        // Get git SHA for provider verification
+        const providerGitSha = getGitSha();
+
+        await submitResults(config.serviceUrl, config.apiKey, config.provider, {
+          taskId: tasks[0].id,
+          providerVersion: config.providerVersion,
+          providerGitSha,
+          results: allResults,
+        });
+
+        // Update dependency status based on verification results
+        for (const task of tasks) {
+          const taskResults = allResults.filter(r =>
+            task.interactions.some(i => i.id === r.interactionId)
+          );
+
+          const allPassed = taskResults.every(r => r.success);
+          const dependencyStatus = allPassed ? 'verified' : 'failed';
+
+
+          // Note: In a real implementation, we'd need the dependency ID
+          // For now, this serves as a placeholder for the status update logic
+          // The server-side verification results handler could update dependency status
+        }
+      } else {
       }
 
-      // Submit results back to central service
-      await submitResults(config.serviceUrl, config.provider, {
-        taskId: tasks[0]?.id || "unknown",
-        providerVersion: config.providerVersion,
-        results: allResults,
-      });
+      // Get git SHA for return value too
+      const providerGitSha = getGitSha();
 
       return {
-        taskId: tasks[0]?.id || "unknown",
+        taskId: tasks[0]?.id || null,
         providerVersion: config.providerVersion,
+        providerGitSha,
         results: allResults,
-        fixtureProposals: fixtureProposals.length,
       };
     },
 
@@ -156,6 +134,7 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
     ): Promise<VerificationTask[]> => {
       return getVerificationTasks(
         config.serviceUrl,
+        config.apiKey,
         config.provider,
         environment,
       );
@@ -193,43 +172,132 @@ export const replayRequest = async (
 export const validateResponse = (
   expected: HTTPResponse,
   actual: HTTPResponse,
-): boolean => {
+): { success: boolean; error?: string; errorDetails?: VerificationErrorDetails } => {
   // Validate status code
   if (expected.status !== actual.status) {
-    return false;
+    const error = `Status code mismatch: expected ${expected.status}, got ${actual.status}`;
+    return {
+      success: false,
+      error,
+      errorDetails: {
+        type: 'status_mismatch',
+        message: error,
+        expected: expected.status,
+        actual: actual.status
+      }
+    };
   }
 
-  // Validate response body structure (not exact values)
+  // Validate response body structure
   if (expected.body && actual.body) {
-    return validateJsonStructure(expected.body, actual.body);
+    const structureResult = validateJsonStructure(expected.body, actual.body, 'body');
+    if (!structureResult.success) {
+      return {
+        success: false,
+        error: `Response structure mismatch: ${structureResult.error}`,
+        errorDetails: structureResult.errorDetails
+      };
+    }
+
+    // For successful GET requests, also check if the data is reasonable
+    if (actual.status >= 200 && actual.status < 300) {
+      const contentCheck = validateResponseContent(expected.body, actual.body);
+      if (!contentCheck.success) {
+        return {
+          success: false,
+          error: contentCheck.error,
+          errorDetails: {
+            type: 'content_mismatch',
+            message: contentCheck.error || 'Content validation failed',
+            expected: expected.body,
+            actual: actual.body
+          }
+        };
+      }
+    }
   }
 
-  return true;
+  return { success: true };
 };
 
 export const validateJsonStructure = (
   expected: unknown,
   actual: unknown,
-): boolean => {
+  fieldPath?: string,
+): { success: boolean; error?: string; errorDetails?: VerificationErrorDetails } => {
   // Implement deep structure validation
   // Check that actual has all required fields from expected
   // Allow extra fields in actual
   // Validate types match
 
+
   if (typeof expected !== typeof actual) {
-    return false;
+    const error = `Type mismatch: expected ${typeof expected}, got ${typeof actual}`;
+    return {
+      success: false,
+      error,
+      errorDetails: {
+        type: 'structure_mismatch',
+        message: error,
+        expected: typeof expected,
+        actual: typeof actual,
+        field: fieldPath
+      }
+    };
   }
 
   if (Array.isArray(expected)) {
-    return (
-      Array.isArray(actual) &&
-      (expected.length === 0 || validateJsonStructure(expected[0], actual[0]))
-    );
+    if (!Array.isArray(actual)) {
+      const error = 'Expected array but got non-array';
+      return {
+        success: false,
+        error,
+        errorDetails: {
+          type: 'structure_mismatch',
+          message: error,
+          expected: 'array',
+          actual: typeof actual,
+          field: fieldPath
+        }
+      };
+    }
+
+    if (expected.length === 0) {
+      return { success: true };
+    }
+
+    if (actual.length === 0) {
+      const error = 'Expected non-empty array but got empty array';
+      return {
+        success: false,
+        error,
+        errorDetails: {
+          type: 'structure_mismatch',
+          message: error,
+          expected: 'non-empty array',
+          actual: 'empty array',
+          field: fieldPath
+        }
+      };
+    }
+
+    return validateJsonStructure(expected[0], actual[0], fieldPath ? `${fieldPath}[0]` : '[0]');
   }
 
   if (typeof expected === "object" && expected !== null) {
     if (typeof actual !== "object" || actual === null) {
-      return false;
+      const error = 'Expected object but got non-object';
+      return {
+        success: false,
+        error,
+        errorDetails: {
+          type: 'structure_mismatch',
+          message: error,
+          expected: 'object',
+          actual: actual === null ? 'null' : typeof actual,
+          field: fieldPath
+        }
+      };
     }
 
     const expectedObj = expected as Record<string, unknown>;
@@ -237,24 +305,49 @@ export const validateJsonStructure = (
 
     for (const key in expectedObj) {
       if (!(key in actualObj)) {
-        return false;
+        const currentFieldPath = fieldPath ? `${fieldPath}.${key}` : key;
+        const error = `Missing required field: ${key}`;
+        return {
+          success: false,
+          error: `Missing required field: ${key}. Expected: ${JSON.stringify(expectedObj, null, 2)}, Actual: ${JSON.stringify(actualObj, null, 2)}`,
+          errorDetails: {
+            type: 'structure_mismatch',
+            message: error,
+            expected: expectedObj,
+            actual: actualObj,
+            field: currentFieldPath
+          }
+        };
       }
-      if (!validateJsonStructure(expectedObj[key], actualObj[key])) {
-        return false;
+      const currentFieldPath = fieldPath ? `${fieldPath}.${key}` : key;
+      const fieldResult = validateJsonStructure(expectedObj[key], actualObj[key], currentFieldPath);
+      if (!fieldResult.success) {
+        const error = `Field validation failed for '${key}': ${fieldResult.error}`;
+        return {
+          success: false,
+          error,
+          errorDetails: fieldResult.errorDetails
+        };
       }
     }
   }
 
-  return true;
+  return { success: true };
 };
 
 const getVerificationTasks = async (
   serviceUrl: string,
+  apiKey: string,
   provider: string,
   environment?: string,
 ): Promise<VerificationTask[]> => {
-  const url = `${serviceUrl}/verification/${provider}${environment ? `?environment=${environment}` : ""}`;
-  const response = await fetch(url);
+  const url = `${serviceUrl}/api/verification/${provider}${environment ? `?environment=${environment}` : ""}`;
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to get verification tasks: ${response.statusText}`);
@@ -265,12 +358,14 @@ const getVerificationTasks = async (
 
 const submitResults = async (
   serviceUrl: string,
+  apiKey: string,
   provider: string,
   results: VerificationResults,
 ): Promise<void> => {
-  const response = await fetch(`${serviceUrl}/verification/${provider}`, {
+  const response = await fetch(`${serviceUrl}/api/verification/${provider}`, {
     method: "POST",
     headers: {
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(results),
@@ -283,124 +378,43 @@ const submitResults = async (
   }
 };
 
-const setupFromFixtures = async (
-  serviceUrl: string,
-  provider: string,
-  providerVersion: string,
-  operation: string,
-): Promise<boolean> => {
-  try {
-    const fixtures = await fetchFixturesForOperation(
-      serviceUrl,
-      provider,
-      providerVersion,
-      operation,
-    );
-
-    if (fixtures.length === 0) {
-      return false;
+const validateResponseContent = (
+  expected: unknown,
+  actual: unknown,
+): { success: boolean; error?: string } => {
+  // For arrays, check that they're both arrays and have reasonable length
+  if (Array.isArray(expected) && Array.isArray(actual)) {
+    // Allow actual to have different items, but should be same type
+    if (expected.length > 0 && actual.length === 0) {
+      return {
+        success: false,
+        error: `Expected non-empty array but got empty array`,
+      };
     }
-
-    // Use the highest priority fixture
-    const prioritized = prioritizeFixtures(fixtures);
-    const fixture = prioritized[0];
-
-    // Set up data based on fixture state information
-    if (fixture.data.state) {
-      await setupStateFromFixture(fixture.data.state);
-      console.log(
-        `🔧 Set up provider state using fixture ${fixture.id} for ${operation}`,
-      );
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.warn(
-      `⚠️  Failed to setup from fixtures for ${operation}:`,
-      error instanceof Error ? error.message : "Unknown error",
-    );
-    return false;
-  }
-};
-
-const fetchFixturesForOperation = async (
-  serviceUrl: string,
-  provider: string,
-  providerVersion: string,
-  operation: string,
-): Promise<Fixture[]> => {
-  const response = await fetch(
-    `${serviceUrl}/fixtures/${operation}?service=${provider}&version=${providerVersion}&status=approved`,
-  );
-
-  if (response.ok) {
-    return response.json();
+    return { success: true };
   }
 
-  return [];
-};
+  // For objects, check key fields exist
+  if (typeof expected === 'object' && expected !== null &&
+      typeof actual === 'object' && actual !== null) {
 
-const setupStateFromFixture = async (
-  state: Record<string, unknown>,
-): Promise<void> => {
-  // This would be implemented based on your specific data setup needs
-  // Examples:
-  // - Insert data into database
-  // - Set up mock responses
-  // - Configure external service states
+    const expectedObj = expected as Record<string, unknown>;
+    const actualObj = actual as Record<string, unknown>;
 
-  console.log("Setting up provider state from fixture:", state);
-
-  // Example implementation would be provided by the user:
-  // if (state.orders) {
-  //   for (const order of state.orders as Order[]) {
-  //     await database.orders.create(order)
-  //   }
-  // }
-};
-
-const extractStateInformation = async (
-  operation: string,
-): Promise<Record<string, unknown> | undefined> => {
-  // Extract current database/system state that would be needed to reproduce this response
-  // This is operation-specific and would be implemented based on your system
-
-  // Example:
-  // if (operation === 'getOrder') {
-  //   return {
-  //     orders: await database.orders.findAll(),
-  //     customers: await database.customers.findAll()
-  //   }
-  // }
-
-  return undefined; // For now, return undefined - teams can implement as needed
-};
-
-const submitFixtureProposals = async (
-  serviceUrl: string,
-  proposals: FixtureProposal[],
-): Promise<void> => {
-  for (const proposal of proposals) {
-    try {
-      const response = await fetch(`${serviceUrl}/fixtures`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(proposal),
-      });
-
-      if (!response.ok) {
-        console.error(
-          `Failed to submit fixture proposal for ${proposal.operation}: ${response.statusText}`,
-        );
+    // Check that critical ID fields match if they exist
+    if (expectedObj.id && actualObj.id) {
+      // Allow different IDs for created resources, but both should exist
+      if (typeof expectedObj.id !== typeof actualObj.id) {
+        return {
+          success: false,
+          error: `ID field type mismatch: expected ${typeof expectedObj.id}, got ${typeof actualObj.id}`,
+        };
       }
-    } catch (error) {
-      console.error(
-        `Failed to submit fixture proposal for ${proposal.operation}:`,
-        error,
-      );
     }
+
+    return { success: true };
   }
+
+  return { success: true };
 };
+

@@ -4,10 +4,18 @@ import type {
   CanIDeployOptions,
   CanIDeployResult,
   OpenAPISpec,
+  ServiceRegistration,
+  ServiceDeployment,
+  ProviderRegistration,
+  ConsumerRegistration,
+  ConsumerDeployment,
+  ProviderDeployment,
 } from "@entente/types";
 import { createFixtureManager } from "@entente/fixtures";
 import { getApiKey, getServerUrl } from "./config.js";
+import { getGitRepositoryUrl, getGitSha } from "./git-utils.js";
 import chalk from "chalk";
+import fs from 'fs/promises';
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const apiKey = await getApiKey();
@@ -67,8 +75,66 @@ export const uploadSpec = async (options: UploadOptions): Promise<void> => {
     );
   }
 
-  // Upload to central service
   const serviceUrl = await getServerUrl();
+
+  // Check if provider service exists, if not try to auto-register
+  try {
+    const providerResponse = await makeAuthenticatedRequest(
+      `${serviceUrl}/api/services/${service}/provider`,
+    );
+
+    if (!providerResponse.ok && providerResponse.status === 404) {
+      console.log(chalk.yellow('⚠️'), `Provider service ${service} not found, attempting auto-registration...`);
+
+      // Try to find package.json in current directory
+      let packageJson: Record<string, unknown> = {};
+      try {
+        const packageContent = await fs.readFile('./package.json', 'utf-8');
+        packageJson = JSON.parse(packageContent);
+        console.log(chalk.blue('📦'), `Found package.json, registering provider service ${service}...`);
+
+        await registerService({
+          name: service,
+          type: 'provider',
+          packagePath: './package.json',
+          description: `Auto-registered provider for ${service}`,
+        });
+      } catch (pkgError) {
+        console.log(chalk.yellow('⚠️'), `No package.json found, creating minimal provider registration...`);
+
+        // Create minimal provider registration
+        const registration: ProviderRegistration = {
+          name: service,
+          description: `Auto-registered provider for ${service}`,
+          packageJson: {
+            name: service,
+            version: version,
+            description: `Auto-registered provider for ${service}`,
+          },
+        };
+
+        const registerResponse = await makeAuthenticatedRequest(
+          `${serviceUrl}/api/providers`,
+          {
+            method: 'POST',
+            body: JSON.stringify(registration),
+          }
+        );
+
+        if (!registerResponse.ok) {
+          const error = await registerResponse.json();
+          throw new Error(`Failed to auto-register provider: ${error.error || registerResponse.statusText}`);
+        }
+
+        console.log(chalk.green('✅'), `Auto-registered provider ${service}`);
+      }
+    }
+  } catch (error) {
+    // If provider check/registration fails, continue with spec upload
+    console.log(chalk.yellow('⚠️'), `Could not verify/register provider: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
+  // Upload to central service
   const response = await makeAuthenticatedRequest(
     `${serviceUrl}/api/specs/${service}`,
     {
@@ -88,14 +154,24 @@ export const uploadSpec = async (options: UploadOptions): Promise<void> => {
   );
 
   if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
     throw new Error(
-      `Failed to upload spec: ${response.status} ${response.statusText}`,
+      `Failed to upload spec: ${error.error || response.statusText}`,
     );
   }
 
-  console.log(
-    `✅ Successfully uploaded ${service}@${version} spec to ${environment}`,
-  );
+  const result = await response.json();
+  if (result.isNew) {
+    console.log(
+      chalk.green("✅"),
+      `Uploaded new OpenAPI spec for ${service}@${version} to ${environment}`,
+    );
+  } else {
+    console.log(
+      chalk.green("✅"),
+      `Updated OpenAPI spec for ${service}@${version} in ${environment}`,
+    );
+  }
 };
 
 export const recordDeployment = async (
@@ -110,41 +186,56 @@ export const recordDeployment = async (
 
   const serviceUrl = await getServerUrl();
 
-  // Mark new version as active
-  const response = await makeAuthenticatedRequest(
-    `${serviceUrl}/api/deployments`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        service,
-        version,
-        environment,
-        deployedAt: new Date(),
-        deployedBy,
-        active: true,
-      }),
-    },
-  );
+  // Get current git SHA
+  const gitSha = getGitSha();
 
-  if (!response.ok) {
-    throw new Error(
-      `Failed to record deployment: ${response.status} ${response.statusText}`,
+  try {
+    // Mark new version as active
+    const response = await makeAuthenticatedRequest(
+      `${serviceUrl}/api/deployments`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          service,
+          version,
+          environment,
+          deployedAt: new Date(),
+          deployedBy,
+          active: true,
+          gitSha,
+        }),
+      },
     );
-  }
 
-  console.log(
-    `✅ Successfully recorded deployment of ${service}@${version} to ${environment}`,
-  );
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to record deployment: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`,
+      );
+    }
+
+    console.log(
+      `✅ Successfully recorded deployment of ${service}@${version} to ${environment}`,
+    );
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(`Cannot connect to Entente server at ${serviceUrl}. Make sure the server is running.`);
+    }
+    throw error;
+  }
 };
 
 export const canIDeploy = async (
   options: CanIDeployOptions,
 ): Promise<CanIDeployResult> => {
-  const { consumer, version, environment } = options;
+  const { service, consumer, version, environment } = options;
+
+  // Use service if provided, otherwise fall back to consumer for backward compatibility
+  const serviceName = service || consumer;
 
   const serviceUrl = await getServerUrl();
   const response = await makeAuthenticatedRequest(
-    `${serviceUrl}/api/can-i-deploy?consumer=${consumer}&version=${version}&environment=${environment}`,
+    `${serviceUrl}/api/can-i-deploy?service=${serviceName}&version=${version}&environment=${environment}`,
   );
 
   if (!response.ok) {
@@ -258,4 +349,165 @@ export const getDeploymentStatus = async (
       `${version.service}@${version.version} (deployed ${version.deployedAt})`,
     );
   }
+};
+
+// Unified service registration
+export const registerService = async (options: {
+  name: string;
+  type: 'consumer' | 'provider';
+  packagePath: string;
+  description?: string;
+}): Promise<void> => {
+  const serviceUrl = await getServerUrl();
+
+  // Read package.json
+  let packageJson: Record<string, unknown>;
+  try {
+    const packageContent = await fs.readFile(options.packagePath, 'utf-8');
+    packageJson = JSON.parse(packageContent);
+  } catch (error) {
+    throw new Error(`Failed to read package.json from ${options.packagePath}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
+  // Get git repository information
+  const gitRepositoryUrl = await getGitRepositoryUrl();
+
+  const registration: ServiceRegistration = {
+    name: options.name,
+    type: options.type,
+    description: options.description || packageJson.description as string,
+    packageJson,
+    gitRepositoryUrl: gitRepositoryUrl || undefined,
+  };
+
+  const response = await makeAuthenticatedRequest(
+    `${serviceUrl}/api/services`,
+    {
+      method: 'POST',
+      body: JSON.stringify(registration),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Failed to register ${options.type}: ${error.error || response.statusText}`);
+  }
+
+  const result = await response.json();
+  if (result.isNew) {
+    console.log(chalk.green('✅'), `${options.type} ${options.name} registered successfully`);
+    console.log(`   ID: ${result.id}`);
+    console.log(`   Created: ${result.createdAt}`);
+  } else {
+    console.log(chalk.green('✅'), `${options.type} ${options.name} updated successfully`);
+    console.log(`   ID: ${result.id}`);
+    console.log(`   Updated: ${result.updatedAt}`);
+  }
+}
+
+// Legacy provider registration function for backward compatibility
+export const registerProvider = async (options: {
+  name: string;
+  packagePath: string;
+  description?: string;
+}): Promise<void> => {
+  return registerService({
+    name: options.name,
+    type: 'provider',
+    packagePath: options.packagePath,
+    description: options.description,
+  });
+}
+
+// Legacy consumer registration function for backward compatibility
+export const registerConsumer = async (options: {
+  name: string;
+  packagePath: string;
+  description?: string;
+}): Promise<void> => {
+  return registerService({
+    name: options.name,
+    type: 'consumer',
+    packagePath: options.packagePath,
+    description: options.description,
+  });
+};
+
+// Consumer deployment with dependencies
+export const deployConsumer = async (options: {
+  name: string;
+  version: string;
+  environment: string;
+  dependencies: Array<{ provider: string; version: string }>;
+  deployedBy?: string;
+}): Promise<void> => {
+  const serviceUrl = await getServerUrl();
+
+  // Get current git SHA
+  const gitSha = getGitSha();
+
+  const deployment: ConsumerDeployment = {
+    name: options.name,
+    version: options.version,
+    environment: options.environment,
+    dependencies: options.dependencies,
+    deployedBy: options.deployedBy || process.env.USER || 'unknown',
+    gitSha: gitSha || undefined,
+  };
+
+  const response = await makeAuthenticatedRequest(
+    `${serviceUrl}/api/deployments/consumer`,
+    {
+      method: 'POST',
+      body: JSON.stringify(deployment),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Failed to deploy consumer: ${error.error || response.statusText}`);
+  }
+
+  const result = await response.json();
+  console.log(chalk.green('🚀'), `Consumer ${options.name}@${options.version} deployed to ${options.environment}`);
+  console.log(`   Dependencies registered: ${result.dependenciesRegistered}`);
+  console.log(`   Deployment ID: ${result.deployment.id}`);
+};
+
+// Provider deployment
+export const deployProvider = async (options: {
+  name: string;
+  version: string;
+  environment: string;
+  deployedBy?: string;
+}): Promise<void> => {
+  const serviceUrl = await getServerUrl();
+
+  // Get current git SHA
+  const gitSha = getGitSha();
+
+  const deployment: ProviderDeployment = {
+    name: options.name,
+    version: options.version,
+    environment: options.environment,
+    deployedBy: options.deployedBy || process.env.USER || 'unknown',
+    gitSha: gitSha || undefined,
+  };
+
+  const response = await makeAuthenticatedRequest(
+    `${serviceUrl}/api/deployments/provider`,
+    {
+      method: 'POST',
+      body: JSON.stringify(deployment),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Failed to deploy provider: ${error.error || response.statusText}`);
+  }
+
+  const result = await response.json();
+  console.log(chalk.green('🚀'), `Provider ${options.name}@${options.version} deployed to ${options.environment}`);
+  console.log(`   Deployment ID: ${result.deployment.id}`);
 };

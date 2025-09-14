@@ -5,9 +5,8 @@ Provider verification library that replays recorded consumer interactions agains
 
 ## Key Features
 - Verification against real recorded interactions
-- Fixture-based state setup
+- State handler-based setup
 - Response structure validation (not exact values)
-- Fixture proposal generation from successful verifications
 
 ## Main Exports
 - `createProvider(config)` - Factory function for provider verification
@@ -18,7 +17,7 @@ Provider verification library that replays recorded consumer interactions agains
 ## Architecture
 - Functional programming (no classes)
 - Factory functions return objects with methods
-- Depends on @entente/types and @entente/fixtures
+- Depends on @entente/types only
 - Uses native fetch for HTTP requests
 
 ## Usage Example
@@ -36,7 +35,6 @@ const results = await provider.verify({
   stateHandlers: {
     'getOrder': async () => setupTestData()
   },
-  proposeFixtures: true,
   cleanup: async () => cleanupTestData()
 })
 ```
@@ -55,19 +53,19 @@ pnpm test
 
 ## Key Functions
 - `verify()` - Main verification workflow
-- `setupFromFixtures()` - Automatic state setup from fixtures
-- `submitFixtureProposals()` - Create fixture proposals from real responses
-- `extractStateInformation()` - Extract provider state (user-implementable)
+- `replayRequest()` - Replay recorded requests against provider
+- `validateResponse()` - Structure validation of responses
+- `validateJsonStructure()` - Deep structure comparison
 
 ## Implementation Status
 - ✅ Core verification workflow
 - ✅ Response structure validation
-- ✅ Fixture proposal generation
-- ❌ Real database state setup examples
-- ❌ Advanced state extraction helpers
+- ✅ State handler integration
+- ❌ Advanced verification reporting
+- ❌ Parallel verification support
 
 ## Next Steps
 1. Add example state setup implementations
-2. Improve state extraction utilities
-3. Add parallel verification support
-4. Implement verification result caching
+2. Add parallel verification support
+3. Implement verification result caching
+4. Add advanced verification reporting

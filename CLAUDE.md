@@ -75,3 +75,4 @@ pnpm --filter @entente/server dev:api
 3. Authentication system for admin UI
 4. WebSocket notifications for real-time updates
 5. Advanced analytics and reporting features
+- You can find an apiKey in ~/.entente/entente.json

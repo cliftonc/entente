@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { OpenAPISpec, SpecMetadata } from '@entente/types'
-import { specs } from '../../db/schema'
+import { specs, services } from '../../db/schema'
 import { eq, and, desc } from 'drizzle-orm'
 
 export const specsRouter = new Hono()
@@ -19,26 +19,75 @@ specsRouter.post('/:service', async (c) => {
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
-  const [newSpec] = await db.insert(specs).values({
-    tenantId,
-    service: metadata.service,
-    version: metadata.version,
-    branch: metadata.branch,
-    environment: metadata.environment,
-    spec,
-    uploadedBy: metadata.uploadedBy,
-  }).returning()
+  // Find the provider service for this service
+  const provider = await db.query.services.findFirst({
+    where: and(
+      eq(services.tenantId, tenantId),
+      eq(services.name, metadata.service),
+      eq(services.type, 'provider')
+    ),
+  })
 
-  console.log(`📋 Uploaded spec for ${service}@${metadata.version} (${metadata.environment})`)
+  if (!provider) {
+    return c.json({
+      error: `Provider service '${metadata.service}' not found. Please register the provider first using 'entente register-service -t provider'.`
+    }, 404)
+  }
+
+  // Check if spec already exists for this provider+version+environment+branch
+  const existingSpec = await db.query.specs.findFirst({
+    where: and(
+      eq(specs.tenantId, tenantId),
+      eq(specs.providerId, provider.id),
+      eq(specs.version, metadata.version),
+      eq(specs.environment, metadata.environment),
+      eq(specs.branch, metadata.branch)
+    ),
+  })
+
+  let resultSpec: any
+  let isNew = false
+
+  if (existingSpec) {
+    // Update existing spec
+    const [updated] = await db.update(specs)
+      .set({
+        spec,
+        uploadedBy: metadata.uploadedBy,
+        uploadedAt: new Date(),
+      })
+      .where(eq(specs.id, existingSpec.id))
+      .returning()
+
+    resultSpec = updated
+    console.log(`📋 Updated spec for ${service}@${metadata.version} (${metadata.environment})`)
+  } else {
+    // Create new spec
+    const [created] = await db.insert(specs).values({
+      tenantId,
+      providerId: provider.id,
+      service: metadata.service,
+      version: metadata.version,
+      branch: metadata.branch,
+      environment: metadata.environment,
+      spec,
+      uploadedBy: metadata.uploadedBy,
+    }).returning()
+
+    resultSpec = created
+    isNew = true
+    console.log(`📋 Uploaded new spec for ${service}@${metadata.version} (${metadata.environment})`)
+  }
 
   return c.json({
-    id: newSpec.id,
-    service: newSpec.service,
-    version: newSpec.version,
-    branch: newSpec.branch,
-    environment: newSpec.environment,
-    uploadedAt: newSpec.uploadedAt,
-  }, 201)
+    id: resultSpec.id,
+    service: resultSpec.service,
+    version: resultSpec.version,
+    branch: resultSpec.branch,
+    environment: resultSpec.environment,
+    uploadedAt: resultSpec.uploadedAt,
+    isNew,
+  }, isNew ? 201 : 200)
 })
 
 // Get OpenAPI specification

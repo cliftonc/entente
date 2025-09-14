@@ -121,7 +121,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    checkSession()
+    // Reduce initial loading time by checking session faster
+    const checkSessionFast = async () => {
+      try {
+        // Use a shorter timeout for the auth check
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 3000) // 3s timeout
+
+        const response = await fetch('/auth/session', {
+          credentials: 'include',
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+
+        const data = await response.json()
+
+        if (data.authenticated) {
+          setAuthState({
+            authenticated: true,
+            user: data.user,
+            tenants: data.tenants,
+            loading: false,
+            error: null,
+          })
+        } else {
+          setAuthState({
+            authenticated: false,
+            user: null,
+            tenants: [],
+            loading: false,
+            error: null,
+          })
+        }
+      } catch (error) {
+        // If auth check fails or times out, assume not authenticated
+        setAuthState({
+          authenticated: false,
+          user: null,
+          tenants: [],
+          loading: false,
+          error: null,
+        })
+      }
+    }
+
+    checkSessionFast()
   }, [])
 
   const contextValue: AuthContextType = {

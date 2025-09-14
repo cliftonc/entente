@@ -25,10 +25,11 @@
     "@entente/types": "workspace:*"
   },
   "peerDependencies": {
-    "@stoplight/prism-cli": "^5.9.2"
+    "@stoplight/prism-http": "^5.8.0"
   },
   "devDependencies": {
-    "@stoplight/prism-cli": "^5.9.2",
+    "@stoplight/prism-http": "^5.8.0",
+    "@stoplight/prism-core": "^5.8.0",
     "@types/node": "^22.10.6",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

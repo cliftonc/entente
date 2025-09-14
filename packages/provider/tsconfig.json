@@ -3,12 +3,13 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "composite": true
+    "composite": true,
+    "noEmit": false,
+    "allowImportingTsExtensions": false
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "tests"],
   "references": [
-    { "path": "../types" },
-    { "path": "../fixtures" }
+    { "path": "../types" }
   ]
 }

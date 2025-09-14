@@ -1,11 +1,15 @@
 import { pgTable, uuid, varchar, timestamp, boolean } from 'drizzle-orm/pg-core'
 import { tenants } from './tenants'
+import { services } from './services'
 
 export const deployments = pgTable('deployments', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
-  service: varchar('service', { length: 255 }).notNull(),
+  type: varchar('type', { length: 50 }).notNull(), // 'provider' | 'consumer'
+  serviceId: uuid('service_id').references(() => services.id), // Unified reference to services
+  service: varchar('service', { length: 255 }).notNull(), // Keep for backward compatibility
   version: varchar('version', { length: 100 }).notNull(),
+  gitSha: varchar('git_sha', { length: 40 }), // Git SHA for this deployment
   environment: varchar('environment', { length: 100 }).notNull(),
   deployedAt: timestamp('deployed_at').notNull(),
   deployedBy: varchar('deployed_by', { length: 255 }).notNull(),

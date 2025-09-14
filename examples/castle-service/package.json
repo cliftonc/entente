@@ -1,0 +1,42 @@
+{
+  "name": "@entente/example-castle-service",
+  "version": "0.1.0",
+  "description": "Example provider service for French castle management - demonstrating Entente contract testing",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run test/provider.test.ts",
+    "register:provider": "node ../../packages/cli/dist/cli.js register-service --type provider --name castle-service --spec spec/openapi.json --spec-version 1.0.0 --environment test",
+    "upload:spec": "node ../../packages/cli/dist/cli.js upload-spec --service castle-service --service-version 1.0.0 --environment test --spec spec/openapi.json",
+    "deploy:provider": "node ../../packages/cli/dist/cli.js deploy-service --type provider --name castle-service --service-version 1.0.0 --environment test",
+    "record:deployment": "node ../../packages/cli/dist/cli.js record-deployment --service castle-service --service-version 1.0.0 --environment test",
+    "can-i-deploy": "node ../../packages/cli/dist/cli.js can-i-deploy --type provider --service castle-service --service-version 1.0.0 --environment test",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@entente/provider": "workspace:*",
+    "@entente/types": "workspace:*",
+    "@hono/node-server": "^1.13.5",
+    "@hono/swagger-ui": "^0.4.1",
+    "dotenv": "^17.2.2",
+    "hono": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "keywords": [
+    "entente",
+    "contract-testing",
+    "example",
+    "provider",
+    "hono",
+    "openapi"
+  ]
+}

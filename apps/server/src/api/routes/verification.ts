@@ -1,15 +1,173 @@
 import { Hono } from 'hono'
 import type { VerificationTask, VerificationResults, ClientInteraction } from '@entente/types'
 
-import { verificationTasks, verificationResults, interactions } from '../../db/schema'
+import { verificationTasks, verificationResults, interactions, serviceDependencies, services } from '../../db/schema'
 import { eq, and, desc, gte, count } from 'drizzle-orm'
 
 export const verificationRouter = new Hono()
 
+// Get verification result by ID
+verificationRouter.get('/result/:id', async (c) => {
+  const id = c.req.param('id')
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+
+  const dbResult = await db
+    .select({
+      id: verificationResults.id,
+      provider: verificationResults.provider,
+      providerVersion: verificationResults.providerVersion,
+      taskId: verificationResults.taskId,
+      submittedAt: verificationResults.submittedAt,
+      results: verificationResults.results,
+      // Provider git info
+      providerGitSha: verificationResults.providerGitSha,
+      providerGitRepositoryUrl: services.gitRepositoryUrl,
+      // Task info
+      taskConsumer: verificationTasks.consumer,
+      taskConsumerVersion: verificationTasks.consumerVersion,
+      // Consumer git info from task-linked service
+      taskConsumerGitSha: verificationTasks.consumerGitSha,
+    })
+    .from(verificationResults)
+    .leftJoin(verificationTasks, eq(verificationResults.taskId, verificationTasks.id))
+    .leftJoin(services, and(
+      eq(services.name, verificationResults.provider),
+      eq(services.type, 'provider'),
+      eq(services.tenantId, tenantId)
+    ))
+    .where(and(
+      eq(verificationResults.tenantId, tenantId),
+      eq(verificationResults.id, id)
+    ))
+    .then(results => results[0])
+
+  if (!dbResult) {
+    return c.json({ error: 'Verification result not found' }, 404)
+  }
+
+  const resultData = dbResult.results as any[]
+  const total = resultData.length
+  const passed = resultData.filter(r => r.success).length
+
+  // Get interaction details for each result
+  const enrichedResults = await Promise.all(
+    resultData.map(async (result) => {
+      if (result.interactionId) {
+        const interaction = await db.query.interactions.findFirst({
+          where: and(
+            eq(interactions.tenantId, tenantId),
+            eq(interactions.id, result.interactionId)
+          ),
+        })
+
+        return {
+          ...result,
+          interaction: interaction ? {
+            method: interaction.request?.method,
+            path: interaction.request?.path,
+            operation: interaction.operation,
+            service: interaction.service,
+            consumer: interaction.consumer,
+            environment: interaction.environment,
+            timestamp: interaction.timestamp,
+          } : null,
+        }
+      }
+      return result
+    })
+  )
+
+  const result = {
+    id: dbResult.id,
+    provider: dbResult.provider,
+    providerVersion: dbResult.providerVersion,
+    providerGitSha: dbResult.providerGitSha,
+    providerGitRepositoryUrl: dbResult.providerGitRepositoryUrl,
+    taskId: dbResult.taskId,
+    submittedAt: dbResult.submittedAt,
+    status: passed === total ? 'passed' : 'failed',
+    total,
+    passed,
+    failed: total - passed,
+    results: enrichedResults,
+    // Add consumer information from the associated task
+    consumer: dbResult.taskConsumer,
+    consumerVersion: dbResult.taskConsumerVersion,
+    consumerGitSha: dbResult.taskConsumerGitSha,
+    consumerGitRepositoryUrl: null, // TODO: Get from consumer service JOIN
+  }
+
+  return c.json(result)
+})
+
+// Get all verification results
+verificationRouter.get('/', async (c) => {
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+  const limit = parseInt(c.req.query('limit') || '100')
+
+  const dbResults = await db
+    .select({
+      id: verificationResults.id,
+      provider: verificationResults.provider,
+      providerVersion: verificationResults.providerVersion,
+      providerGitSha: verificationResults.providerGitSha,
+      taskId: verificationResults.taskId,
+      submittedAt: verificationResults.submittedAt,
+      results: verificationResults.results,
+      // Provider git repository URL
+      providerGitRepositoryUrl: services.gitRepositoryUrl,
+      // Task info
+      taskConsumer: verificationTasks.consumer,
+      taskConsumerVersion: verificationTasks.consumerVersion,
+      taskConsumerGitSha: verificationTasks.consumerGitSha,
+    })
+    .from(verificationResults)
+    .leftJoin(verificationTasks, eq(verificationResults.taskId, verificationTasks.id))
+    .leftJoin(services, and(
+      eq(services.name, verificationResults.provider),
+      eq(services.type, 'provider'),
+      eq(services.tenantId, tenantId)
+    ))
+    .where(eq(verificationResults.tenantId, tenantId))
+    .orderBy(desc(verificationResults.submittedAt))
+    .limit(limit)
+
+  const results = dbResults.map(result => {
+    const resultData = result.results as any[]
+    const total = resultData.length
+    const passed = resultData.filter(r => r.success).length
+
+    return {
+      id: result.id,
+      provider: result.provider,
+      providerVersion: result.providerVersion,
+      providerGitSha: result.providerGitSha,
+      providerGitRepositoryUrl: result.providerGitRepositoryUrl,
+      taskId: result.taskId,
+      submittedAt: result.submittedAt,
+      status: passed === total ? 'passed' : 'failed',
+      total,
+      passed,
+      failed: total - passed,
+      createdAt: result.submittedAt,
+      lastRun: result.submittedAt,
+      // Add consumer information from the associated task
+      consumer: result.taskConsumer,
+      consumerVersion: result.taskConsumerVersion,
+      consumerGitSha: result.taskConsumerGitSha,
+      consumerGitRepositoryUrl: null, // TODO: Get from consumer service JOIN
+    }
+  })
+
+  return c.json(results)
+})
+
 // Get verification tasks for a provider
 verificationRouter.get('/:provider', async (c) => {
   const provider = c.req.param('provider')
-  const environment = c.req.query('environment')
+  // Note: Environment parameter ignored - providers verify against ALL consumer interactions
 
   const db = c.get('db')
   const { tenantId } = c.get('session')
@@ -19,8 +177,7 @@ verificationRouter.get('/:provider', async (c) => {
     eq(verificationTasks.provider, provider)
   ]
 
-  if (environment) whereConditions.push(eq(verificationTasks.environment, environment))
-
+  // Fetch ALL verification tasks regardless of environment
   const dbTasks = await db.query.verificationTasks.findMany({
     where: and(...whereConditions),
     orderBy: desc(verificationTasks.createdAt),
@@ -36,7 +193,7 @@ verificationRouter.get('/:provider', async (c) => {
     interactions: task.interactions as ClientInteraction[],
   }))
 
-  console.log(`🔍 Retrieved ${tasks.length} verification task(s) for ${provider}`)
+  console.log(`🔍 Retrieved ${tasks.length} verification task(s) for ${provider} (all environments)`)
 
   return c.json(tasks)
 })
@@ -46,32 +203,66 @@ verificationRouter.post('/:provider', async (c) => {
   const provider = c.req.param('provider')
   const results: VerificationResults = await c.req.json()
 
-  if (!results.providerVersion || !results.results) {
-    return c.json({ error: 'Missing required verification fields' }, 400)
+  if (!results.providerVersion || !results.results || !results.taskId) {
+    return c.json({ error: 'Missing required verification fields (providerVersion, results, taskId)' }, 400)
+  }
+
+  // Validate taskId is a proper UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(results.taskId)) {
+    return c.json({ error: 'Invalid taskId: must be a valid UUID. Did you fetch verification tasks first?' }, 400)
   }
 
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
+  // Get the verification task to find the associated dependency
+  const task = await db.query.verificationTasks.findFirst({
+    where: and(
+      eq(verificationTasks.tenantId, tenantId),
+      eq(verificationTasks.id, results.taskId)
+    ),
+  })
+
+  if (!task) {
+    return c.json({ error: 'Verification task not found' }, 404)
+  }
+
   await db.insert(verificationResults).values({
     tenantId,
     provider,
     providerVersion: results.providerVersion,
+    providerGitSha: results.providerGitSha || null,
     taskId: results.taskId,
     results: results.results,
   })
 
   const passed = results.results.filter(r => r.success).length
   const total = results.results.length
+  const allPassed = passed === total
+
+  // Update dependency status based on verification results
+  if (task.dependencyId) {
+    const newStatus = allPassed ? 'verified' : 'failed'
+    await db.update(serviceDependencies)
+      .set({
+        status: newStatus,
+        verifiedAt: allPassed ? new Date() : null,
+      })
+      .where(eq(serviceDependencies.id, task.dependencyId))
+
+    console.log(`📋 Updated dependency ${task.dependencyId} status to ${newStatus}`)
+  }
 
   console.log(`✅ Received verification results for ${provider}: ${passed}/${total} passed`)
 
-  return c.json({ 
+  return c.json({
     status: 'received',
     summary: {
       total,
       passed,
       failed: total - passed,
+      dependencyStatusUpdated: !!task.dependencyId,
     },
   }, 201)
 })
@@ -84,14 +275,29 @@ verificationRouter.get('/:provider/history', async (c) => {
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
-  const dbHistory = await db.query.verificationResults.findMany({
-    where: and(
+  const dbHistory = await db
+    .select({
+      id: verificationResults.id,
+      provider: verificationResults.provider,
+      providerVersion: verificationResults.providerVersion,
+      providerGitSha: verificationResults.providerGitSha,
+      taskId: verificationResults.taskId,
+      submittedAt: verificationResults.submittedAt,
+      results: verificationResults.results,
+      providerGitRepositoryUrl: services.gitRepositoryUrl,
+    })
+    .from(verificationResults)
+    .leftJoin(services, and(
+      eq(services.name, provider),
+      eq(services.type, 'provider'),
+      eq(services.tenantId, tenantId)
+    ))
+    .where(and(
       eq(verificationResults.tenantId, tenantId),
       eq(verificationResults.provider, provider)
-    ),
-    orderBy: desc(verificationResults.submittedAt),
-    limit,
-  })
+    ))
+    .orderBy(desc(verificationResults.submittedAt))
+    .limit(limit)
 
   const history = dbHistory.map(result => {
     const results = result.results as any[]
@@ -102,6 +308,8 @@ verificationRouter.get('/:provider/history', async (c) => {
       id: result.id,
       provider: result.provider,
       providerVersion: result.providerVersion,
+      providerGitSha: result.providerGitSha,
+      providerGitRepositoryUrl: result.providerGitRepositoryUrl,
       taskId: result.taskId,
       submittedAt: result.submittedAt,
       summary: {
@@ -177,4 +385,84 @@ verificationRouter.get('/:provider/stats', async (c) => {
   }
 
   return c.json(stats)
+})
+
+// Get verification results where the specified service is the consumer
+verificationRouter.get('/consumer/:consumer/history', async (c) => {
+  const consumer = c.req.param('consumer')
+  const limit = parseInt(c.req.query('limit') || '50')
+
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+
+  // Get verification tasks for this consumer first, then get results for those tasks
+  const consumerTasks = await db.query.verificationTasks.findMany({
+    where: and(
+      eq(verificationTasks.tenantId, tenantId),
+      eq(verificationTasks.consumer, consumer)
+    ),
+    columns: { id: true },
+  })
+
+  if (consumerTasks.length === 0) {
+    return c.json([])
+  }
+
+  const taskIds = consumerTasks.map(task => task.id)
+
+  // Get verification results for these tasks with provider git info
+  const dbHistory = await db
+    .select({
+      id: verificationResults.id,
+      provider: verificationResults.provider,
+      providerVersion: verificationResults.providerVersion,
+      providerGitSha: verificationResults.providerGitSha,
+      taskId: verificationResults.taskId,
+      submittedAt: verificationResults.submittedAt,
+      results: verificationResults.results,
+      providerGitRepositoryUrl: services.gitRepositoryUrl,
+    })
+    .from(verificationResults)
+    .leftJoin(services, and(
+      eq(services.name, verificationResults.provider),
+      eq(services.type, 'provider'),
+      eq(services.tenantId, tenantId)
+    ))
+    .where(eq(verificationResults.tenantId, tenantId))
+    .orderBy(desc(verificationResults.submittedAt))
+    .limit(limit)
+
+  // Filter results to only include those for our consumer's tasks
+  const filteredHistory = dbHistory.filter(result =>
+    taskIds.includes(result.taskId)
+  )
+
+  const history = filteredHistory.map(result => {
+    const results = result.results as any[]
+    const total = results.length
+    const passed = results.filter(r => r.success).length
+
+    return {
+      id: result.id,
+      provider: result.provider,
+      providerVersion: result.providerVersion,
+      providerGitSha: result.providerGitSha,
+      providerGitRepositoryUrl: result.providerGitRepositoryUrl,
+      taskId: result.taskId,
+      submittedAt: result.submittedAt,
+      consumer,
+      consumerVersion: 'latest', // Would need to get from task
+      consumerGitSha: null, // Would need to get from task
+      consumerGitRepositoryUrl: null, // Would need to get from consumer service JOIN
+      summary: {
+        total,
+        passed,
+        failed: total - passed,
+      },
+    }
+  })
+
+  console.log(`🔍 Retrieved ${history.length} verification results for consumer ${consumer}`)
+
+  return c.json(history)
 })

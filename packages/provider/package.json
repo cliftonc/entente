@@ -21,7 +21,6 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@entente/fixtures": "workspace:*",
     "@entente/types": "workspace:*"
   },
   "devDependencies": {

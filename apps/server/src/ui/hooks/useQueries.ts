@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { fixtureApi } from '../utils/api'
 
 // Query keys for cache management
 export const queryKeys = {
@@ -7,6 +8,7 @@ export const queryKeys = {
   interactions: ['interactions'] as const,
   serviceInteractions: (serviceId: string) => ['interactions', 'service', serviceId] as const,
   fixtures: ['fixtures'] as const,
+  draftFixtures: ['fixtures', 'draft'] as const,
   deployments: ['deployments'] as const,
   verification: (provider: string) => ['verification', provider] as const,
 }
@@ -68,6 +70,18 @@ export function useFixtures() {
       if (!response.ok) throw new Error('Failed to fetch fixtures')
       return response.json()
     },
+  })
+}
+
+export function useDraftFixturesCount() {
+  return useQuery({
+    queryKey: queryKeys.draftFixtures,
+    queryFn: async () => {
+      const fixtures = await fixtureApi.getAll({ status: 'draft' })
+      return fixtures.length
+    },
+    staleTime: 1000 * 30, // 30 seconds - similar to Fixtures page
+    retry: 1,
   })
 }
 

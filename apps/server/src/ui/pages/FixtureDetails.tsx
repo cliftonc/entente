@@ -1,0 +1,447 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { fixtureApi } from '../utils/api'
+import { useAuth } from '../hooks/useAuth'
+import TimestampDisplay from '../components/TimestampDisplay'
+
+function FixtureDetails() {
+  const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+
+  const {
+    data: fixture,
+    isLoading,
+    error
+  } = useQuery({
+    queryKey: ['fixture', id],
+    queryFn: () => fixtureApi.getById(id!),
+    enabled: !!id,
+  })
+
+  // Approve fixture mutation
+  const approveMutation = useMutation({
+    mutationFn: ({ notes }: { notes?: string }) =>
+      fixtureApi.approve(id!, user?.username || 'unknown', notes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fixture', id] })
+      queryClient.invalidateQueries({ queryKey: ['fixtures'] })
+    },
+  })
+
+  // Reject fixture mutation
+  const rejectMutation = useMutation({
+    mutationFn: ({ notes }: { notes?: string }) =>
+      fixtureApi.reject(id!, user?.username || 'unknown', notes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fixture', id] })
+      queryClient.invalidateQueries({ queryKey: ['fixtures'] })
+    },
+  })
+
+  // Revoke fixture mutation
+  const revokeMutation = useMutation({
+    mutationFn: ({ notes }: { notes?: string }) =>
+      fixtureApi.revoke(id!, user?.username || 'unknown', notes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fixture', id] })
+      queryClient.invalidateQueries({ queryKey: ['fixtures'] })
+    },
+  })
+
+  const handleApprove = () => {
+    approveMutation.mutate({})
+  }
+
+  const handleReject = () => {
+    if (window.confirm('Are you sure you want to reject this fixture?')) {
+      rejectMutation.mutate({})
+    }
+  }
+
+  const handleRevoke = () => {
+    if (window.confirm('Are you sure you want to reject this approved fixture?')) {
+      revokeMutation.mutate({})
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="breadcrumbs text-sm">
+          <ul>
+            <li><Link to="/fixtures">Fixtures</Link></li>
+            <li>Loading...</li>
+          </ul>
+        </div>
+
+        <div>
+          <h1 className="text-3xl font-bold text-base-content">Fixture Details</h1>
+          <p className="text-base-content/70 mt-1">
+            Loading fixture details...
+          </p>
+        </div>
+
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body">
+            <div className="skeleton h-6 w-48 mb-4"></div>
+            <div className="skeleton h-4 w-full mb-2"></div>
+            <div className="skeleton h-4 w-3/4 mb-2"></div>
+            <div className="skeleton h-32 w-full"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="breadcrumbs text-sm">
+          <ul>
+            <li><Link to="/fixtures">Fixtures</Link></li>
+            <li>Error</li>
+          </ul>
+        </div>
+
+        <div>
+          <h1 className="text-3xl font-bold text-base-content">Fixture Details</h1>
+          <p className="text-base-content/70 mt-1">
+            Error loading fixture details
+          </p>
+        </div>
+
+        <div className="alert alert-error">
+          <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span>Failed to load fixture details</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!fixture) {
+    return (
+      <div className="space-y-6">
+        <div className="breadcrumbs text-sm">
+          <ul>
+            <li><Link to="/fixtures">Fixtures</Link></li>
+            <li>Not Found</li>
+          </ul>
+        </div>
+
+        <div>
+          <h1 className="text-3xl font-bold text-base-content">Fixture Details</h1>
+          <p className="text-base-content/70 mt-1">
+            Fixture not found
+          </p>
+        </div>
+
+        <div className="alert alert-warning">
+          <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"></path>
+          </svg>
+          <span>The requested fixture could not be found.</span>
+        </div>
+      </div>
+    )
+  }
+
+
+  return (
+    <div className="space-y-6">
+      <div className="breadcrumbs text-sm">
+        <ul>
+          <li><Link to="/fixtures">Fixtures</Link></li>
+          <li>{fixture.service} • {fixture.operation}</li>
+        </ul>
+      </div>
+
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-base-content">Fixture Details</h1>
+          <p className="text-base-content/70 mt-1">
+            Detailed view of test fixture
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {fixture.status === 'draft' ? (
+            <>
+              <button
+                className="btn btn-success"
+                onClick={handleApprove}
+                disabled={approveMutation.isPending}
+              >
+                {approveMutation.isPending ? (
+                  <span className="loading loading-spinner loading-sm mr-2"></span>
+                ) : (
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+                Approve
+              </button>
+              <button
+                className="btn btn-error"
+                onClick={handleReject}
+                disabled={rejectMutation.isPending}
+              >
+                {rejectMutation.isPending ? (
+                  <span className="loading loading-spinner loading-sm mr-2"></span>
+                ) : (
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+                Reject
+              </button>
+            </>
+          ) : fixture.status === 'approved' ? (
+            <button
+              className="btn btn-error"
+              onClick={handleRevoke}
+              disabled={revokeMutation.isPending}
+            >
+              {revokeMutation.isPending ? (
+                <span className="loading loading-spinner loading-sm mr-2"></span>
+              ) : (
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+              Reject
+            </button>
+          ) : (
+            <button
+              className="btn btn-success"
+              onClick={handleApprove}
+              disabled={approveMutation.isPending}
+            >
+              {approveMutation.isPending ? (
+                <span className="loading loading-spinner loading-sm mr-2"></span>
+              ) : (
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              Approve
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Overview Card */}
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body">
+          <h2 className="card-title">Overview</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div><strong>Service:</strong> {fixture.service}</div>
+              <div><strong>Service Version:</strong> {fixture.serviceVersion}</div>
+              <div><strong>Operation:</strong>
+                <code className="bg-base-200 px-2 py-1 rounded text-sm ml-2">
+                  {fixture.operation}
+                </code>
+              </div>
+              <div><strong>Priority:</strong> {fixture.priority}</div>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <strong>Status:</strong>
+                <span className={`badge ml-2 ${
+                  fixture.status === 'draft' ? 'badge-warning' :
+                  fixture.status === 'approved' ? 'badge-success' :
+                  fixture.status === 'rejected' ? 'badge-error' :
+                  'badge-info'
+                }`}>
+                  {fixture.status}
+                </span>
+              </div>
+              <div>
+                <strong>Source:</strong>
+                <span className={`badge ml-2 ${
+                  fixture.source === 'consumer' ? 'badge-primary' : 'badge-secondary'
+                }`}>
+                  {fixture.source}
+                </span>
+              </div>
+              <div><strong>Created:</strong> <TimestampDisplay timestamp={fixture.createdAt} /></div>
+              {fixture.approvedAt && fixture.approvedBy && (
+                <div><strong>Approved:</strong> <TimestampDisplay timestamp={fixture.approvedAt} /> by {fixture.approvedBy}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Creation Context */}
+      {fixture.createdFrom && (
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body">
+            <h2 className="card-title">Creation Context</h2>
+            <div className="bg-base-200 p-3 rounded">
+              <pre className="text-sm overflow-x-auto">
+                {JSON.stringify(fixture.createdFrom, null, 2)}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fixture Data - Two Column Layout */}
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body">
+          <h2 className="card-title">HTTP Request & Response</h2>
+          {(() => {
+            const request = fixture.data.request as any;
+            const response = fixture.data.response as any;
+
+            if (!request && !response) {
+              return (
+                <div>
+                  <h3 className="font-semibold text-lg mb-4">Raw Data</h3>
+                  <div className="bg-base-200 p-3 rounded">
+                    <pre className="text-sm overflow-x-auto">
+                      {JSON.stringify(fixture.data, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Request Column */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg text-primary border-b border-primary/20 pb-2">
+                    📤 Request
+                  </h3>
+                  {request ? (
+                    <div className="space-y-3">
+                      {request.method && request.path && (
+                        <div>
+                          <h4 className="font-medium text-sm text-base-content/70 mb-2">Method & Path</h4>
+                          <div className="bg-base-200 p-3 rounded font-mono text-sm">
+                            <span className="badge badge-primary badge-sm mr-2">{request.method}</span>
+                            {request.path}
+                          </div>
+                        </div>
+                      )}
+
+                      {request.headers && Object.keys(request.headers).length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-sm text-base-content/70 mb-2">Headers</h4>
+                          <div className="bg-base-200 p-3 rounded">
+                            <pre className="text-xs overflow-x-auto">
+                              {JSON.stringify(request.headers, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+
+                      {request.query && Object.keys(request.query).length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-sm text-base-content/70 mb-2">Query Parameters</h4>
+                          <div className="bg-base-200 p-3 rounded">
+                            <pre className="text-xs overflow-x-auto">
+                              {JSON.stringify(request.query, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+
+                      {request.body !== undefined && request.body !== null && (
+                        <div>
+                          <h4 className="font-medium text-sm text-base-content/70 mb-2">Body</h4>
+                          <div className="bg-base-200 p-3 rounded">
+                            <pre className="text-xs overflow-x-auto">
+                              {typeof request.body === 'string'
+                                ? request.body
+                                : JSON.stringify(request.body, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-base-content/50 italic text-sm">
+                      No request data available
+                    </div>
+                  )}
+                </div>
+
+                {/* Response Column */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg text-secondary border-b border-secondary/20 pb-2">
+                    📥 Response
+                  </h3>
+                  {response ? (
+                    <div className="space-y-3">
+                      {response.status && (
+                        <div>
+                          <h4 className="font-medium text-sm text-base-content/70 mb-2">Status</h4>
+                          <div className="bg-base-200 p-3 rounded">
+                            <span className={`badge badge-lg ${
+                              response.status >= 200 && response.status < 300 ? 'badge-success' :
+                              response.status >= 400 ? 'badge-error' : 'badge-warning'
+                            }`}>
+                              {response.status}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {response.headers && Object.keys(response.headers).length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-sm text-base-content/70 mb-2">Headers</h4>
+                          <div className="bg-base-200 p-3 rounded">
+                            <pre className="text-xs overflow-x-auto">
+                              {JSON.stringify(response.headers, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+
+                      {response.body !== undefined && response.body !== null && (
+                        <div>
+                          <h4 className="font-medium text-sm text-base-content/70 mb-2">Body</h4>
+                          <div className="bg-base-200 p-3 rounded">
+                            <pre className="text-xs overflow-x-auto">
+                              {typeof response.body === 'string'
+                                ? response.body
+                                : JSON.stringify(response.body, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-base-content/50 italic text-sm">
+                      No response data available
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* Notes */}
+      {fixture.notes && (
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body">
+            <h2 className="card-title">Notes</h2>
+            <div className="bg-base-200 p-3 rounded">
+              <p className="text-sm">{fixture.notes}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default FixtureDetails

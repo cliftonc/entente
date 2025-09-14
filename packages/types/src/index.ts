@@ -1,4 +1,124 @@
 // Core contract types based on the specification
+
+// Unified Service entity (replaces Provider and Consumer)
+export interface Service {
+  id: string;
+  tenantId: string;
+  name: string;
+  type: 'consumer' | 'provider';
+  description?: string;
+  packageJson: Record<string, unknown>;
+  gitRepositoryUrl?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Legacy interfaces for backward compatibility
+export interface Provider {
+  id: string;
+  tenantId: string;
+  name: string;
+  description?: string;
+  packageJson: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Consumer {
+  id: string;
+  tenantId: string;
+  name: string;
+  description?: string;
+  packageJson: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Service dependencies (replaces ConsumerDependency)
+export interface ServiceDependency {
+  id: string;
+  tenantId: string;
+  consumerId: string;
+  consumerVersion: string;
+  providerId: string;
+  providerVersion: string;
+  environment: string;
+  deploymentId?: string;
+  status: 'pending_verification' | 'verified' | 'failed';
+  registeredAt: Date;
+  verifiedAt?: Date;
+}
+
+// Legacy interface for backward compatibility
+export interface ConsumerDependency {
+  id: string;
+  tenantId: string;
+  consumerId: string;
+  consumerVersion: string;
+  providerId: string;
+  providerVersion: string;
+  environment: string;
+  deploymentId?: string;
+  status: 'pending_verification' | 'verified' | 'failed';
+  registeredAt: Date;
+  verifiedAt?: Date;
+}
+
+// Service registration (replaces ProviderRegistration and ConsumerRegistration)
+export interface ServiceRegistration {
+  name: string;
+  type: 'consumer' | 'provider';
+  description?: string;
+  packageJson: Record<string, unknown>;
+  gitRepositoryUrl?: string;
+}
+
+// Legacy registration interfaces for backward compatibility
+export interface ProviderRegistration {
+  name: string;
+  description?: string;
+  packageJson: Record<string, unknown>;
+}
+
+export interface ConsumerRegistration {
+  name: string;
+  description?: string;
+  packageJson: Record<string, unknown>;
+}
+
+// Unified service deployment interface
+export interface ServiceDeployment {
+  name: string;
+  type: 'consumer' | 'provider';
+  version: string;
+  environment: string;
+  dependencies?: Array<{
+    provider: string;
+    version: string;
+  }>; // Only for consumer deployments
+  deployedBy?: string;
+}
+
+// Legacy deployment interfaces for backward compatibility
+export interface ConsumerDeployment {
+  name: string;
+  version: string;
+  environment: string;
+  dependencies: Array<{
+    provider: string;
+    version: string;
+  }>;
+  deployedBy?: string;
+  gitSha?: string;
+}
+
+export interface ProviderDeployment {
+  name: string;
+  version: string;
+  environment: string;
+  deployedBy?: string;
+  gitSha?: string;
+}
 export interface SpecMetadata {
   service: string;
   version: string;
@@ -14,6 +134,7 @@ export interface ClientInteraction {
   serviceVersion: string;
   consumer: string;
   consumerVersion: string;
+  consumerGitSha?: string;
   environment: string;
 
   // Request/response data
@@ -49,8 +170,14 @@ export interface ClientInfo {
 }
 
 export interface DeploymentState {
-  service: string;
+  id: string;
+  tenantId: string;
+  type: 'provider' | 'consumer';
+  providerId?: string;
+  consumerId?: string;
+  service: string; // Keep for backward compatibility
   version: string;
+  gitSha?: string;
   environment: string;
   deployedAt: Date;
   deployedBy: string;
@@ -66,24 +193,39 @@ export interface ActiveVersion {
 
 export interface VerificationTask {
   id: string;
-  provider: string;
+  tenantId: string;
+  providerId: string;
+  consumerId: string;
+  dependencyId?: string;
+  provider: string; // Keep for backward compatibility
   providerVersion: string;
-  consumer: string;
+  consumer: string; // Keep for backward compatibility
   consumerVersion: string;
   interactions: ClientInteraction[];
   environment: string;
+  createdAt: Date;
+}
+
+export interface VerificationErrorDetails {
+  type: 'status_mismatch' | 'structure_mismatch' | 'content_mismatch';
+  message: string;
+  expected?: unknown;
+  actual?: unknown;
+  field?: string;
 }
 
 export interface VerificationResult {
   interactionId: string;
   success: boolean;
   error?: string;
+  errorDetails?: VerificationErrorDetails;
   actualResponse?: HTTPResponse;
 }
 
 export interface VerificationResults {
   taskId: string;
   providerVersion: string;
+  providerGitSha?: string | null;
   results: VerificationResult[];
 }
 
@@ -98,6 +240,7 @@ export interface Fixture {
   priority: number;
   data: FixtureData;
   createdFrom: FixtureCreation;
+  createdAt: Date;
   approvedBy?: string;
   approvedAt?: Date;
   notes?: string;
@@ -159,14 +302,13 @@ export interface MockOptions {
   validateRequests?: boolean;
   validateResponses?: boolean;
   useFixtures?: boolean;
+  localFixtures?: Fixture[];
 }
 
 export interface VerifyOptions {
   baseUrl: string;
   environment?: string;
   stateHandlers?: Record<string, () => Promise<void>>;
-  fixtureBasedSetup?: boolean;
-  proposeFixtures?: boolean;
   cleanup?: () => Promise<void>;
 }
 
@@ -234,18 +376,30 @@ export interface DeploymentOptions {
 }
 
 export interface CanIDeployOptions {
-  consumer: string;
+  service?: string; // New flexible parameter
+  consumer?: string; // Legacy parameter for backward compatibility
   version: string;
   environment: string;
+  type?: 'consumer' | 'provider'; // Service type for unified services table
 }
 
 export interface CanIDeployResult {
   canDeploy: boolean;
-  compatibleProviders: Array<{
+  compatibleServices?: Array<{
+    service: string;
+    version: string;
+    verified: boolean;
+    interactionCount: number;
+    type: 'consumer' | 'provider';
+    activelyDeployed?: boolean;
+  }>;
+  // Legacy field for backward compatibility
+  compatibleProviders?: Array<{
     service: string;
     version: string;
     verified: boolean;
     interactionCount: number;
   }>;
   message: string;
+  serviceType?: 'consumer' | 'provider' | 'consumer/provider' | 'unknown';
 }

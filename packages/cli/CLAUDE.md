@@ -13,6 +13,8 @@ Command line interface for Entente contract testing platform. Provides tools for
 ## Main Commands
 - `entente upload-spec` - Upload OpenAPI specification
 - `entente record-deployment` - Record service deployment
+- `entente deploy-consumer` - Deploy a consumer with dependencies
+- `entente deploy-provider` - Deploy a provider
 - `entente can-i-deploy` - Check deployment compatibility
 - `entente fixtures approve` - Approve fixture proposals
 - `entente fixtures list` - List fixtures by status

@@ -1,0 +1,232 @@
+[
+  {
+    "service": "castle-service",
+    "serviceVersion": "1.0.0",
+    "operation": "listCastles",
+    "source": "consumer",
+    "status": "approved",
+    "priority": 1,
+    "data": {
+      "request": {
+        "method": "GET",
+        "path": "/castles",
+        "headers": {},
+        "query": {},
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": [
+          {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "name": "Château de Versailles",
+            "region": "Île-de-France",
+            "yearBuilt": 1623,
+            "description": "Famous royal residence known for its opulent architecture and gardens"
+          },
+          {
+            "id": "550e8400-e29b-41d4-a716-446655440001",
+            "name": "Château de Fontainebleau",
+            "region": "Île-de-France",
+            "yearBuilt": 1137,
+            "description": "Historic royal palace with stunning Renaissance and classical architecture"
+          },
+          {
+            "id": "550e8400-e29b-41d4-a716-446655440002",
+            "name": "Château de Chambord",
+            "region": "Centre-Val de Loire",
+            "yearBuilt": 1519,
+            "description": "Iconic French Renaissance castle with distinctive French defensive architecture"
+          }
+        ]
+      }
+    },
+    "createdFrom": {
+      "type": "manual",
+      "timestamp": "2024-01-01T00:00:00.000Z",
+      "generatedBy": "castle-client-test-setup"
+    },
+    "notes": "Fixture for listing all castles"
+  },
+  {
+    "service": "castle-service",
+    "serviceVersion": "1.0.0",
+    "operation": "getCastle",
+    "source": "consumer",
+    "status": "approved",
+    "priority": 1,
+    "data": {
+      "request": {
+        "method": "GET",
+        "path": "/castles/550e8400-e29b-41d4-a716-446655440000",
+        "headers": {},
+        "query": {},
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "name": "Château de Versailles",
+          "region": "Île-de-France",
+          "yearBuilt": 1623,
+          "description": "Famous royal residence known for its opulent architecture and gardens"
+        }
+      }
+    },
+    "createdFrom": {
+      "type": "manual",
+      "timestamp": "2024-01-01T00:00:00.000Z",
+      "generatedBy": "castle-client-test-setup"
+    },
+    "notes": "Fixture for getting a specific castle"
+  },
+  {
+    "service": "castle-service",
+    "serviceVersion": "1.0.0",
+    "operation": "createCastle",
+    "source": "consumer",
+    "status": "approved",
+    "priority": 1,
+    "data": {
+      "request": {
+        "method": "POST",
+        "path": "/castles",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "query": {},
+        "body": {
+          "name": "Château de Test",
+          "region": "Test Region",
+          "yearBuilt": 1500
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "550e8400-e29b-41d4-a716-446655440003",
+          "name": "Château de Test",
+          "region": "Test Region",
+          "yearBuilt": 1500,
+          "description": "A test castle used for development and testing purposes"
+        }
+      }
+    },
+    "createdFrom": {
+      "type": "manual",
+      "timestamp": "2024-01-01T00:00:00.000Z",
+      "generatedBy": "castle-client-test-setup"
+    },
+    "notes": "Fixture for creating a new castle"
+  },
+  {
+    "service": "castle-service",
+    "serviceVersion": "1.0.0",
+    "operation": "deleteCastle",
+    "source": "consumer",
+    "status": "approved",
+    "priority": 1,
+    "data": {
+      "request": {
+        "method": "DELETE",
+        "path": "/castles/550e8400-e29b-41d4-a716-446655440000",
+        "headers": {},
+        "query": {},
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "headers": {},
+        "body": null
+      }
+    },
+    "createdFrom": {
+      "type": "manual",
+      "timestamp": "2024-01-01T00:00:00.000Z",
+      "generatedBy": "castle-client-test-setup"
+    },
+    "notes": "Fixture for deleting a castle"
+  },
+  {
+    "service": "castle-service",
+    "serviceVersion": "1.0.0",
+    "operation": "getCastle",
+    "source": "consumer",
+    "status": "approved",
+    "priority": 1,
+    "data": {
+      "request": {
+        "method": "GET",
+        "path": "/castles/non-existent-id",
+        "headers": {},
+        "query": {},
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "error": "not_found",
+          "message": "Castle not found"
+        }
+      }
+    },
+    "createdFrom": {
+      "type": "manual",
+      "timestamp": "2024-01-01T00:00:00.000Z",
+      "generatedBy": "castle-client-test-setup"
+    },
+    "notes": "Fixture for castle not found error"
+  },
+  {
+    "service": "castle-service",
+    "serviceVersion": "1.0.0",
+    "operation": "createCastle",
+    "source": "consumer",
+    "status": "approved",
+    "priority": 1,
+    "data": {
+      "request": {
+        "method": "POST",
+        "path": "/castles",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "query": {},
+        "body": {
+          "name": "",
+          "region": "Test Region",
+          "yearBuilt": 999
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "error": "validation_error",
+          "message": "Name is required and yearBuilt must be between 1000 and 2100"
+        }
+      }
+    },
+    "createdFrom": {
+      "type": "manual",
+      "timestamp": "2024-01-01T00:00:00.000Z",
+      "generatedBy": "castle-client-test-setup"
+    },
+    "notes": "Fixture for validation error when creating castle"
+  }
+]
