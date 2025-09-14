@@ -153,7 +153,7 @@ app.post(
 
       if (filters.region) {
         castles = castles.filter(castle =>
-          castle.region.toLowerCase().includes(filters.region?.toLowerCase())
+          castle.region.toLowerCase().includes(filters.region!.toLowerCase())
         )
       }
 

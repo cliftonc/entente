@@ -347,13 +347,22 @@ const createBasicMockServer = async (port: number): Promise<MockServer> => {
 
 // Prism types (since they're dynamically imported)
 interface PrismInstance {
-  request: (request: unknown, operations: unknown[]) => Promise<{ output?: unknown }>
+  request: (request: unknown, operations: unknown[]) => Promise<{ output?: any }>
 }
 
 interface PrismOperation {
   method: string
   path: string
   responses: Record<string, unknown>
+}
+
+// Prism HTTP operation interface
+interface PrismHttpOperation {
+  method: string
+  path: string
+  responses: Record<string, unknown>
+  // Add other properties that might exist
+  [key: string]: any
 }
 
 const createPrismMockServer = async (port: number): Promise<MockServer> => {
@@ -368,29 +377,37 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
     // Inject fixtures as examples into the spec
     const specWithFixtures = injectFixturesIntoSpec(spec, fixtures)
 
-    // Get operations from the OpenAPI spec
-    operations = await getHttpOperationsFromSpec(specWithFixtures)
+    // Get operations from the OpenAPI spec and convert to PrismOperation format
+    const httpOperations = await getHttpOperationsFromSpec(specWithFixtures)
+    operations = httpOperations.map((op: any): PrismOperation => ({
+      method: op.method || 'get',
+      path: op.path || '/',
+      responses: op.responses || {}
+    }))
 
     // Create Prism instance with proper configuration for fixtures
-    prismInstance = createInstance(
-      {
-        mock: {
-          dynamic: fixtures.length === 0, // Use dynamic mocking if no fixtures, static if we have fixtures
-        },
-        validateRequest: true,
-        validateResponse: true,
-        checkSecurity: false,
-        errors: false,
-      } as unknown,
-      {
-        logger: {
-          info: () => {},
-          warn: () => {},
-          error: () => {},
-          debug: () => {},
-        },
-      }
-    )
+    const prismConfig = {
+      mock: {
+        dynamic: fixtures.length === 0, // Use dynamic mocking if no fixtures, static if we have fixtures
+      },
+      upstreamProxy: undefined,
+      isProxy: false,
+      validateRequest: true,
+      validateResponse: true,
+      checkSecurity: false,
+      errors: false,
+    }
+
+    const prismLogger = {
+      logger: {
+        info: () => {},
+        warn: () => {},
+        error: () => {},
+        debug: () => {},
+      },
+    }
+
+    prismInstance = createInstance(prismConfig as any, prismLogger) as any
 
     // Start HTTP server that uses Prism
     const { createServer } = await import('node:http')
@@ -436,17 +453,25 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
         let finalBody: unknown = null
 
         // Use Prism to handle the request
-        const result = await prismInstance.request(prismRequest, operations)
+        const result = prismInstance && operations
+          ? await prismInstance.request(prismRequest, operations)
+          : { output: null }
 
         // Handle the result
         if (result.output) {
-          output = result.output
-          finalStatusCode = output.statusCode || 200
-          finalHeaders = { ...finalHeaders, ...(output.headers || {}) }
-          finalBody = output.body
+          output = result.output as any
+          finalStatusCode = (output as any).statusCode || 200
+          finalHeaders = { ...finalHeaders, ...((output as any).headers || {}) }
+          finalBody = (output as any).body
         } else {
           // If Prism didn't return output, try fallback fixture matching
-          const fallbackResponse = await tryFallbackFixtureMatch(prismRequest, fixtures)
+          const fallbackFixtureRequest = {
+            method: prismRequest.method,
+            path: prismRequest.url.path,
+            body: prismRequest.body,
+            headers: prismRequest.headers
+          }
+          const fallbackResponse = await tryFallbackFixtureMatch(fallbackFixtureRequest, fixtures)
           if (fallbackResponse) {
             finalStatusCode = fallbackResponse.status
             finalHeaders = {
@@ -524,19 +549,20 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
         }
 
         // Check for validation errors
-        if (error.name === 'ProblemJsonError' || error.type) {
-          statusCode = error.status || 400
+        const errorObj = error as any
+        if (errorObj.name === 'ProblemJsonError' || errorObj.type) {
+          statusCode = errorObj.status || 400
           errorResponse = {
-            error: error.type || 'ValidationError',
-            message: error.title || error.message,
-            details: error.detail || error.validation,
+            error: errorObj.type || 'ValidationError',
+            message: errorObj.title || errorObj.message || 'Validation error',
+            details: errorObj.detail || errorObj.validation,
           }
-        } else if (error.status || error.statusCode) {
-          statusCode = error.status || error.statusCode
+        } else if (errorObj.status || errorObj.statusCode) {
+          statusCode = errorObj.status || errorObj.statusCode
           errorResponse = {
-            error: error.name || 'RequestError',
-            message: error.message,
-            details: error.validation || error.detail,
+            error: errorObj.name || 'RequestError',
+            message: errorObj.message || 'Request error',
+            details: errorObj.validation || errorObj.detail,
           }
         }
 
@@ -583,7 +609,7 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
     })
 
     await new Promise<void>((resolve, reject) => {
-      httpServer.listen(port, (err?: Error) => {
+      httpServer!.listen(port, (err?: Error) => {
         if (err) reject(err)
         else resolve()
       })
@@ -595,8 +621,8 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
   }): Promise<unknown> => {
     return new Promise((resolve, reject) => {
       let body = ''
-      req.on('data', (chunk: Buffer) => {
-        body += chunk.toString()
+      req.on('data', (chunk: any) => {
+        body += (chunk as Buffer).toString()
       })
       req.on('end', () => {
         try {
@@ -625,14 +651,19 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
     const candidateFixtures = availableFixtures.filter(fixture => {
       const fixtureRequest = fixture.data.request as HTTPRequest | undefined
 
+      if (!fixtureRequest) {
+        return false
+      }
+
       // Match method
       if (fixtureRequest.method.toLowerCase() !== request.method.toLowerCase()) {
         return false
       }
 
       // For path matching, try exact match first, then pattern match
-      const exactPathMatch = fixtureRequest.path === request.url.path
-      const patternPathMatch = pathMatches(fixtureRequest.path, request.url.path)
+      const requestPath = request.path // Use path directly, not request.url.path
+      const exactPathMatch = fixtureRequest.path === requestPath
+      const patternPathMatch = pathMatches(fixtureRequest.path, requestPath)
 
       if (!exactPathMatch && !patternPathMatch) {
         return false
@@ -659,8 +690,8 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
 
     // Prioritize exact path matches over pattern matches
     const exactMatches = candidateFixtures.filter(fixture => {
-      const fixtureRequest = fixture.data.request as any
-      return fixtureRequest.path === request.url.path
+      const fixtureRequest = fixture.data.request as HTTPRequest | undefined
+      return fixtureRequest?.path === request.path
     })
 
     const matchingFixture = exactMatches.length > 0 ? exactMatches[0] : candidateFixtures[0]
@@ -685,7 +716,7 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
     close: async () => {
       if (httpServer) {
         await new Promise<void>(resolve => {
-          httpServer.close(() => resolve())
+          httpServer!.close(() => resolve())
         })
         httpServer = null
       }
@@ -995,13 +1026,13 @@ const injectFixturesIntoSpec = (spec: OpenAPISpec, fixtures: Fixture[]): OpenAPI
   for (const [_path, pathItem] of Object.entries(modifiedSpec.paths)) {
     for (const [_method, operation] of Object.entries(pathItem as any)) {
       if (typeof operation !== 'object' || !operation || !(operation as any).operationId) {
-        return
+        continue
       }
 
       const operationId = (operation as any).operationId
       const operationFixtures = fixturesByOperation.get(operationId)
       if (!operationFixtures || operationFixtures.length === 0) {
-        return
+        continue
       }
 
       // Group fixtures by status code
