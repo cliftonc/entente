@@ -12,9 +12,9 @@ describe('getGitSha', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // Clear environment variables
-    process.env.COMMIT_SHA = undefined
-    process.env.GITHUB_SHA = undefined
-    process.env.GIT_COMMIT = undefined
+    delete process.env.COMMIT_SHA
+    delete process.env.GITHUB_SHA
+    delete process.env.GIT_COMMIT
   })
 
   afterEach(() => {
