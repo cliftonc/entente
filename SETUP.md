@@ -6,7 +6,7 @@
 entente/
 ├── packages/
 │   ├── types/           # Shared TypeScript types
-│   ├── client/          # Consumer testing library
+│   ├── consumer/        # Consumer testing library
 │   ├── provider/        # Provider verification library
 │   ├── fixtures/        # Fixture management utilities
 │   └── cli/             # Command line interface
@@ -63,13 +63,13 @@ entente/
 
 ### Package Development
 - Each package has its own `dev` script for TypeScript watching
-- Example: `pnpm --filter @entente/client dev`
+- Example: `pnpm --filter @entente/consumer dev`
 
 ## Package Usage
 
-### Client Library (@entente/client)
+### Consumer Library (@entente/consumer)
 ```typescript
-import { createClient } from '@entente/client'
+import { createClient } from '@entente/consumer'
 
 const entente = createClient({
   serviceUrl: 'https://entente.company.com',

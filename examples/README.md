@@ -52,7 +52,7 @@ A service that consumes castle-service to provide heritage tourism features.
 
 **Features:**
 - Consumes castle-service API
-- Consumer contract tests using `@entente/client`
+- Consumer contract tests using `@entente/consumer`
 - Mock server integration for isolated testing
 - Automatic interaction recording in CI
 

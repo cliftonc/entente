@@ -1,4 +1,4 @@
-# @entente/client - Claude Development Guide
+# @entente/consumer - Claude Development Guide
 
 ## Purpose
 Consumer testing library that creates mock servers from OpenAPI specs and records real interactions.
@@ -22,7 +22,7 @@ Consumer testing library that creates mock servers from OpenAPI specs and record
 
 ## Usage Example
 ```typescript
-import { createClient } from '@entente/client'
+import { createClient } from '@entente/consumer'
 
 const entente = createClient({
   serviceUrl: 'https://entente.company.com',

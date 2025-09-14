@@ -63,7 +63,7 @@ Question: Can consumer abc1234 deploy to staging?
 ### Packages
 
 - `@entente/types` - Shared TypeScript types
-- `@entente/client` - Consumer testing library
+- `@entente/consumer` - Consumer testing library
 - `@entente/provider` - Provider verification library
 - `@entente/fixtures` - Fixture management utilities
 - `@entente/cli` - Command line interface
@@ -94,7 +94,7 @@ pnpm format
 ### Consumer Testing
 
 ```typescript
-import { createClient } from '@entente/client'
+import { createClient } from '@entente/consumer'
 
 const entente = createClient({
   serviceUrl: 'https://entente.company.com',

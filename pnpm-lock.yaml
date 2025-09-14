@@ -117,9 +117,9 @@ importers:
 
   examples/castle-client:
     dependencies:
-      '@entente/client':
+      '@entente/consumer':
         specifier: workspace:*
-        version: link:../../packages/client
+        version: link:../../packages/consumer
       '@entente/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -208,7 +208,7 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.18.3)
 
-  packages/client:
+  packages/consumer:
     dependencies:
       '@entente/fixtures':
         specifier: workspace:*
@@ -3940,7 +3940,7 @@ snapshots:
 
   '@types/pg@8.15.5':
     dependencies:
-      '@types/node': 22.18.3
+      '@types/node': 24.3.3
       pg-protocol: 1.10.3
       pg-types: 2.2.0
 

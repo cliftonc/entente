@@ -22,7 +22,7 @@ Entente is a schema-first contract testing platform with centralized management.
 entente/
 ├── packages/
 │   ├── types/           # Shared TypeScript interfaces
-│   ├── client/          # Consumer testing library (@entente/client)
+│   ├── consumer/        # Consumer testing library (@entente/consumer)
 │   ├── provider/        # Provider verification library (@entente/provider)
 │   ├── fixtures/        # Fixture management utilities (@entente/fixtures)
 │   └── cli/             # Command line interface (@entente/cli)
@@ -49,7 +49,7 @@ pnpm test
 pnpm lint:fix && pnpm format
 
 # Work on specific package
-pnpm --filter @entente/client dev
+pnpm --filter @entente/consumer dev
 pnpm --filter @entente/server dev:api
 ```
 
@@ -71,7 +71,7 @@ pnpm --filter @entente/server dev:api
 
 ## Next Implementation Priorities
 1. Neon PostgreSQL integration in server
-2. Real Prism mock server integration in client
+2. Real Prism mock server integration in consumer
 3. Authentication system for admin UI
 4. WebSocket notifications for real-time updates
 5. Advanced analytics and reporting features

@@ -16,7 +16,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@entente/client": "workspace:*",
+    "@entente/consumer": "workspace:*",
     "@entente/types": "workspace:*",
     "@hono/node-server": "^1.13.5",
     "dotenv": "^17.2.2",

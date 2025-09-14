@@ -1,5 +1,5 @@
 {
-  "name": "@entente/client",
+  "name": "@entente/consumer",
   "version": "0.1.1",
   "description": "Consumer testing library for Entente contract testing",
   "type": "module",

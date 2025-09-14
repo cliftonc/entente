@@ -21,7 +21,7 @@
     "baseUrl": ".",
     "paths": {
       "@entente/types": ["./packages/types/src"],
-      "@entente/client": ["./packages/client/src"],
+      "@entente/consumer": ["./packages/consumer/src"],
       "@entente/provider": ["./packages/provider/src"],
       "@entente/fixtures": ["./packages/fixtures/src"],
       "@entente/cli": ["./packages/cli/src"]

@@ -66,7 +66,7 @@ const interaction: ClientInteraction = {
   response: { status: 200, headers: {}, body: { id: '123' } },
   timestamp: new Date(),
   duration: 150,
-  clientInfo: { library: '@entente/client', version: '0.1.0' }
+  clientInfo: { library: '@entente/consumer', version: '0.1.0' }
 }
 ```
 

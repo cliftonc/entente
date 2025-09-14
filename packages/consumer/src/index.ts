@@ -1014,7 +1014,7 @@ const createInteractionRecorder = (
         consumerGitSha: cachedGitSha || undefined,
         environment: config.environment,
         clientInfo: {
-          library: "@entente/client",
+          library: "@entente/consumer",
           version: "0.1.0",
           buildId: process.env.BUILD_ID,
           commit: cachedGitSha || undefined,

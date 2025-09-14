@@ -1,4 +1,4 @@
-# @entente/client
+# @entente/consumer
 
 Consumer testing library for Entente contract testing. This package implements the client-side functionality from the ContractFlow specification, enabling schema-first contract testing with automatic interaction recording and smart fixture support.
 
@@ -10,7 +10,7 @@ The client library allows consumer applications to create mock servers from Open
 
 ### OpenAPI-First Mock Creation
 ```typescript
-import { createClient } from '@entente/client'
+import { createClient } from '@entente/consumer'
 
 const entente = createClient({
   serviceUrl: 'https://entente.company.com',

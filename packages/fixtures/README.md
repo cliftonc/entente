@@ -239,4 +239,4 @@ pnpm test
 
 - `@entente/types` - Shared type definitions
 
-This package serves as a shared utility used by both `@entente/client` and `@entente/provider` packages, implementing the fixture management layer that enables ContractFlow's smart fixture system.
+This package serves as a shared utility used by both `@entente/consumer` and `@entente/provider` packages, implementing the fixture management layer that enables ContractFlow's smart fixture system.

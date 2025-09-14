@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { createClient } from '@entente/client'
+import { createClient } from '@entente/consumer'
 import type { Fixture } from '@entente/types'
 import dotenv from 'dotenv'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
