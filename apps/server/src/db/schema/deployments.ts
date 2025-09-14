@@ -1,10 +1,12 @@
-import { pgTable, uuid, varchar, timestamp, boolean } from 'drizzle-orm/pg-core'
-import { tenants } from './tenants'
+import { boolean, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 import { services } from './services'
+import { tenants } from './tenants'
 
 export const deployments = pgTable('deployments', {
   id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  tenantId: uuid('tenant_id')
+    .references(() => tenants.id)
+    .notNull(),
   type: varchar('type', { length: 50 }).notNull(), // 'provider' | 'consumer'
   serviceId: uuid('service_id').references(() => services.id), // Unified reference to services
   service: varchar('service', { length: 255 }).notNull(), // Keep for backward compatibility

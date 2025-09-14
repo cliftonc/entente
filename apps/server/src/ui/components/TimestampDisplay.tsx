@@ -36,7 +36,7 @@ function formatRelativeTime(date: Date): string {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false
+    hour12: false,
   })
 }
 
@@ -61,15 +61,12 @@ function TimestampDisplay({ timestamp, className = '' }: TimestampDisplayProps) 
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-      hour12: false
+      hour12: false,
     })
   }, [date])
 
   return (
-    <span
-      className={className}
-      title={fullTimestamp}
-    >
+    <span className={className} title={fullTimestamp}>
       {formattedTime}
     </span>
   )

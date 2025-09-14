@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { readFileSync, existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import chalk from 'chalk'
 
@@ -12,43 +12,46 @@ export function getGitSha(): string | null {
   try {
     // First check environment variables (common in CI/CD)
     if (process.env.COMMIT_SHA) {
-      return process.env.COMMIT_SHA;
+      return process.env.COMMIT_SHA
     }
     if (process.env.GITHUB_SHA) {
-      return process.env.GITHUB_SHA;
+      return process.env.GITHUB_SHA
     }
     if (process.env.GIT_COMMIT) {
-      return process.env.GIT_COMMIT;
+      return process.env.GIT_COMMIT
     }
 
     // Find git directory starting from current working directory
-    let gitDir = findGitDirectory(process.cwd());
+    const gitDir = findGitDirectory(process.cwd())
     if (!gitDir) {
-      return null;
+      return null
     }
 
     // Read .git/HEAD file
-    const headPath = join(gitDir, 'HEAD');
+    const headPath = join(gitDir, 'HEAD')
     if (!existsSync(headPath)) {
-      return null;
+      return null
     }
 
-    const head = readFileSync(headPath, 'utf8').trim();
+    const head = readFileSync(headPath, 'utf8').trim()
 
     // If HEAD is a reference to a branch, follow it
     if (head.startsWith('ref: ')) {
-      const refPath = join(gitDir, head.substring(5));
+      const refPath = join(gitDir, head.substring(5))
       if (!existsSync(refPath)) {
-        return null;
+        return null
       }
-      return readFileSync(refPath, 'utf8').trim();
+      return readFileSync(refPath, 'utf8').trim()
     }
 
     // HEAD contains a direct SHA
-    return head;
+    return head
   } catch (error) {
-    console.log(chalk.yellow('⚠️'), 'Could not get git SHA - not in a git repository or git not available')
-    return null;
+    console.log(
+      chalk.yellow('⚠️'),
+      'Could not get git SHA - not in a git repository or git not available'
+    )
+    return null
   }
 }
 
@@ -77,18 +80,18 @@ export async function getGitRepositoryUrl(): Promise<string | null> {
 
 // Find the .git directory by walking up the directory tree
 function findGitDirectory(startPath: string): string | null {
-  let currentPath = startPath;
-  const root = '/';
+  let currentPath = startPath
+  const root = '/'
 
   while (currentPath !== root) {
-    const gitPath = join(currentPath, '.git');
+    const gitPath = join(currentPath, '.git')
     if (existsSync(gitPath)) {
-      return gitPath;
+      return gitPath
     }
-    currentPath = join(currentPath, '..');
+    currentPath = join(currentPath, '..')
   }
 
-  return null;
+  return null
 }
 
 export async function getGitInfo(): Promise<GitInfo> {
@@ -97,6 +100,6 @@ export async function getGitInfo(): Promise<GitInfo> {
 
   return {
     sha: sha || 'unknown',
-    repositoryUrl: repositoryUrl || undefined
+    repositoryUrl: repositoryUrl || undefined,
   }
 }

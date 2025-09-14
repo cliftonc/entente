@@ -41,18 +41,18 @@ export const useUIStore = create<UIStore>()(
 
       // Actions
       toggleSidebar: () =>
-        set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed }), false, 'toggleSidebar'),
+        set(state => ({ sidebarCollapsed: !state.sidebarCollapsed }), false, 'toggleSidebar'),
 
-      setSidebarCollapsed: (collapsed) =>
+      setSidebarCollapsed: collapsed =>
         set({ sidebarCollapsed: collapsed }, false, 'setSidebarCollapsed'),
 
-      setTheme: (theme) => set({ theme }, false, 'setTheme'),
+      setTheme: theme => set({ theme }, false, 'setTheme'),
 
-      setActiveService: (service) => set({ activeService: service }, false, 'setActiveService'),
+      setActiveService: service => set({ activeService: service }, false, 'setActiveService'),
 
-      addNotification: (notification) =>
+      addNotification: notification =>
         set(
-          (state) => ({
+          state => ({
             notifications: [
               {
                 ...notification,
@@ -67,21 +67,19 @@ export const useUIStore = create<UIStore>()(
           'addNotification'
         ),
 
-      markNotificationRead: (id) =>
+      markNotificationRead: id =>
         set(
-          (state) => ({
-            notifications: state.notifications.map((n) =>
-              n.id === id ? { ...n, read: true } : n
-            ),
+          state => ({
+            notifications: state.notifications.map(n => (n.id === id ? { ...n, read: true } : n)),
           }),
           false,
           'markNotificationRead'
         ),
 
-      removeNotification: (id) =>
+      removeNotification: id =>
         set(
-          (state) => ({
-            notifications: state.notifications.filter((n) => n.id !== id),
+          state => ({
+            notifications: state.notifications.filter(n => n.id !== id),
           }),
           false,
           'removeNotification'

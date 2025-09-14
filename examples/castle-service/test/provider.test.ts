@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { serve } from "@hono/node-server";
 import { createProvider } from "@entente/provider";
-import app from "../src/index.js";
+import { serve } from "@hono/node-server";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetCastles } from "../src/db.js";
+import app from "../src/index.js";
 
 describe("Castle Service Provider Verification", () => {
   let server: ReturnType<typeof serve>;
@@ -31,8 +31,9 @@ describe("Castle Service Provider Verification", () => {
       serviceUrl: process.env.ENTENTE_SERVICE_URL || "http://localhost:3000",
       apiKey: process.env.ENTENTE_API_KEY || "test-key",
       provider: "castle-service",
-      providerVersion: "1.0.0",
     });
+
+    console.log(process.env);
 
     const results = await provider.verify({
       baseUrl: `http://localhost:${testPort}`,
@@ -82,7 +83,9 @@ describe("Castle Service Provider Verification", () => {
 
     // All verifications should pass if the provider correctly implements the contract
     if (failedResults.length > 0) {
-      console.log("\n⚠️  Some verifications failed - this indicates the provider doesn't match consumer expectations");
+      console.log(
+        "\n⚠️  Some verifications failed - this indicates the provider doesn't match consumer expectations",
+      );
     }
 
     expect(successfulResults.length).toBeGreaterThan(0);

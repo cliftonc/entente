@@ -1,15 +1,15 @@
-import { Hono } from 'hono'
 import type { OpenAPISpec, SpecMetadata } from '@entente/types'
-import { specs, services } from '../../db/schema'
-import { eq, and, desc } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
+import { Hono } from 'hono'
+import { services, specs } from '../../db/schema'
 
 export const specsRouter = new Hono()
 
 // Upload OpenAPI specification
-specsRouter.post('/:service', async (c) => {
+specsRouter.post('/:service', async c => {
   const service = c.req.param('service')
   const body = await c.req.json()
-  
+
   const { spec, metadata }: { spec: OpenAPISpec; metadata: SpecMetadata } = body
 
   if (!spec || !metadata) {
@@ -29,9 +29,12 @@ specsRouter.post('/:service', async (c) => {
   })
 
   if (!provider) {
-    return c.json({
-      error: `Provider service '${metadata.service}' not found. Please register the provider first using 'entente register-service -t provider'.`
-    }, 404)
+    return c.json(
+      {
+        error: `Provider service '${metadata.service}' not found. Please register the provider first using 'entente register-service -t provider'.`,
+      },
+      404
+    )
   }
 
   // Check if spec already exists for this provider+version+environment+branch
@@ -50,7 +53,8 @@ specsRouter.post('/:service', async (c) => {
 
   if (existingSpec) {
     // Update existing spec
-    const [updated] = await db.update(specs)
+    const [updated] = await db
+      .update(specs)
       .set({
         spec,
         uploadedBy: metadata.uploadedBy,
@@ -63,35 +67,41 @@ specsRouter.post('/:service', async (c) => {
     console.log(`📋 Updated spec for ${service}@${metadata.version} (${metadata.environment})`)
   } else {
     // Create new spec
-    const [created] = await db.insert(specs).values({
-      tenantId,
-      providerId: provider.id,
-      service: metadata.service,
-      version: metadata.version,
-      branch: metadata.branch,
-      environment: metadata.environment,
-      spec,
-      uploadedBy: metadata.uploadedBy,
-    }).returning()
+    const [created] = await db
+      .insert(specs)
+      .values({
+        tenantId,
+        providerId: provider.id,
+        service: metadata.service,
+        version: metadata.version,
+        branch: metadata.branch,
+        environment: metadata.environment,
+        spec,
+        uploadedBy: metadata.uploadedBy,
+      })
+      .returning()
 
     resultSpec = created
     isNew = true
     console.log(`📋 Uploaded new spec for ${service}@${metadata.version} (${metadata.environment})`)
   }
 
-  return c.json({
-    id: resultSpec.id,
-    service: resultSpec.service,
-    version: resultSpec.version,
-    branch: resultSpec.branch,
-    environment: resultSpec.environment,
-    uploadedAt: resultSpec.uploadedAt,
-    isNew,
-  }, isNew ? 201 : 200)
+  return c.json(
+    {
+      id: resultSpec.id,
+      service: resultSpec.service,
+      version: resultSpec.version,
+      branch: resultSpec.branch,
+      environment: resultSpec.environment,
+      uploadedAt: resultSpec.uploadedAt,
+      isNew,
+    },
+    isNew ? 201 : 200
+  )
 })
 
 // Get OpenAPI specification
-specsRouter.get('/:service', async (c) => {
+specsRouter.get('/:service', async c => {
   const service = c.req.param('service')
   const version = c.req.query('version')
   const branch = c.req.query('branch') || 'main'
@@ -109,7 +119,7 @@ specsRouter.get('/:service', async (c) => {
       eq(specs.service, service),
       eq(specs.version, version),
       eq(specs.branch, branch)
-    )
+    ),
   })
 
   if (!spec) {
@@ -120,17 +130,14 @@ specsRouter.get('/:service', async (c) => {
 })
 
 // List available versions for a service
-specsRouter.get('/:service/versions', async (c) => {
+specsRouter.get('/:service/versions', async c => {
   const service = c.req.param('service')
-  
+
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
   const versions = await db.query.specs.findMany({
-    where: and(
-      eq(specs.tenantId, tenantId),
-      eq(specs.service, service)
-    ),
+    where: and(eq(specs.tenantId, tenantId), eq(specs.service, service)),
     columns: {
       version: true,
       branch: true,

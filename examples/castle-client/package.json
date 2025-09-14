@@ -11,8 +11,8 @@
     "start": "node dist/server.js",
     "test": "vitest run test/consumer.test.ts",
     "register:consumer": "node ../../packages/cli/dist/cli.js register-service --type consumer --name castle-client",
-    "deploy:consumer": "node ../../packages/cli/dist/cli.js deploy-service --type consumer --name castle-client --service-version 1.0.0 --environment test --dependencies castle-service:1.0.0",
-    "can-i-deploy": "node ../../packages/cli/dist/cli.js can-i-deploy --type consumer --service castle-client --service-version 1.0.0 --environment test",
+    "deploy:consumer": "node ../../packages/cli/dist/cli.js deploy-service --type consumer --name castle-client --service-version 0.1.0 --environment test",
+    "can-i-deploy": "node ../../packages/cli/dist/cli.js can-i-deploy --type consumer --service castle-client --service-version 0.1.0 --environment test",
     "clean": "rm -rf dist"
   },
   "dependencies": {

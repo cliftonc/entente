@@ -1,8 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useParams, Link, useNavigate } from 'react-router-dom'
-import { fixtureApi } from '../utils/api'
-import { useAuth } from '../hooks/useAuth'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
+import { useAuth } from '../hooks/useAuth'
+import { fixtureApi } from '../utils/api'
 
 function FixtureDetails() {
   const { id } = useParams<{ id: string }>()
@@ -13,7 +13,7 @@ function FixtureDetails() {
   const {
     data: fixture,
     isLoading,
-    error
+    error,
   } = useQuery({
     queryKey: ['fixture', id],
     queryFn: () => fixtureApi.getById(id!),
@@ -71,16 +71,16 @@ function FixtureDetails() {
       <div className="space-y-6">
         <div className="breadcrumbs text-sm">
           <ul>
-            <li><Link to="/fixtures">Fixtures</Link></li>
+            <li>
+              <Link to="/fixtures">Fixtures</Link>
+            </li>
             <li>Loading...</li>
           </ul>
         </div>
 
         <div>
           <h1 className="text-3xl font-bold text-base-content">Fixture Details</h1>
-          <p className="text-base-content/70 mt-1">
-            Loading fixture details...
-          </p>
+          <p className="text-base-content/70 mt-1">Loading fixture details...</p>
         </div>
 
         <div className="card bg-base-100 shadow-xl">
@@ -100,21 +100,26 @@ function FixtureDetails() {
       <div className="space-y-6">
         <div className="breadcrumbs text-sm">
           <ul>
-            <li><Link to="/fixtures">Fixtures</Link></li>
+            <li>
+              <Link to="/fixtures">Fixtures</Link>
+            </li>
             <li>Error</li>
           </ul>
         </div>
 
         <div>
           <h1 className="text-3xl font-bold text-base-content">Fixture Details</h1>
-          <p className="text-base-content/70 mt-1">
-            Error loading fixture details
-          </p>
+          <p className="text-base-content/70 mt-1">Error loading fixture details</p>
         </div>
 
         <div className="alert alert-error">
           <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
           </svg>
           <span>Failed to load fixture details</span>
         </div>
@@ -127,21 +132,26 @@ function FixtureDetails() {
       <div className="space-y-6">
         <div className="breadcrumbs text-sm">
           <ul>
-            <li><Link to="/fixtures">Fixtures</Link></li>
+            <li>
+              <Link to="/fixtures">Fixtures</Link>
+            </li>
             <li>Not Found</li>
           </ul>
         </div>
 
         <div>
           <h1 className="text-3xl font-bold text-base-content">Fixture Details</h1>
-          <p className="text-base-content/70 mt-1">
-            Fixture not found
-          </p>
+          <p className="text-base-content/70 mt-1">Fixture not found</p>
         </div>
 
         <div className="alert alert-warning">
           <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"></path>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"
+            ></path>
           </svg>
           <span>The requested fixture could not be found.</span>
         </div>
@@ -149,22 +159,23 @@ function FixtureDetails() {
     )
   }
 
-
   return (
     <div className="space-y-6">
       <div className="breadcrumbs text-sm">
         <ul>
-          <li><Link to="/fixtures">Fixtures</Link></li>
-          <li>{fixture.service} • {fixture.operation}</li>
+          <li>
+            <Link to="/fixtures">Fixtures</Link>
+          </li>
+          <li>
+            {fixture.service} • {fixture.operation}
+          </li>
         </ul>
       </div>
 
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-base-content">Fixture Details</h1>
-          <p className="text-base-content/70 mt-1">
-            Detailed view of test fixture
-          </p>
+          <p className="text-base-content/70 mt-1">Detailed view of test fixture</p>
         </div>
         <div className="flex gap-2">
           {fixture.status === 'draft' ? (
@@ -177,8 +188,18 @@ function FixtureDetails() {
                 {approveMutation.isPending ? (
                   <span className="loading loading-spinner loading-sm mr-2"></span>
                 ) : (
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                 )}
                 Approve
@@ -191,8 +212,18 @@ function FixtureDetails() {
                 {rejectMutation.isPending ? (
                   <span className="loading loading-spinner loading-sm mr-2"></span>
                 ) : (
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 )}
                 Reject
@@ -208,7 +239,12 @@ function FixtureDetails() {
                 <span className="loading loading-spinner loading-sm mr-2"></span>
               ) : (
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               )}
               Reject
@@ -223,7 +259,12 @@ function FixtureDetails() {
                 <span className="loading loading-spinner loading-sm mr-2"></span>
               ) : (
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               )}
               Approve
@@ -238,38 +279,57 @@ function FixtureDetails() {
           <h2 className="card-title">Overview</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <div><strong>Service:</strong> {fixture.service}</div>
-              <div><strong>Service Version:</strong> {fixture.serviceVersion}</div>
-              <div><strong>Operation:</strong>
+              <div>
+                <strong>Service:</strong> {fixture.service}
+              </div>
+              <div>
+                <strong>Service Version:</strong> {fixture.serviceVersion}
+              </div>
+              <div>
+                <strong>Operation:</strong>
                 <code className="bg-base-200 px-2 py-1 rounded text-sm ml-2">
                   {fixture.operation}
                 </code>
               </div>
-              <div><strong>Priority:</strong> {fixture.priority}</div>
+              <div>
+                <strong>Priority:</strong> {fixture.priority}
+              </div>
             </div>
             <div className="space-y-2">
               <div>
                 <strong>Status:</strong>
-                <span className={`badge ml-2 ${
-                  fixture.status === 'draft' ? 'badge-warning' :
-                  fixture.status === 'approved' ? 'badge-success' :
-                  fixture.status === 'rejected' ? 'badge-error' :
-                  'badge-info'
-                }`}>
+                <span
+                  className={`badge ml-2 ${
+                    fixture.status === 'draft'
+                      ? 'badge-warning'
+                      : fixture.status === 'approved'
+                        ? 'badge-success'
+                        : fixture.status === 'rejected'
+                          ? 'badge-error'
+                          : 'badge-info'
+                  }`}
+                >
                   {fixture.status}
                 </span>
               </div>
               <div>
                 <strong>Source:</strong>
-                <span className={`badge ml-2 ${
-                  fixture.source === 'consumer' ? 'badge-primary' : 'badge-secondary'
-                }`}>
+                <span
+                  className={`badge ml-2 ${
+                    fixture.source === 'consumer' ? 'badge-primary' : 'badge-secondary'
+                  }`}
+                >
                   {fixture.source}
                 </span>
               </div>
-              <div><strong>Created:</strong> <TimestampDisplay timestamp={fixture.createdAt} /></div>
+              <div>
+                <strong>Created:</strong> <TimestampDisplay timestamp={fixture.createdAt} />
+              </div>
               {fixture.approvedAt && fixture.approvedBy && (
-                <div><strong>Approved:</strong> <TimestampDisplay timestamp={fixture.approvedAt} /> by {fixture.approvedBy}</div>
+                <div>
+                  <strong>Approved:</strong> <TimestampDisplay timestamp={fixture.approvedAt} /> by{' '}
+                  {fixture.approvedBy}
+                </div>
               )}
             </div>
           </div>
@@ -295,8 +355,8 @@ function FixtureDetails() {
         <div className="card-body">
           <h2 className="card-title">HTTP Request & Response</h2>
           {(() => {
-            const request = fixture.data.request as any;
-            const response = fixture.data.response as any;
+            const request = fixture.data.request as any
+            const response = fixture.data.response as any
 
             if (!request && !response) {
               return (
@@ -308,7 +368,7 @@ function FixtureDetails() {
                     </pre>
                   </div>
                 </div>
-              );
+              )
             }
 
             return (
@@ -322,9 +382,13 @@ function FixtureDetails() {
                     <div className="space-y-3">
                       {request.method && request.path && (
                         <div>
-                          <h4 className="font-medium text-sm text-base-content/70 mb-2">Method & Path</h4>
+                          <h4 className="font-medium text-sm text-base-content/70 mb-2">
+                            Method & Path
+                          </h4>
                           <div className="bg-base-200 p-3 rounded font-mono text-sm">
-                            <span className="badge badge-primary badge-sm mr-2">{request.method}</span>
+                            <span className="badge badge-primary badge-sm mr-2">
+                              {request.method}
+                            </span>
                             {request.path}
                           </div>
                         </div>
@@ -343,7 +407,9 @@ function FixtureDetails() {
 
                       {request.query && Object.keys(request.query).length > 0 && (
                         <div>
-                          <h4 className="font-medium text-sm text-base-content/70 mb-2">Query Parameters</h4>
+                          <h4 className="font-medium text-sm text-base-content/70 mb-2">
+                            Query Parameters
+                          </h4>
                           <div className="bg-base-200 p-3 rounded">
                             <pre className="text-xs overflow-x-auto">
                               {JSON.stringify(request.query, null, 2)}
@@ -383,10 +449,15 @@ function FixtureDetails() {
                         <div>
                           <h4 className="font-medium text-sm text-base-content/70 mb-2">Status</h4>
                           <div className="bg-base-200 p-3 rounded">
-                            <span className={`badge badge-lg ${
-                              response.status >= 200 && response.status < 300 ? 'badge-success' :
-                              response.status >= 400 ? 'badge-error' : 'badge-warning'
-                            }`}>
+                            <span
+                              className={`badge badge-lg ${
+                                response.status >= 200 && response.status < 300
+                                  ? 'badge-success'
+                                  : response.status >= 400
+                                    ? 'badge-error'
+                                    : 'badge-warning'
+                              }`}
+                            >
                               {response.status}
                             </span>
                           </div>
@@ -424,7 +495,7 @@ function FixtureDetails() {
                   )}
                 </div>
               </div>
-            );
+            )
           })()}
         </div>
       </div>

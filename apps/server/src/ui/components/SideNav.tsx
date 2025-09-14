@@ -61,25 +61,18 @@ function SideNav() {
 
       {/* Navigation Menu */}
       <ul className="menu p-4 space-y-2">
-        {navItems.map((item) => {
+        {navItems.map(item => {
           const isActive = location.pathname === item.path
-          
+
           return (
             <li key={item.path}>
               <Link
                 to={item.path}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-primary text-primary-content'
-                    : 'hover:bg-base-200'
+                  isActive ? 'bg-primary text-primary-content' : 'hover:bg-base-200'
                 }`}
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -89,14 +82,10 @@ function SideNav() {
                 </svg>
                 <span className="flex-1">{item.label}</span>
                 {item.path === '/fixtures' && draftCount > 0 && (
-                  <span className="badge badge-primary badge-sm">
-                    {draftCount}
-                  </span>
+                  <span className="badge badge-primary badge-sm">{draftCount}</span>
                 )}
                 {item.badge && item.path !== '/fixtures' && (
-                  <span className="badge badge-primary badge-sm">
-                    {item.badge}
-                  </span>
+                  <span className="badge badge-primary badge-sm">{item.badge}</span>
                 )}
               </Link>
             </li>
@@ -111,9 +100,7 @@ function SideNav() {
             <div className="w-2 h-2 bg-success rounded-full"></div>
             <span className="text-sm font-medium">System Status</span>
           </div>
-          <p className="text-xs text-base-content/70">
-            All services operational
-          </p>
+          <p className="text-xs text-base-content/70">All services operational</p>
           <div className="flex items-center gap-1 mt-2">
             <span className="text-xs">API:</span>
             <div className="flex-1 bg-base-300 rounded-full h-1">

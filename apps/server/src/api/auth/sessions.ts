@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
-import { userSessions, users } from '../../db/schema'
 import type { createDatabase } from '../../db/client'
+import { userSessions, users } from '../../db/schema'
 
 const SESSION_EXPIRES_IN = 1000 * 60 * 60 * 24 * 7 // 7 days
 
@@ -8,10 +8,13 @@ export function generateSessionId(): string {
   // Generate cryptographically secure random session ID
   const bytes = new Uint8Array(32)
   crypto.getRandomValues(bytes)
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
-export async function createSession(db: ReturnType<typeof createDatabase>, userId: string): Promise<string> {
+export async function createSession(
+  db: ReturnType<typeof createDatabase>,
+  userId: string
+): Promise<string> {
   const sessionId = generateSessionId()
   const expiresAt = new Date(Date.now() + SESSION_EXPIRES_IN)
 
@@ -56,11 +59,17 @@ export async function validateSession(db: ReturnType<typeof createDatabase>, ses
   return { user, session }
 }
 
-export async function deleteSession(db: ReturnType<typeof createDatabase>, sessionId: string): Promise<void> {
+export async function deleteSession(
+  db: ReturnType<typeof createDatabase>,
+  sessionId: string
+): Promise<void> {
   await db.delete(userSessions).where(eq(userSessions.id, sessionId))
 }
 
-export async function extendSession(db: ReturnType<typeof createDatabase>, sessionId: string): Promise<void> {
+export async function extendSession(
+  db: ReturnType<typeof createDatabase>,
+  sessionId: string
+): Promise<void> {
   const newExpiresAt = new Date(Date.now() + SESSION_EXPIRES_IN)
   await db
     .update(userSessions)
@@ -68,7 +77,10 @@ export async function extendSession(db: ReturnType<typeof createDatabase>, sessi
     .where(eq(userSessions.id, sessionId))
 }
 
-export async function deleteUserSessions(db: ReturnType<typeof createDatabase>, userId: string): Promise<void> {
+export async function deleteUserSessions(
+  db: ReturnType<typeof createDatabase>,
+  userId: string
+): Promise<void> {
   await db.delete(userSessions).where(eq(userSessions.userId, userId))
 }
 

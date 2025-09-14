@@ -1,21 +1,21 @@
+import { createFixtureManager } from "@entente/fixtures";
 import type {
-  UploadOptions,
-  DeploymentOptions,
   CanIDeployOptions,
   CanIDeployResult,
-  OpenAPISpec,
-  ServiceRegistration,
-  ServiceDeployment,
-  ProviderRegistration,
-  ConsumerRegistration,
   ConsumerDeployment,
+  ConsumerRegistration,
+  DeploymentOptions,
+  OpenAPISpec,
   ProviderDeployment,
+  ProviderRegistration,
+  ServiceDeployment,
+  ServiceRegistration,
+  UploadOptions,
 } from "@entente/types";
-import { createFixtureManager } from "@entente/fixtures";
+import chalk from "chalk";
+import fs from "fs/promises";
 import { getApiKey, getServerUrl } from "./config.js";
 import { getGitRepositoryUrl, getGitSha } from "./git-utils.js";
-import chalk from "chalk";
-import fs from 'fs/promises';
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const apiKey = await getApiKey();
@@ -84,23 +84,32 @@ export const uploadSpec = async (options: UploadOptions): Promise<void> => {
     );
 
     if (!providerResponse.ok && providerResponse.status === 404) {
-      console.log(chalk.yellow('⚠️'), `Provider service ${service} not found, attempting auto-registration...`);
+      console.log(
+        chalk.yellow("⚠️"),
+        `Provider service ${service} not found, attempting auto-registration...`,
+      );
 
       // Try to find package.json in current directory
       let packageJson: Record<string, unknown> = {};
       try {
-        const packageContent = await fs.readFile('./package.json', 'utf-8');
+        const packageContent = await fs.readFile("./package.json", "utf-8");
         packageJson = JSON.parse(packageContent);
-        console.log(chalk.blue('📦'), `Found package.json, registering provider service ${service}...`);
+        console.log(
+          chalk.blue("📦"),
+          `Found package.json, registering provider service ${service}...`,
+        );
 
         await registerService({
           name: service,
-          type: 'provider',
-          packagePath: './package.json',
+          type: "provider",
+          packagePath: "./package.json",
           description: `Auto-registered provider for ${service}`,
         });
       } catch (pkgError) {
-        console.log(chalk.yellow('⚠️'), `No package.json found, creating minimal provider registration...`);
+        console.log(
+          chalk.yellow("⚠️"),
+          `No package.json found, creating minimal provider registration...`,
+        );
 
         // Create minimal provider registration
         const registration: ProviderRegistration = {
@@ -116,22 +125,27 @@ export const uploadSpec = async (options: UploadOptions): Promise<void> => {
         const registerResponse = await makeAuthenticatedRequest(
           `${serviceUrl}/api/providers`,
           {
-            method: 'POST',
+            method: "POST",
             body: JSON.stringify(registration),
-          }
+          },
         );
 
         if (!registerResponse.ok) {
           const error = await registerResponse.json();
-          throw new Error(`Failed to auto-register provider: ${error.error || registerResponse.statusText}`);
+          throw new Error(
+            `Failed to auto-register provider: ${error.error || registerResponse.statusText}`,
+          );
         }
 
-        console.log(chalk.green('✅'), `Auto-registered provider ${service}`);
+        console.log(chalk.green("✅"), `Auto-registered provider ${service}`);
       }
     }
   } catch (error) {
     // If provider check/registration fails, continue with spec upload
-    console.log(chalk.yellow('⚠️'), `Could not verify/register provider: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.log(
+      chalk.yellow("⚠️"),
+      `Could not verify/register provider: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
   }
 
   // Upload to central service
@@ -210,7 +224,7 @@ export const recordDeployment = async (
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Failed to record deployment: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`,
+        `Failed to record deployment: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ""}`,
       );
     }
 
@@ -218,8 +232,10 @@ export const recordDeployment = async (
       `✅ Successfully recorded deployment of ${service}@${version} to ${environment}`,
     );
   } catch (error) {
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error(`Cannot connect to Entente server at ${serviceUrl}. Make sure the server is running.`);
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      throw new Error(
+        `Cannot connect to Entente server at ${serviceUrl}. Make sure the server is running.`,
+      );
     }
     throw error;
   }
@@ -354,7 +370,7 @@ export const getDeploymentStatus = async (
 // Unified service registration
 export const registerService = async (options: {
   name: string;
-  type: 'consumer' | 'provider';
+  type: "consumer" | "provider";
   packagePath: string;
   description?: string;
 }): Promise<void> => {
@@ -363,10 +379,12 @@ export const registerService = async (options: {
   // Read package.json
   let packageJson: Record<string, unknown>;
   try {
-    const packageContent = await fs.readFile(options.packagePath, 'utf-8');
+    const packageContent = await fs.readFile(options.packagePath, "utf-8");
     packageJson = JSON.parse(packageContent);
   } catch (error) {
-    throw new Error(`Failed to read package.json from ${options.packagePath}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to read package.json from ${options.packagePath}: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
   }
 
   // Get git repository information
@@ -375,7 +393,7 @@ export const registerService = async (options: {
   const registration: ServiceRegistration = {
     name: options.name,
     type: options.type,
-    description: options.description || packageJson.description as string,
+    description: options.description || (packageJson.description as string),
     packageJson,
     gitRepositoryUrl: gitRepositoryUrl || undefined,
   };
@@ -383,27 +401,35 @@ export const registerService = async (options: {
   const response = await makeAuthenticatedRequest(
     `${serviceUrl}/api/services`,
     {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(registration),
-    }
+    },
   );
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(`Failed to register ${options.type}: ${error.error || response.statusText}`);
+    throw new Error(
+      `Failed to register ${options.type}: ${error.error || response.statusText}`,
+    );
   }
 
   const result = await response.json();
   if (result.isNew) {
-    console.log(chalk.green('✅'), `${options.type} ${options.name} registered successfully`);
+    console.log(
+      chalk.green("✅"),
+      `${options.type} ${options.name} registered successfully`,
+    );
     console.log(`   ID: ${result.id}`);
     console.log(`   Created: ${result.createdAt}`);
   } else {
-    console.log(chalk.green('✅'), `${options.type} ${options.name} updated successfully`);
+    console.log(
+      chalk.green("✅"),
+      `${options.type} ${options.name} updated successfully`,
+    );
     console.log(`   ID: ${result.id}`);
     console.log(`   Updated: ${result.updatedAt}`);
   }
-}
+};
 
 // Legacy provider registration function for backward compatibility
 export const registerProvider = async (options: {
@@ -413,11 +439,11 @@ export const registerProvider = async (options: {
 }): Promise<void> => {
   return registerService({
     name: options.name,
-    type: 'provider',
+    type: "provider",
     packagePath: options.packagePath,
     description: options.description,
   });
-}
+};
 
 // Legacy consumer registration function for backward compatibility
 export const registerConsumer = async (options: {
@@ -427,7 +453,7 @@ export const registerConsumer = async (options: {
 }): Promise<void> => {
   return registerService({
     name: options.name,
-    type: 'consumer',
+    type: "consumer",
     packagePath: options.packagePath,
     description: options.description,
   });
@@ -438,7 +464,6 @@ export const deployConsumer = async (options: {
   name: string;
   version: string;
   environment: string;
-  dependencies: Array<{ provider: string; version: string }>;
   deployedBy?: string;
 }): Promise<void> => {
   const serviceUrl = await getServerUrl();
@@ -450,27 +475,30 @@ export const deployConsumer = async (options: {
     name: options.name,
     version: options.version,
     environment: options.environment,
-    dependencies: options.dependencies,
-    deployedBy: options.deployedBy || process.env.USER || 'unknown',
+    deployedBy: options.deployedBy || process.env.USER || "unknown",
     gitSha: gitSha || undefined,
   };
 
   const response = await makeAuthenticatedRequest(
     `${serviceUrl}/api/deployments/consumer`,
     {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(deployment),
-    }
+    },
   );
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(`Failed to deploy consumer: ${error.error || response.statusText}`);
+    throw new Error(
+      `Failed to deploy consumer: ${error.error || response.statusText}`,
+    );
   }
 
   const result = await response.json();
-  console.log(chalk.green('🚀'), `Consumer ${options.name}@${options.version} deployed to ${options.environment}`);
-  console.log(`   Dependencies registered: ${result.dependenciesRegistered}`);
+  console.log(
+    chalk.green("🚀"),
+    `Consumer ${options.name}@${options.version} deployed to ${options.environment}`,
+  );
   console.log(`   Deployment ID: ${result.deployment.id}`);
 };
 
@@ -490,24 +518,29 @@ export const deployProvider = async (options: {
     name: options.name,
     version: options.version,
     environment: options.environment,
-    deployedBy: options.deployedBy || process.env.USER || 'unknown',
+    deployedBy: options.deployedBy || process.env.USER || "unknown",
     gitSha: gitSha || undefined,
   };
 
   const response = await makeAuthenticatedRequest(
     `${serviceUrl}/api/deployments/provider`,
     {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(deployment),
-    }
+    },
   );
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(`Failed to deploy provider: ${error.error || response.statusText}`);
+    throw new Error(
+      `Failed to deploy provider: ${error.error || response.statusText}`,
+    );
   }
 
   const result = await response.json();
-  console.log(chalk.green('🚀'), `Provider ${options.name}@${options.version} deployed to ${options.environment}`);
+  console.log(
+    chalk.green("🚀"),
+    `Provider ${options.name}@${options.version} deployed to ${options.environment}`,
+  );
   console.log(`   Deployment ID: ${result.deployment.id}`);
 };

@@ -11,7 +11,7 @@ export default function GitShaLink({
   sha,
   repositoryUrl,
   showFullSha = false,
-  className = ''
+  className = '',
 }: GitShaLinkProps) {
   if (!sha) {
     return <span className="text-base-content/50 text-sm">-</span>

@@ -1,11 +1,11 @@
+import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { serviceDependencies, services } from '../../db/schema'
-import { eq, and } from 'drizzle-orm'
 
 export const dependenciesRouter = new Hono()
 
 // Get dependencies for a consumer
-dependenciesRouter.get('/consumer/:name', async (c) => {
+dependenciesRouter.get('/consumer/:name', async c => {
   const consumerName = c.req.param('name')
   const environment = c.req.query('environment')
 
@@ -28,7 +28,7 @@ dependenciesRouter.get('/consumer/:name', async (c) => {
   // Build where conditions
   const whereConditions = [
     eq(serviceDependencies.tenantId, tenantId),
-    eq(serviceDependencies.consumerId, consumer.id)
+    eq(serviceDependencies.consumerId, consumer.id),
   ]
 
   if (environment) {
@@ -49,7 +49,7 @@ dependenciesRouter.get('/consumer/:name', async (c) => {
 })
 
 // Get consumers that depend on a provider
-dependenciesRouter.get('/provider/:name', async (c) => {
+dependenciesRouter.get('/provider/:name', async c => {
   const providerName = c.req.param('name')
   const environment = c.req.query('environment')
 
@@ -72,7 +72,7 @@ dependenciesRouter.get('/provider/:name', async (c) => {
   // Build where conditions
   const whereConditions = [
     eq(serviceDependencies.tenantId, tenantId),
-    eq(serviceDependencies.providerId, provider.id)
+    eq(serviceDependencies.providerId, provider.id),
   ]
 
   if (environment) {
@@ -93,7 +93,7 @@ dependenciesRouter.get('/provider/:name', async (c) => {
 })
 
 // Get all dependencies (for admin/overview)
-dependenciesRouter.get('/', async (c) => {
+dependenciesRouter.get('/', async c => {
   const environment = c.req.query('environment')
   const status = c.req.query('status') as 'pending_verification' | 'verified' | 'failed' | undefined
 
@@ -125,12 +125,15 @@ dependenciesRouter.get('/', async (c) => {
 })
 
 // Update dependency status (used by verification process)
-dependenciesRouter.patch('/:id/status', async (c) => {
+dependenciesRouter.patch('/:id/status', async c => {
   const dependencyId = c.req.param('id')
   const { status, verifiedAt } = await c.req.json()
 
   if (!['pending_verification', 'verified', 'failed'].includes(status)) {
-    return c.json({ error: 'Invalid status. Must be pending_verification, verified, or failed' }, 400)
+    return c.json(
+      { error: 'Invalid status. Must be pending_verification, verified, or failed' },
+      400
+    )
   }
 
   const db = c.get('db')
@@ -149,15 +152,15 @@ dependenciesRouter.patch('/:id/status', async (c) => {
   }
 
   // Update status
-  const [updated] = await db.update(serviceDependencies)
+  const [updated] = await db
+    .update(serviceDependencies)
     .set({
       status,
       verifiedAt: status === 'verified' ? (verifiedAt ? new Date(verifiedAt) : new Date()) : null,
     })
-    .where(and(
-      eq(serviceDependencies.tenantId, tenantId),
-      eq(serviceDependencies.id, dependencyId)
-    ))
+    .where(
+      and(eq(serviceDependencies.tenantId, tenantId), eq(serviceDependencies.id, dependencyId))
+    )
     .returning()
 
   console.log(`🔄 Updated dependency status: ${dependencyId} -> ${status}`)

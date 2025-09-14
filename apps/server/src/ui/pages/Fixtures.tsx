@@ -1,16 +1,18 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams, Link } from 'react-router-dom'
-import { fixtureApi } from '../utils/api'
-import { useAuth } from '../hooks/useAuth'
-import TimestampDisplay from '../components/TimestampDisplay'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import ProviderFilter from '../components/ProviderFilter'
-import { useState, useEffect } from 'react'
+import TimestampDisplay from '../components/TimestampDisplay'
+import { useAuth } from '../hooks/useAuth'
+import { fixtureApi } from '../utils/api'
 
 function Fixtures() {
   const { authenticated, user } = useAuth()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [providerFilter, setProviderFilter] = useState(searchParams.get('provider') || searchParams.get('service') || '')
+  const [providerFilter, setProviderFilter] = useState(
+    searchParams.get('provider') || searchParams.get('service') || ''
+  )
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all')
 
   // Update filters when URL params change
@@ -24,7 +26,7 @@ function Fixtures() {
   const {
     data: fixtures,
     isLoading,
-    error
+    error,
   } = useQuery({
     queryKey: ['fixtures', providerFilter, statusFilter],
     queryFn: () => {
@@ -46,7 +48,7 @@ function Fixtures() {
     setProviderFilter(provider)
     updateUrlParams({
       provider: provider || undefined,
-      status: statusFilter !== 'all' ? statusFilter : undefined
+      status: statusFilter !== 'all' ? statusFilter : undefined,
     })
   }
 
@@ -54,7 +56,7 @@ function Fixtures() {
     setStatusFilter(status)
     updateUrlParams({
       provider: providerFilter || undefined,
-      status: status !== 'all' ? status : undefined
+      status: status !== 'all' ? status : undefined,
     })
   }
 
@@ -135,9 +137,7 @@ function Fixtures() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-base-content">Fixtures</h1>
-            <p className="text-base-content/70 mt-1">
-              Manage test fixtures and approve proposals
-            </p>
+            <p className="text-base-content/70 mt-1">Manage test fixtures and approve proposals</p>
           </div>
           <div className="skeleton h-10 w-32"></div>
         </div>
@@ -161,13 +161,16 @@ function Fixtures() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-base-content">Fixtures</h1>
-          <p className="text-base-content/70 mt-1">
-            Manage test fixtures and approve proposals
-          </p>
+          <p className="text-base-content/70 mt-1">Manage test fixtures and approve proposals</p>
         </div>
         <div className="alert alert-error">
           <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
           </svg>
           <span>Error loading fixtures data</span>
         </div>
@@ -181,12 +184,17 @@ function Fixtures() {
         <div>
           <h1 className="text-3xl font-bold text-base-content">
             Fixtures
-            {providerFilter && <span className="text-lg font-normal text-base-content/70"> • Provider: {providerFilter}</span>}
-            {statusFilter !== 'all' && <span className="text-lg font-normal text-base-content/70"> • {statusFilter}</span>}
+            {providerFilter && (
+              <span className="text-lg font-normal text-base-content/70">
+                {' '}
+                • Provider: {providerFilter}
+              </span>
+            )}
+            {statusFilter !== 'all' && (
+              <span className="text-lg font-normal text-base-content/70"> • {statusFilter}</span>
+            )}
           </h1>
-          <p className="text-base-content/70 mt-1">
-            Manage test fixtures and approve proposals
-          </p>
+          <p className="text-base-content/70 mt-1">Manage test fixtures and approve proposals</p>
         </div>
         <button
           className="btn btn-success"
@@ -197,7 +205,12 @@ function Fixtures() {
             <span className="loading loading-spinner loading-sm mr-2"></span>
           ) : (
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           )}
           Approve All ({draftFixtures.length})
@@ -206,10 +219,7 @@ function Fixtures() {
 
       {/* Filter Section */}
       <div className="flex gap-4 items-end bg-base-100 p-4 rounded-lg shadow">
-        <ProviderFilter
-          value={providerFilter}
-          onChange={handleProviderFilterChange}
-        />
+        <ProviderFilter value={providerFilter} onChange={handleProviderFilterChange} />
         <div className="form-control">
           <label className="label">
             <span className="label-text">Status</span>
@@ -217,7 +227,7 @@ function Fixtures() {
           <select
             className="select select-bordered"
             value={statusFilter}
-            onChange={(e) => handleStatusFilterChange(e.target.value)}
+            onChange={e => handleStatusFilterChange(e.target.value)}
           >
             <option value="all">All Status</option>
             <option value="draft">Draft Only</option>
@@ -227,10 +237,7 @@ function Fixtures() {
         </div>
         {(providerFilter || statusFilter !== 'all') && (
           <div className="form-control">
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={clearFilters}
-            >
+            <button className="btn btn-ghost btn-sm" onClick={clearFilters}>
               Clear Filters
             </button>
           </div>
@@ -240,7 +247,12 @@ function Fixtures() {
       {statusFilter !== 'approved' && (
         <div className="alert alert-info">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <span>You have {draftFixtures.length} draft fixtures awaiting approval</span>
         </div>
@@ -249,10 +261,14 @@ function Fixtures() {
       <div className="card bg-base-100 shadow-xl">
         <div className="card-body">
           <h2 className="card-title">
-            {statusFilter === 'draft' ? 'Draft Fixtures' :
-             statusFilter === 'approved' ? 'Approved Fixtures' :
-             'All Fixtures'}
-            {providerFilter && <span className="text-sm font-normal">• Provider: {providerFilter}</span>}
+            {statusFilter === 'draft'
+              ? 'Draft Fixtures'
+              : statusFilter === 'approved'
+                ? 'Approved Fixtures'
+                : 'All Fixtures'}
+            {providerFilter && (
+              <span className="text-sm font-normal">• Provider: {providerFilter}</span>
+            )}
           </h2>
           <div className="overflow-x-auto">
             <table className="table table-zebra">
@@ -270,16 +286,17 @@ function Fixtures() {
                 {displayedFixtures.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="text-center text-base-content/70 py-8">
-                      {providerFilter ?
-                        'No fixtures found with current filters' :
-                        statusFilter === 'draft' ? 'No draft fixtures' :
-                        statusFilter === 'approved' ? 'No approved fixtures' :
-                        'No fixtures available'
-                      }
+                      {providerFilter
+                        ? 'No fixtures found with current filters'
+                        : statusFilter === 'draft'
+                          ? 'No draft fixtures'
+                          : statusFilter === 'approved'
+                            ? 'No approved fixtures'
+                            : 'No fixtures available'}
                     </td>
                   </tr>
                 ) : (
-                  displayedFixtures.map((fixture) => (
+                  displayedFixtures.map(fixture => (
                     <tr key={fixture.id}>
                       <td>{fixture.service}</td>
                       <td>
@@ -288,26 +305,37 @@ function Fixtures() {
                         </code>
                       </td>
                       <td>
-                        <span className={`badge ${
-                          fixture.status === 'draft' ? 'badge-warning' :
-                          fixture.status === 'approved' ? 'badge-success' :
-                          fixture.status === 'rejected' ? 'badge-error' :
-                          'badge-info'
-                        }`}>
+                        <span
+                          className={`badge ${
+                            fixture.status === 'draft'
+                              ? 'badge-warning'
+                              : fixture.status === 'approved'
+                                ? 'badge-success'
+                                : fixture.status === 'rejected'
+                                  ? 'badge-error'
+                                  : 'badge-info'
+                          }`}
+                        >
                           {fixture.status}
                         </span>
                       </td>
                       <td>
-                        <span className={`badge ${
-                          fixture.source === 'consumer' ? 'badge-primary' : 'badge-secondary'
-                        }`}>
+                        <span
+                          className={`badge ${
+                            fixture.source === 'consumer' ? 'badge-primary' : 'badge-secondary'
+                          }`}
+                        >
                           {fixture.source}
                         </span>
                       </td>
                       <td>
-                        <TimestampDisplay timestamp={
-                          fixture.status === 'approved' ? (fixture.approvedAt || fixture.createdAt) : fixture.createdAt
-                        } />
+                        <TimestampDisplay
+                          timestamp={
+                            fixture.status === 'approved'
+                              ? fixture.approvedAt || fixture.createdAt
+                              : fixture.createdAt
+                          }
+                        />
                       </td>
                       <td>
                         <div className="flex gap-2">
@@ -316,9 +344,13 @@ function Fixtures() {
                               <button
                                 className="btn btn-success btn-sm"
                                 onClick={() => handleApprove(fixture)}
-                                disabled={approveMutation.isPending && approveMutation.variables?.id === fixture.id}
+                                disabled={
+                                  approveMutation.isPending &&
+                                  approveMutation.variables?.id === fixture.id
+                                }
                               >
-                                {approveMutation.isPending && approveMutation.variables?.id === fixture.id ? (
+                                {approveMutation.isPending &&
+                                approveMutation.variables?.id === fixture.id ? (
                                   <span className="loading loading-spinner loading-xs"></span>
                                 ) : (
                                   'Approve'
@@ -327,9 +359,13 @@ function Fixtures() {
                               <button
                                 className="btn btn-error btn-sm"
                                 onClick={() => handleReject(fixture)}
-                                disabled={rejectMutation.isPending && rejectMutation.variables?.id === fixture.id}
+                                disabled={
+                                  rejectMutation.isPending &&
+                                  rejectMutation.variables?.id === fixture.id
+                                }
                               >
-                                {rejectMutation.isPending && rejectMutation.variables?.id === fixture.id ? (
+                                {rejectMutation.isPending &&
+                                rejectMutation.variables?.id === fixture.id ? (
                                   <span className="loading loading-spinner loading-xs"></span>
                                 ) : (
                                   'Reject'
@@ -340,9 +376,13 @@ function Fixtures() {
                             <button
                               className="btn btn-error btn-sm"
                               onClick={() => handleRevoke(fixture)}
-                              disabled={revokeMutation.isPending && revokeMutation.variables?.id === fixture.id}
+                              disabled={
+                                revokeMutation.isPending &&
+                                revokeMutation.variables?.id === fixture.id
+                              }
                             >
-                              {revokeMutation.isPending && revokeMutation.variables?.id === fixture.id ? (
+                              {revokeMutation.isPending &&
+                              revokeMutation.variables?.id === fixture.id ? (
                                 <span className="loading loading-spinner loading-xs"></span>
                               ) : (
                                 'Reject'
@@ -352,16 +392,22 @@ function Fixtures() {
                             <button
                               className="btn btn-success btn-sm"
                               onClick={() => handleApprove(fixture)}
-                              disabled={approveMutation.isPending && approveMutation.variables?.id === fixture.id}
+                              disabled={
+                                approveMutation.isPending &&
+                                approveMutation.variables?.id === fixture.id
+                              }
                             >
-                              {approveMutation.isPending && approveMutation.variables?.id === fixture.id ? (
+                              {approveMutation.isPending &&
+                              approveMutation.variables?.id === fixture.id ? (
                                 <span className="loading loading-spinner loading-xs"></span>
                               ) : (
                                 'Approve'
                               )}
                             </button>
                           )}
-                          <Link to={`/fixtures/${fixture.id}`} className="btn btn-ghost btn-sm">View</Link>
+                          <Link to={`/fixtures/${fixture.id}`} className="btn btn-ghost btn-sm">
+                            View
+                          </Link>
                         </div>
                       </td>
                     </tr>

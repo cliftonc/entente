@@ -11,17 +11,10 @@ export default function UserMenu() {
 
   return (
     <div className="dropdown dropdown-end">
-      <div
-        tabIndex={0}
-        role="button"
-        className="btn btn-ghost btn-circle avatar"
-      >
+      <div tabIndex={0} role="button" className="btn btn-ghost btn-circle avatar">
         <div className="w-10 rounded-full">
           {user.avatarUrl ? (
-            <img
-              alt={user.name}
-              src={user.avatarUrl}
-            />
+            <img alt={user.name} src={user.avatarUrl} />
           ) : (
             <div className="bg-primary text-primary-content w-full h-full flex items-center justify-center text-sm font-medium">
               {user.name.charAt(0).toUpperCase()}
@@ -37,21 +30,23 @@ export default function UserMenu() {
           <span>{user.name}</span>
           <span className="text-xs opacity-60">@{user.username}</span>
         </li>
-        <li><hr /></li>
+        <li>
+          <hr />
+        </li>
         <li className="menu-title">
           <span>Teams ({tenants.length})</span>
         </li>
-        {tenants.map((tenantUser) => (
+        {tenants.map(tenantUser => (
           <li key={tenantUser.tenant.id}>
             <a className="text-sm">
               <span>{tenantUser.tenant.name}</span>
-              <div className="badge badge-xs badge-ghost">
-                {tenantUser.role}
-              </div>
+              <div className="badge badge-xs badge-ghost">{tenantUser.role}</div>
             </a>
           </li>
         ))}
-        <li><hr /></li>
+        <li>
+          <hr />
+        </li>
         <li>
           <button onClick={handleLogout} className="text-error">
             Logout

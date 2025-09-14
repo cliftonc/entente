@@ -1,16 +1,16 @@
 export interface Castle {
-  id: string;
-  name: string;
-  region: string;
-  yearBuilt: number;
-  description: string;
+  id: string
+  name: string
+  region: string
+  yearBuilt: number
+  description: string
 }
 
 export interface CreateCastleRequest {
-  name: string;
-  region: string;
-  yearBuilt: number;
-  description?: string;
+  name: string
+  region: string
+  yearBuilt: number
+  description?: string
 }
 
 let castles: Castle[] = [
@@ -35,36 +35,36 @@ let castles: Castle[] = [
     yearBuilt: 1519,
     description: 'Iconic French Renaissance castle with distinctive French defensive architecture',
   },
-];
+]
 
 export const getAllCastles = (): Castle[] => {
-  return [...castles];
-};
+  return [...castles]
+}
 
 export const getCastleById = (id: string): Castle | undefined => {
-  return castles.find(castle => castle.id === id);
-};
+  return castles.find(castle => castle.id === id)
+}
 
 export const createCastle = (castleData: CreateCastleRequest): Castle => {
   const newCastle: Castle = {
     id: generateId(),
     ...castleData,
     description: castleData.description || 'A beautiful castle',
-  };
-
-  castles.push(newCastle);
-  return newCastle;
-};
-
-export const deleteCastle = (id: string): boolean => {
-  const index = castles.findIndex(castle => castle.id === id);
-  if (index === -1) {
-    return false;
   }
 
-  castles.splice(index, 1);
-  return true;
-};
+  castles.push(newCastle)
+  return newCastle
+}
+
+export const deleteCastle = (id: string): boolean => {
+  const index = castles.findIndex(castle => castle.id === id)
+  if (index === -1) {
+    return false
+  }
+
+  castles.splice(index, 1)
+  return true
+}
 
 export const resetCastles = (): void => {
   castles = [
@@ -87,11 +87,12 @@ export const resetCastles = (): void => {
       name: 'Château de Chambord',
       region: 'Centre-Val de Loire',
       yearBuilt: 1519,
-      description: 'Iconic French Renaissance castle with distinctive French defensive architecture',
+      description:
+        'Iconic French Renaissance castle with distinctive French defensive architecture',
     },
-  ];
-};
+  ]
+}
 
 const generateId = (): string => {
-  return `castle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-};
+  return `castle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}

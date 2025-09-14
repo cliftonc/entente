@@ -15,7 +15,7 @@ export function getGitHubOAuth(clientId: string, clientSecret: string, appUrl: s
 export async function fetchGitHubUser(accessToken: string): Promise<GitHubUser> {
   const response = await fetch('https://api.github.com/user', {
     headers: {
-      'Authorization': `Bearer ${accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
       'User-Agent': 'Entente-Server',
     },
   })
@@ -30,7 +30,7 @@ export async function fetchGitHubUser(accessToken: string): Promise<GitHubUser> 
 export function generateState(): string {
   const bytes = new Uint8Array(32)
   crypto.getRandomValues(bytes)
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
 export function createStateCookie(state: string): string {

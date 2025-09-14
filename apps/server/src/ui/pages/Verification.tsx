@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams, Link } from 'react-router-dom'
-import { verificationApi } from '../utils/api'
-import TimestampDisplay from '../components/TimestampDisplay'
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import ConsumerFilter from '../components/ConsumerFilter'
 import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
-import ConsumerFilter from '../components/ConsumerFilter'
-import { useState, useEffect } from 'react'
+import TimestampDisplay from '../components/TimestampDisplay'
+import { verificationApi } from '../utils/api'
 
 function Verification() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -23,41 +23,53 @@ function Verification() {
   const {
     data: verificationResults,
     isLoading,
-    error
+    error,
   } = useQuery({
     queryKey: ['verification-all'],
     queryFn: verificationApi.getAll,
   })
 
   // Filter results based on provider and consumer filters
-  const filteredResults = verificationResults?.filter(result => {
-    if (providerFilter && (result.provider || result.providerName || '') !== providerFilter) return false
-    if (consumerFilter) {
-      // For now, this would need additional data from the backend to filter by consumer
-      // This is a placeholder for when consumer data is available in verification results
+  const filteredResults =
+    verificationResults?.filter(result => {
+      if (providerFilter && (result.provider || result.providerName || '') !== providerFilter)
+        return false
+      if (consumerFilter) {
+        // For now, this would need additional data from the backend to filter by consumer
+        // This is a placeholder for when consumer data is available in verification results
+        return true
+      }
       return true
-    }
-    return true
-  }) || []
+    }) || []
 
   // Calculate statistics based on filtered results
   const totalVerifications = filteredResults.length
   const passedVerifications = filteredResults.filter(v => v.status === 'passed').length
   const failedVerifications = filteredResults.filter(v => v.status === 'failed').length
-  const overallPassRate = totalVerifications > 0 ? (passedVerifications / totalVerifications) * 100 : 0
+  const overallPassRate =
+    totalVerifications > 0 ? (passedVerifications / totalVerifications) * 100 : 0
 
   // Handle filter changes
   const handleProviderFilterChange = (provider: string) => {
     setProviderFilter(provider)
-    updateUrlParams({ provider: provider || undefined, consumer: consumerFilter || undefined })
+    updateUrlParams({
+      provider: provider || undefined,
+      consumer: consumerFilter || undefined,
+    })
   }
 
   const handleConsumerFilterChange = (consumer: string) => {
     setConsumerFilter(consumer)
-    updateUrlParams({ provider: providerFilter || undefined, consumer: consumer || undefined })
+    updateUrlParams({
+      provider: providerFilter || undefined,
+      consumer: consumer || undefined,
+    })
   }
 
-  const updateUrlParams = (params: { provider?: string; consumer?: string }) => {
+  const updateUrlParams = (params: {
+    provider?: string
+    consumer?: string
+  }) => {
     const newParams: Record<string, string> = {}
     if (params.provider) newParams.provider = params.provider
     if (params.consumer) newParams.consumer = params.consumer
@@ -118,7 +130,12 @@ function Verification() {
         </div>
         <div className="alert alert-error">
           <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
           </svg>
           <span>Error loading verification data</span>
         </div>
@@ -132,8 +149,18 @@ function Verification() {
         <div>
           <h1 className="text-3xl font-bold text-base-content">
             Verification
-            {providerFilter && <span className="text-lg font-normal text-base-content/70"> • Provider: {providerFilter}</span>}
-            {consumerFilter && <span className="text-lg font-normal text-base-content/70"> • Consumer: {consumerFilter}</span>}
+            {providerFilter && (
+              <span className="text-lg font-normal text-base-content/70">
+                {' '}
+                • Provider: {providerFilter}
+              </span>
+            )}
+            {consumerFilter && (
+              <span className="text-lg font-normal text-base-content/70">
+                {' '}
+                • Consumer: {consumerFilter}
+              </span>
+            )}
           </h1>
           <p className="text-base-content/70 mt-1">
             Monitor provider verification results and contract compliance
@@ -155,10 +182,7 @@ function Verification() {
         />
         {(providerFilter || consumerFilter) && (
           <div className="form-control">
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={clearFilters}
-            >
+            <button className="btn btn-ghost btn-sm" onClick={clearFilters}>
               Clear Filters
             </button>
           </div>
@@ -169,7 +193,9 @@ function Verification() {
         <div className="stats shadow">
           <div className="stat">
             <div className="stat-title">Overall Pass Rate</div>
-            <div className={`stat-value ${overallPassRate >= 95 ? 'text-success' : overallPassRate >= 80 ? 'text-warning' : 'text-error'}`}>
+            <div
+              className={`stat-value ${overallPassRate >= 95 ? 'text-success' : overallPassRate >= 80 ? 'text-warning' : 'text-error'}`}
+            >
               {Math.round(overallPassRate * 10) / 10}%
             </div>
             <div className="stat-desc">Based on all verifications</div>
@@ -199,22 +225,22 @@ function Verification() {
               <thead>
                 <tr>
                   <th>Provider</th>
+                  <th>Provider Version</th>
                   <th>Consumer</th>
-                  <th>Version</th>
-                  <th>Provider Git SHA</th>
-                  <th>Consumer Git SHA</th>
+                  <th>Consumer Version</th>
                   <th>Results</th>
-                  <th>Pass Rate</th>
-                  <th>Last Run</th>
                   <th>Status</th>
+                  <th>Last Run</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredResults.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="text-center text-base-content/70 py-8">
-                      {providerFilter ? `No verification results found for provider "${providerFilter}"` : 'No verification results available'}
+                    <td colSpan={9} className="text-center text-base-content/70 py-8">
+                      {providerFilter
+                        ? `No verification results found for provider "${providerFilter}"`
+                        : 'No verification results available'}
                     </td>
                   </tr>
                 ) : (
@@ -227,6 +253,11 @@ function Verification() {
                         >
                           {result.providerName || result.provider}
                         </Link>
+                      </td>
+                      <td>
+                        <span className="badge badge-outline">
+                          v{result.providerVersion || result.version || '1.0.0'}
+                        </span>
                       </td>
                       <td>
                         {result.consumerName || result.consumer ? (
@@ -242,20 +273,8 @@ function Verification() {
                       </td>
                       <td>
                         <span className="badge badge-outline">
-                          v{result.providerVersion || result.version || '1.0.0'}
+                          v{result.consumerVersion || 'N/A'}
                         </span>
-                      </td>
-                      <td>
-                        <GitShaLink
-                          sha={result.providerGitSha}
-                          repositoryUrl={result.providerGitRepositoryUrl}
-                        />
-                      </td>
-                      <td>
-                        <GitShaLink
-                          sha={result.consumerGitSha}
-                          repositoryUrl={result.consumerGitRepositoryUrl}
-                        />
                       </td>
                       <td>
                         <span className="text-sm">
@@ -263,28 +282,20 @@ function Verification() {
                         </span>
                       </td>
                       <td>
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 bg-base-300 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full ${
-                                result.status === 'passed' ? 'bg-success' : 'bg-error'
-                              }`}
-                              style={{ width: `${result.status === 'passed' ? 100 : 0}%` }}
-                            />
-                          </div>
-                          <span className="text-sm">
-                            {result.status === 'passed' ? '100' : '0'}%
-                          </span>
-                        </div>
-                      </td>
-                      <td><TimestampDisplay timestamp={result.createdAt || result.lastRun} /></td>
-                      <td>
-                        <span className={`badge ${
-                          result.status === 'passed' ? 'badge-success' :
-                          result.status === 'failed' ? 'badge-error' : 'badge-warning'
-                        }`}>
+                        <span
+                          className={`badge ${
+                            result.status === 'passed'
+                              ? 'badge-success'
+                              : result.status === 'failed'
+                                ? 'badge-error'
+                                : 'badge-warning'
+                          }`}
+                        >
                           {result.status}
                         </span>
+                      </td>
+                      <td>
+                        <TimestampDisplay timestamp={result.createdAt || result.lastRun} />
                       </td>
                       <td>
                         <div className="flex gap-1">

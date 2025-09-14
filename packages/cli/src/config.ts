@@ -1,6 +1,6 @@
-import { readFile, writeFile, mkdir, access } from 'fs/promises'
-import { dirname, join } from 'path'
 import { homedir } from 'os'
+import { dirname, join } from 'path'
+import { access, mkdir, readFile, writeFile } from 'fs/promises'
 
 export interface EntenteConfig {
   apiKey?: string
@@ -41,7 +41,7 @@ export async function getApiKey(): Promise<string | undefined> {
 
 export async function getServerUrl(): Promise<string> {
   const config = await loadConfig()
-  return config.serverUrl || 'http://localhost:3000'
+  return config.serverUrl || 'https://entente.dev'
 }
 
 export async function clearConfig(): Promise<void> {

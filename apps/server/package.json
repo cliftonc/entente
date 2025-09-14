@@ -55,11 +55,5 @@
     "vitest": "^2.1.8",
     "wrangler": "^4.36.0"
   },
-  "keywords": [
-    "contract-testing",
-    "server",
-    "hono",
-    "cloudflare-workers",
-    "react"
-  ]
+  "keywords": ["contract-testing", "server", "hono", "cloudflare-workers", "react"]
 }

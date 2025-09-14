@@ -39,21 +39,23 @@ export function timeOperation<T>(
 ): Promise<T> {
   const startTime = Date.now()
 
-  return operation().then((result) => {
-    const duration = Date.now() - startTime
-    const timings = c.get('timings') || {}
-    timings[operationName] = duration
-    c.set('timings', timings)
+  return operation()
+    .then(result => {
+      const duration = Date.now() - startTime
+      const timings = c.get('timings') || {}
+      timings[operationName] = duration
+      c.set('timings', timings)
 
-    console.log(`⏱️  ${operationName}: ${duration}ms`)
-    return result
-  }).catch((error) => {
-    const duration = Date.now() - startTime
-    const timings = c.get('timings') || {}
-    timings[`${operationName} (ERROR)`] = duration
-    c.set('timings', timings)
+      console.log(`⏱️  ${operationName}: ${duration}ms`)
+      return result
+    })
+    .catch(error => {
+      const duration = Date.now() - startTime
+      const timings = c.get('timings') || {}
+      timings[`${operationName} (ERROR)`] = duration
+      c.set('timings', timings)
 
-    console.log(`❌ ${operationName}: ${duration}ms (ERROR: ${error.message})`)
-    throw error
-  })
+      console.log(`❌ ${operationName}: ${duration}ms (ERROR: ${error.message})`)
+      throw error
+    })
 }

@@ -1,14 +1,14 @@
-import { Hono } from 'hono'
-import type { ApiKey, CreateKeyRequest, RevokeKeyRequest } from '@entente/types'
-import { keys } from '../../db/schema'
-import { eq, and, desc, isNull } from 'drizzle-orm'
 import { createHash } from 'crypto'
+import type { ApiKey, CreateKeyRequest, RevokeKeyRequest } from '@entente/types'
+import { and, desc, eq, isNull } from 'drizzle-orm'
+import { Hono } from 'hono'
+import { keys } from '../../db/schema'
 import { generateApiKey } from '../utils/keys'
 
 export const keysRouter = new Hono()
 
 // Create new API key
-keysRouter.post('/', async (c) => {
+keysRouter.post('/', async c => {
   const body: CreateKeyRequest = await c.req.json()
 
   if (!body.name || !body.createdBy) {
@@ -21,15 +21,18 @@ keysRouter.post('/', async (c) => {
 
   const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null
 
-  const [newKey] = await db.insert(keys).values({
-    tenantId,
-    name: body.name,
-    keyHash,
-    keyPrefix,
-    createdBy: body.createdBy,
-    expiresAt,
-    permissions: body.permissions || 'read,write',
-  }).returning()
+  const [newKey] = await db
+    .insert(keys)
+    .values({
+      tenantId,
+      name: body.name,
+      keyHash,
+      keyPrefix,
+      createdBy: body.createdBy,
+      expiresAt,
+      permissions: body.permissions || 'read,write',
+    })
+    .returning()
 
   const response: ApiKey = {
     id: newKey.id,
@@ -52,7 +55,7 @@ keysRouter.post('/', async (c) => {
 })
 
 // List API keys
-keysRouter.get('/', async (c) => {
+keysRouter.get('/', async c => {
   const db = c.get('db')
   const includeRevoked = c.req.query('includeRevoked') === 'true'
   const { tenantId } = c.get('session')
@@ -86,16 +89,13 @@ keysRouter.get('/', async (c) => {
 })
 
 // Get single API key
-keysRouter.get('/:id', async (c) => {
+keysRouter.get('/:id', async c => {
   const db = c.get('db')
   const keyId = c.req.param('id')
   const { tenantId } = c.get('session')
 
   const key = await db.query.keys.findFirst({
-    where: and(
-      eq(keys.tenantId, tenantId),
-      eq(keys.id, keyId)
-    )
+    where: and(eq(keys.tenantId, tenantId), eq(keys.id, keyId)),
   })
 
   if (!key) {
@@ -120,7 +120,7 @@ keysRouter.get('/:id', async (c) => {
 })
 
 // Revoke API key
-keysRouter.delete('/:id', async (c) => {
+keysRouter.delete('/:id', async c => {
   const db = c.get('db')
   const keyId = c.req.param('id')
   const body: RevokeKeyRequest = await c.req.json()
@@ -130,17 +130,20 @@ keysRouter.delete('/:id', async (c) => {
     return c.json({ error: 'revokedBy is required' }, 400)
   }
 
-  const [revokedKey] = await db.update(keys)
+  const [revokedKey] = await db
+    .update(keys)
     .set({
       isActive: false,
       revokedAt: new Date(),
       revokedBy: body.revokedBy,
     })
-    .where(and(
-      eq(keys.tenantId, tenantId),
-      eq(keys.id, keyId),
-      isNull(keys.revokedAt) // Only revoke if not already revoked
-    ))
+    .where(
+      and(
+        eq(keys.tenantId, tenantId),
+        eq(keys.id, keyId),
+        isNull(keys.revokedAt) // Only revoke if not already revoked
+      )
+    )
     .returning()
 
   if (!revokedKey) {
@@ -160,13 +163,14 @@ keysRouter.delete('/:id', async (c) => {
 
 // Update key usage (internal function for middleware)
 export async function updateKeyUsage(db: any, keyHash: string): Promise<void> {
-  await db.update(keys)
-    .set({ lastUsedAt: new Date() })
-    .where(eq(keys.keyHash, keyHash))
+  await db.update(keys).set({ lastUsedAt: new Date() }).where(eq(keys.keyHash, keyHash))
 }
 
 // Validate API key (internal function for middleware)
-export async function validateApiKey(db: any, apiKey: string): Promise<{ valid: boolean; tenantId?: string; permissions?: string[] }> {
+export async function validateApiKey(
+  db: any,
+  apiKey: string
+): Promise<{ valid: boolean; tenantId?: string; permissions?: string[] }> {
   if (!apiKey.startsWith('ent_')) {
     return { valid: false }
   }
@@ -174,11 +178,7 @@ export async function validateApiKey(db: any, apiKey: string): Promise<{ valid: 
   const keyHash = createHash('sha256').update(apiKey).digest('hex')
 
   const key = await db.query.keys.findFirst({
-    where: and(
-      eq(keys.keyHash, keyHash),
-      eq(keys.isActive, true),
-      isNull(keys.revokedAt)
-    ),
+    where: and(eq(keys.keyHash, keyHash), eq(keys.isActive, true), isNull(keys.revokedAt)),
   })
 
   if (!key) {

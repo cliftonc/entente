@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useParams, Link } from 'react-router-dom'
-import { interactionApi } from '../utils/api'
+import { Link, useParams } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
+import { interactionApi } from '../utils/api'
 
 function InteractionDetails() {
   const { id } = useParams<{ id: string }>()
@@ -9,7 +9,7 @@ function InteractionDetails() {
   const {
     data: interaction,
     isLoading,
-    error
+    error,
   } = useQuery({
     queryKey: ['interaction', id],
     queryFn: () => interactionApi.getById(id!),
@@ -21,16 +21,16 @@ function InteractionDetails() {
       <div className="space-y-6">
         <div className="breadcrumbs text-sm">
           <ul>
-            <li><Link to="/interactions">Interactions</Link></li>
+            <li>
+              <Link to="/interactions">Interactions</Link>
+            </li>
             <li>Loading...</li>
           </ul>
         </div>
 
         <div>
           <h1 className="text-3xl font-bold text-base-content">Interaction Details</h1>
-          <p className="text-base-content/70 mt-1">
-            Loading interaction details...
-          </p>
+          <p className="text-base-content/70 mt-1">Loading interaction details...</p>
         </div>
 
         <div className="card bg-base-100 shadow-xl">
@@ -50,21 +50,26 @@ function InteractionDetails() {
       <div className="space-y-6">
         <div className="breadcrumbs text-sm">
           <ul>
-            <li><Link to="/interactions">Interactions</Link></li>
+            <li>
+              <Link to="/interactions">Interactions</Link>
+            </li>
             <li>Error</li>
           </ul>
         </div>
 
         <div>
           <h1 className="text-3xl font-bold text-base-content">Interaction Details</h1>
-          <p className="text-base-content/70 mt-1">
-            Error loading interaction details
-          </p>
+          <p className="text-base-content/70 mt-1">Error loading interaction details</p>
         </div>
 
         <div className="alert alert-error">
           <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
           </svg>
           <span>Failed to load interaction details</span>
         </div>
@@ -77,21 +82,26 @@ function InteractionDetails() {
       <div className="space-y-6">
         <div className="breadcrumbs text-sm">
           <ul>
-            <li><Link to="/interactions">Interactions</Link></li>
+            <li>
+              <Link to="/interactions">Interactions</Link>
+            </li>
             <li>Not Found</li>
           </ul>
         </div>
 
         <div>
           <h1 className="text-3xl font-bold text-base-content">Interaction Details</h1>
-          <p className="text-base-content/70 mt-1">
-            Interaction not found
-          </p>
+          <p className="text-base-content/70 mt-1">Interaction not found</p>
         </div>
 
         <div className="alert alert-warning">
           <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"></path>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"
+            ></path>
           </svg>
           <span>The requested interaction could not be found.</span>
         </div>
@@ -103,16 +113,18 @@ function InteractionDetails() {
     <div className="space-y-6">
       <div className="breadcrumbs text-sm">
         <ul>
-          <li><Link to="/interactions">Interactions</Link></li>
-          <li>{interaction.consumer} → {interaction.service}</li>
+          <li>
+            <Link to="/interactions">Interactions</Link>
+          </li>
+          <li>
+            {interaction.consumer} → {interaction.service}
+          </li>
         </ul>
       </div>
 
       <div>
         <h1 className="text-3xl font-bold text-base-content">Interaction Details</h1>
-        <p className="text-base-content/70 mt-1">
-          Detailed view of consumer-provider interaction
-        </p>
+        <p className="text-base-content/70 mt-1">Detailed view of consumer-provider interaction</p>
       </div>
 
       {/* Overview Card */}
@@ -121,24 +133,43 @@ function InteractionDetails() {
           <h2 className="card-title">Overview</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <div><strong>Service:</strong> {interaction.service}</div>
-              <div><strong>Service Version:</strong> {interaction.serviceVersion}</div>
-              <div><strong>Consumer:</strong> {interaction.consumer}</div>
-              <div><strong>Consumer Version:</strong> {interaction.consumerVersion}</div>
+              <div>
+                <strong>Service:</strong> {interaction.service}
+              </div>
+              <div>
+                <strong>Service Version:</strong> {interaction.serviceVersion}
+              </div>
+              <div>
+                <strong>Consumer:</strong> {interaction.consumer}
+              </div>
+              <div>
+                <strong>Consumer Version:</strong> {interaction.consumerVersion}
+              </div>
             </div>
             <div className="space-y-2">
-              <div><strong>Operation:</strong> {interaction.operation}</div>
-              <div><strong>Environment:</strong> {interaction.environment}</div>
+              <div>
+                <strong>Operation:</strong> {interaction.operation}
+              </div>
+              <div>
+                <strong>Environment:</strong> {interaction.environment}
+              </div>
               <div>
                 <strong>Status:</strong>
-                <span className={`badge ml-2 ${
-                  interaction.response.status >= 200 && interaction.response.status < 300 ? 'badge-success' :
-                  interaction.response.status >= 400 ? 'badge-error' : 'badge-warning'
-                }`}>
+                <span
+                  className={`badge ml-2 ${
+                    interaction.response.status >= 200 && interaction.response.status < 300
+                      ? 'badge-success'
+                      : interaction.response.status >= 400
+                        ? 'badge-error'
+                        : 'badge-warning'
+                  }`}
+                >
                   {interaction.response.status}
                 </span>
               </div>
-              <div><strong>Timestamp:</strong> <TimestampDisplay timestamp={interaction.timestamp} /></div>
+              <div>
+                <strong>Timestamp:</strong> <TimestampDisplay timestamp={interaction.timestamp} />
+              </div>
             </div>
           </div>
         </div>
@@ -158,7 +189,9 @@ function InteractionDetails() {
                 <div>
                   <h4 className="font-medium text-sm text-base-content/70 mb-2">Method & Path</h4>
                   <div className="bg-base-200 p-3 rounded font-mono text-sm">
-                    <span className="badge badge-primary badge-sm mr-2">{interaction.request.method}</span>
+                    <span className="badge badge-primary badge-sm mr-2">
+                      {interaction.request.method}
+                    </span>
                     {interaction.request.path}
                   </div>
                 </div>
@@ -174,7 +207,9 @@ function InteractionDetails() {
 
                 {interaction.request.query && Object.keys(interaction.request.query).length > 0 && (
                   <div>
-                    <h4 className="font-medium text-sm text-base-content/70 mb-2">Query Parameters</h4>
+                    <h4 className="font-medium text-sm text-base-content/70 mb-2">
+                      Query Parameters
+                    </h4>
                     <div className="bg-base-200 p-3 rounded">
                       <pre className="text-xs overflow-x-auto">
                         {JSON.stringify(interaction.request.query, null, 2)}
@@ -207,11 +242,17 @@ function InteractionDetails() {
                 <div>
                   <h4 className="font-medium text-sm text-base-content/70 mb-2">Status</h4>
                   <div className="bg-base-200 p-3 rounded">
-                    <span className={`badge badge-lg ${
-                      interaction.response.status >= 200 && interaction.response.status < 300 ? 'badge-success' :
-                      interaction.response.status >= 500 ? 'badge-error' :
-                      interaction.response.status >= 300 ? 'badge-warning' : 'badge-neutral'
-                    }`}>
+                    <span
+                      className={`badge badge-lg ${
+                        interaction.response.status >= 200 && interaction.response.status < 300
+                          ? 'badge-success'
+                          : interaction.response.status >= 500
+                            ? 'badge-error'
+                            : interaction.response.status >= 300
+                              ? 'badge-warning'
+                              : 'badge-neutral'
+                      }`}
+                    >
                       {interaction.response.status}
                     </span>
                   </div>

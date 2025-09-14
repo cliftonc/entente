@@ -1,10 +1,10 @@
-import type { Context, Next } from 'hono'
-import { validateApiKey, updateKeyUsage } from '../routes/keys'
-import { validateSession } from '../auth/sessions'
-import { getCookie } from 'hono/cookie'
 import { createHash } from 'crypto'
 import { eq } from 'drizzle-orm'
-import { tenantUsers, users, userSessions } from '../../db/schema'
+import type { Context, Next } from 'hono'
+import { getCookie } from 'hono/cookie'
+import { tenantUsers, userSessions, users } from '../../db/schema'
+import { validateSession } from '../auth/sessions'
+import { updateKeyUsage, validateApiKey } from '../routes/keys'
 import { timeOperation } from './performance'
 
 export interface AuthContext {
@@ -107,14 +107,16 @@ export async function authMiddleware(c: Context, next: Next) {
       // Check if session is expired
       if (session.expiresAt < new Date()) {
         // Delete expired session asynchronously
-        db.delete(userSessions).where(eq(userSessions.id, sessionId)).catch(err => {
-          console.error('Failed to delete expired session:', err)
-        })
+        db.delete(userSessions)
+          .where(eq(userSessions.id, sessionId))
+          .catch(err => {
+            console.error('Failed to delete expired session:', err)
+          })
       } else {
         // Extend session if it's close to expiring (within 1 day) - async
         const oneDay = 1000 * 60 * 60 * 24
         if (session.expiresAt.getTime() - Date.now() < oneDay) {
-          const newExpiresAt = new Date(Date.now() + (1000 * 60 * 60 * 24 * 7)) // 7 days
+          const newExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7) // 7 days
           db.update(userSessions)
             .set({ expiresAt: newExpiresAt })
             .where(eq(userSessions.id, sessionId))
@@ -124,9 +126,7 @@ export async function authMiddleware(c: Context, next: Next) {
         }
 
         // Map role to permissions
-        const permissions = role === 'owner'
-          ? ['admin', 'read', 'write']
-          : ['read', 'write']
+        const permissions = role === 'owner' ? ['admin', 'read', 'write'] : ['read', 'write']
 
         c.set('auth', {
           tenantId,

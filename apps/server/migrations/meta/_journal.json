@@ -99,6 +99,27 @@
       "when": 1757822172186,
       "tag": "0013_solid_darkstar",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1757826289001,
+      "tag": "0014_jazzy_morlocks",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1757828371869,
+      "tag": "0015_strange_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1757830273441,
+      "tag": "0016_jazzy_james_howlett",
+      "breakpoints": true
     }
   ]
 }

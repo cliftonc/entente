@@ -12,14 +12,14 @@ interface ProviderFilterProps {
 function ProviderFilter({
   value,
   onChange,
-  label = "Provider",
-  className = "",
-  disabled = false
+  label = 'Provider',
+  className = '',
+  disabled = false,
 }: ProviderFilterProps) {
   const {
     data: providers,
     isLoading: providersLoading,
-    error: providersError
+    error: providersError,
   } = useQuery({
     queryKey: ['providers'],
     queryFn: providerApi.getAll,
@@ -33,7 +33,7 @@ function ProviderFilter({
       <select
         className="select select-bordered"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={e => onChange(e.target.value)}
         disabled={disabled || providersLoading}
       >
         <option value="">All Providers</option>

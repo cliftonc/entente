@@ -1,5 +1,5 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { type ReactNode, createContext, useContext, useEffect, useState } from 'react'
 
 interface User {
   id: string
@@ -175,9 +175,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh,
   }
 
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
 }

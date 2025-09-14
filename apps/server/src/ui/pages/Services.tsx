@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
-import { serviceApi, interactionApi } from '../utils/api'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
+import { interactionApi, serviceApi } from '../utils/api'
 
 function Services() {
   const [typeFilter, setTypeFilter] = useState('all')
@@ -11,7 +11,7 @@ function Services() {
   const {
     data: services,
     isLoading,
-    error
+    error,
   } = useQuery({
     queryKey: ['services'],
     queryFn: () => serviceApi.getAll(),
@@ -22,8 +22,9 @@ function Services() {
 
   // Apply filters
   const filteredServices = allServices.filter(service => {
-    const matchesSearch = service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (service.description || '').toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch =
+      service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (service.description || '').toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = typeFilter === 'all' || service.type === typeFilter
     return matchesSearch && matchesType
   })
@@ -64,7 +65,12 @@ function Services() {
         </div>
         <div className="alert alert-error">
           <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
           </svg>
           <span>Error loading services data</span>
         </div>
@@ -99,7 +105,7 @@ function Services() {
           <select
             className="select select-bordered"
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            onChange={e => setTypeFilter(e.target.value)}
           >
             <option value="all">All types</option>
             <option value="consumer">Consumers</option>
@@ -115,7 +121,7 @@ function Services() {
             placeholder="Search services..."
             className="input input-bordered"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
       </div>
@@ -126,53 +132,55 @@ function Services() {
           <div className="col-span-full text-center text-base-content/70 py-12">
             {searchTerm || typeFilter !== 'all'
               ? 'No services match your filters'
-              : 'No services found'
-            }
+              : 'No services found'}
           </div>
         ) : (
-          filteredServices.map((service) => (
-          <div key={service.name} className="card bg-base-100 shadow-xl">
-            <div className="card-body">
-              <div className="flex items-start justify-between">
-                <h2 className="card-title text-lg">{service.name}</h2>
-                <div className={`badge ${
-                  service.type === 'consumer' ? 'badge-primary' : 'badge-secondary'
-                }`}>
-                  {service.type}
+          filteredServices.map(service => (
+            <div key={service.name} className="card bg-base-100 shadow-xl">
+              <div className="card-body">
+                <div className="flex items-start justify-between">
+                  <h2 className="card-title text-lg">{service.name}</h2>
+                  <div
+                    className={`badge ${
+                      service.type === 'consumer' ? 'badge-primary' : 'badge-secondary'
+                    }`}
+                  >
+                    {service.type}
+                  </div>
                 </div>
-              </div>
-              
-              <div className="text-sm text-base-content/70 mb-4">
-                Last updated: <TimestampDisplay timestamp={service.updatedAt} />
-              </div>
-              
-              <p className="text-base-content/80 mb-4">
-                {service.description || 'No description available'}
-              </p>
-              
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span>Interactions</span>
-                  <span className="font-medium">{service.interactions}</span>
+
+                <div className="text-sm text-base-content/70 mb-4">
+                  Last updated: <TimestampDisplay timestamp={service.updatedAt} />
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span>Type</span>
-                  <span className="font-medium capitalize">{service.type}</span>
+
+                <p className="text-base-content/80 mb-4">
+                  {service.description || 'No description available'}
+                </p>
+
+                <div className="space-y-2 mb-4">
+                  <div className="flex justify-between text-sm">
+                    <span>Interactions</span>
+                    <span className="font-medium">{service.interactions}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Type</span>
+                    <span className="font-medium capitalize">{service.type}</span>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="card-actions justify-end">
-                <button className="btn btn-ghost btn-sm">View Spec</button>
-                <Link
-                  to={`/services/${service.type}/${service.name}`}
-                  className="btn btn-primary btn-sm"
-                >
-                  Details
-                </Link>
+
+                <div className="card-actions justify-end">
+                  <button className="btn btn-ghost btn-sm">View Spec</button>
+                  <Link
+                    to={`/services/${service.type}/${service.name}`}
+                    className="btn btn-primary btn-sm"
+                  >
+                    Details
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
-        )))}
+          ))
+        )}
       </div>
 
       {/* Upload Modal would go here */}

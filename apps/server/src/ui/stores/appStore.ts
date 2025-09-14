@@ -84,69 +84,54 @@ export const useAppStore = create<AppStore>()(
       },
 
       // Actions
-      setServices: (services) => set({ services }, false, 'setServices'),
+      setServices: services => set({ services }, false, 'setServices'),
 
-      setInteractions: (interactions) => set({ interactions }, false, 'setInteractions'),
+      setInteractions: interactions => set({ interactions }, false, 'setInteractions'),
 
-      setFixtures: (fixtures) => set({ fixtures }, false, 'setFixtures'),
+      setFixtures: fixtures => set({ fixtures }, false, 'setFixtures'),
 
-      setSelectedService: (serviceId) => set({ selectedService: serviceId }, false, 'setSelectedService'),
+      setSelectedService: serviceId =>
+        set({ selectedService: serviceId }, false, 'setSelectedService'),
 
       setLoading: (key, value) =>
-        set(
-          (state) => ({ loading: { ...state.loading, [key]: value } }),
-          false,
-          `setLoading.${key}`
-        ),
+        set(state => ({ loading: { ...state.loading, [key]: value } }), false, `setLoading.${key}`),
 
       setError: (key, error) =>
-        set(
-          (state) => ({ errors: { ...state.errors, [key]: error } }),
-          false,
-          `setError.${key}`
-        ),
+        set(state => ({ errors: { ...state.errors, [key]: error } }), false, `setError.${key}`),
 
-      addService: (service) =>
-        set(
-          (state) => ({ services: [...state.services, service] }),
-          false,
-          'addService'
-        ),
+      addService: service =>
+        set(state => ({ services: [...state.services, service] }), false, 'addService'),
 
       updateService: (id, updates) =>
         set(
-          (state) => ({
-            services: state.services.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+          state => ({
+            services: state.services.map(s => (s.id === id ? { ...s, ...updates } : s)),
           }),
           false,
           'updateService'
         ),
 
-      removeService: (id) =>
+      removeService: id =>
         set(
-          (state) => ({ services: state.services.filter((s) => s.id !== id) }),
+          state => ({ services: state.services.filter(s => s.id !== id) }),
           false,
           'removeService'
         ),
 
-      addInteraction: (interaction) =>
+      addInteraction: interaction =>
         set(
-          (state) => ({ interactions: [interaction, ...state.interactions] }),
+          state => ({ interactions: [interaction, ...state.interactions] }),
           false,
           'addInteraction'
         ),
 
-      addFixture: (fixture) =>
-        set(
-          (state) => ({ fixtures: [fixture, ...state.fixtures] }),
-          false,
-          'addFixture'
-        ),
+      addFixture: fixture =>
+        set(state => ({ fixtures: [fixture, ...state.fixtures] }), false, 'addFixture'),
 
       updateFixture: (id, updates) =>
         set(
-          (state) => ({
-            fixtures: state.fixtures.map((f) => (f.id === id ? { ...f, ...updates } : f)),
+          state => ({
+            fixtures: state.fixtures.map(f => (f.id === id ? { ...f, ...updates } : f)),
           }),
           false,
           'updateFixture'

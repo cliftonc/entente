@@ -1,13 +1,13 @@
 import type { VerificationErrorDetails } from '@entente/types'
 
 interface ErrorDetailsProps {
-  errorDetails?: VerificationErrorDetails;
-  fallbackError?: string;
+  errorDetails?: VerificationErrorDetails
+  fallbackError?: string
 }
 
 export default function ErrorDetails({ errorDetails, fallbackError }: ErrorDetailsProps) {
   if (!errorDetails && !fallbackError) {
-    return null;
+    return null
   }
 
   // If we have structured error details, render them nicely
@@ -16,11 +16,17 @@ export default function ErrorDetails({ errorDetails, fallbackError }: ErrorDetai
       <div className="bg-base-200 border border-base-300 p-3 rounded mt-2">
         <div className="text-xs font-semibold mb-2 flex items-center gap-2">
           <span>Error Details:</span>
-          <span className={`badge badge-xs ${
-            errorDetails.type === 'status_mismatch' ? 'badge-warning' :
-            errorDetails.type === 'structure_mismatch' ? 'badge-error' :
-            errorDetails.type === 'content_mismatch' ? 'badge-info' : 'badge-neutral'
-          }`}>
+          <span
+            className={`badge badge-xs ${
+              errorDetails.type === 'status_mismatch'
+                ? 'badge-warning'
+                : errorDetails.type === 'structure_mismatch'
+                  ? 'badge-error'
+                  : errorDetails.type === 'content_mismatch'
+                    ? 'badge-info'
+                    : 'badge-neutral'
+            }`}
+          >
             {errorDetails.type.replace('_', ' ')}
           </span>
         </div>
@@ -69,16 +75,14 @@ export default function ErrorDetails({ errorDetails, fallbackError }: ErrorDetai
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   // Fall back to the plain error string
   return (
     <div className="bg-base-300/20 p-2 rounded mt-2">
       <div className="text-xs font-semibold mb-1">Error Details:</div>
-      <pre className="text-xs overflow-x-auto">
-        {fallbackError}
-      </pre>
+      <pre className="text-xs overflow-x-auto">{fallbackError}</pre>
     </div>
-  );
+  )
 }

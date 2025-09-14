@@ -1,11 +1,11 @@
+import { and, count, desc, eq, gte } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { services, interactions, fixtures, deployments, verificationResults } from '../../db/schema'
-import { eq, and, count, desc, gte } from 'drizzle-orm'
+import { deployments, fixtures, interactions, services, verificationResults } from '../../db/schema'
 
 export const statsRouter = new Hono()
 
 // Dashboard statistics endpoint
-statsRouter.get('/dashboard', async (c) => {
+statsRouter.get('/dashboard', async c => {
   const db = c.get('db')
   const session = c.get('session')
 
@@ -39,12 +39,7 @@ statsRouter.get('/dashboard', async (c) => {
     const [draftFixturesCount] = await db
       .select({ count: count() })
       .from(fixtures)
-      .where(
-        and(
-          eq(fixtures.tenantId, tenantId),
-          eq(fixtures.status, 'draft')
-        )
-      )
+      .where(and(eq(fixtures.tenantId, tenantId), eq(fixtures.status, 'draft')))
 
     // Get recent deployments (last 10)
     const recentDeployments = await db
@@ -55,7 +50,7 @@ statsRouter.get('/dashboard', async (c) => {
         environment: deployments.environment,
         deployedAt: deployments.deployedAt,
         deployedBy: deployments.deployedBy,
-        type: deployments.type
+        type: deployments.type,
       })
       .from(deployments)
       .where(eq(deployments.tenantId, tenantId))
@@ -66,7 +61,7 @@ statsRouter.get('/dashboard', async (c) => {
     const verificationResults30Days = await db
       .select({
         id: verificationResults.id,
-        results: verificationResults.results
+        results: verificationResults.results,
       })
       .from(verificationResults)
       .where(
@@ -101,12 +96,15 @@ statsRouter.get('/dashboard', async (c) => {
       ),
       columns: {
         provider: true,
-        results: true
-      }
+        results: true,
+      },
     })
 
     // Calculate pass rates per service
-    const servicePassRates = new Map<string, { total: number; passed: number; interactions: number }>()
+    const servicePassRates = new Map<
+      string,
+      { total: number; passed: number; interactions: number }
+    >()
 
     recentVerifications.forEach(verification => {
       const results = verification.results as any[]
@@ -126,15 +124,10 @@ statsRouter.get('/dashboard', async (c) => {
     const serviceInteractionCounts = await db
       .select({
         service: interactions.service,
-        count: count()
+        count: count(),
       })
       .from(interactions)
-      .where(
-        and(
-          eq(interactions.tenantId, tenantId),
-          gte(interactions.timestamp, last7Days)
-        )
-      )
+      .where(and(eq(interactions.tenantId, tenantId), gte(interactions.timestamp, last7Days)))
       .groupBy(interactions.service)
 
     // Merge interaction counts with verification data
@@ -153,7 +146,7 @@ statsRouter.get('/dashboard', async (c) => {
           name: serviceName,
           status,
           interactions: stats.interactions,
-          passRate: Math.round(passRate * 10) / 10
+          passRate: Math.round(passRate * 10) / 10,
         }
       })
       .sort((a, b) => b.interactions - a.interactions) // Sort by interaction count
@@ -170,9 +163,9 @@ statsRouter.get('/dashboard', async (c) => {
         environment: d.environment,
         deployedAt: d.deployedAt,
         deployedBy: d.deployedBy,
-        type: d.type
+        type: d.type,
       })),
-      serviceHealth
+      serviceHealth,
     })
   } catch (error) {
     console.error('Stats dashboard error:', error)

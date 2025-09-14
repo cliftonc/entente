@@ -1,11 +1,11 @@
+import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { services } from '../../db/schema'
-import { eq, and } from 'drizzle-orm'
 
 export const servicesRouter = new Hono()
 
 // Register a new service (consumer or provider)
-servicesRouter.post('/', async (c) => {
+servicesRouter.post('/', async c => {
   const registration = await c.req.json()
 
   if (!registration.name || !registration.type || !registration.packageJson) {
@@ -33,50 +33,59 @@ servicesRouter.post('/', async (c) => {
 
   if (existing) {
     // Update existing service
-    const [updated] = await db.update(services)
+    const [updated] = await db
+      .update(services)
       .set({
         description: registration.description,
         packageJson: registration.packageJson,
         gitRepositoryUrl: registration.gitRepositoryUrl,
         updatedAt: new Date(),
       })
-      .where(and(
-        eq(services.tenantId, tenantId),
-        eq(services.name, registration.name),
-        eq(services.type, registration.type)
-      ))
+      .where(
+        and(
+          eq(services.tenantId, tenantId),
+          eq(services.name, registration.name),
+          eq(services.type, registration.type)
+        )
+      )
       .returning()
 
     service = updated
     console.log(`📦 Updated existing ${registration.type}: ${registration.name}`)
   } else {
     // Create new service
-    const [created] = await db.insert(services).values({
-      tenantId,
-      name: registration.name,
-      type: registration.type,
-      description: registration.description,
-      packageJson: registration.packageJson,
-    }).returning()
+    const [created] = await db
+      .insert(services)
+      .values({
+        tenantId,
+        name: registration.name,
+        type: registration.type,
+        description: registration.description,
+        packageJson: registration.packageJson,
+      })
+      .returning()
 
     service = created
     isNew = true
     console.log(`📦 Registered new ${registration.type}: ${registration.name}`)
   }
 
-  return c.json({
-    id: service.id,
-    name: service.name,
-    type: service.type,
-    description: service.description,
-    createdAt: service.createdAt,
-    updatedAt: service.updatedAt,
-    isNew,
-  }, isNew ? 201 : 200)
+  return c.json(
+    {
+      id: service.id,
+      name: service.name,
+      type: service.type,
+      description: service.description,
+      createdAt: service.createdAt,
+      updatedAt: service.updatedAt,
+      isNew,
+    },
+    isNew ? 201 : 200
+  )
 })
 
 // Get all services for tenant with optional type filter
-servicesRouter.get('/', async (c) => {
+servicesRouter.get('/', async c => {
   const type = c.req.query('type') // Optional filter: 'consumer' | 'provider'
   const db = c.get('db')
   const { tenantId } = c.get('session')
@@ -96,7 +105,7 @@ servicesRouter.get('/', async (c) => {
 })
 
 // Get specific service by name and type
-servicesRouter.get('/:name/:type', async (c) => {
+servicesRouter.get('/:name/:type', async c => {
   const name = c.req.param('name')
   const type = c.req.param('type')
 
@@ -108,11 +117,7 @@ servicesRouter.get('/:name/:type', async (c) => {
   const { tenantId } = c.get('session')
 
   const service = await db.query.services.findFirst({
-    where: and(
-      eq(services.tenantId, tenantId),
-      eq(services.name, name),
-      eq(services.type, type)
-    ),
+    where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
   })
 
   if (!service) {
@@ -123,7 +128,7 @@ servicesRouter.get('/:name/:type', async (c) => {
 })
 
 // Update service (e.g., new package.json)
-servicesRouter.put('/:name/:type', async (c) => {
+servicesRouter.put('/:name/:type', async c => {
   const name = c.req.param('name')
   const type = c.req.param('type')
   const updates = await c.req.json()
@@ -137,11 +142,7 @@ servicesRouter.put('/:name/:type', async (c) => {
 
   // Check if service exists
   const existing = await db.query.services.findFirst({
-    where: and(
-      eq(services.tenantId, tenantId),
-      eq(services.name, name),
-      eq(services.type, type)
-    ),
+    where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
   })
 
   if (!existing) {
@@ -149,17 +150,14 @@ servicesRouter.put('/:name/:type', async (c) => {
   }
 
   // Update service
-  const [updated] = await db.update(services)
+  const [updated] = await db
+    .update(services)
     .set({
       description: updates.description ?? existing.description,
       packageJson: updates.packageJson ?? existing.packageJson,
       updatedAt: new Date(),
     })
-    .where(and(
-      eq(services.tenantId, tenantId),
-      eq(services.name, name),
-      eq(services.type, type)
-    ))
+    .where(and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)))
     .returning()
 
   console.log(`📦 Updated ${type}: ${name}`)
@@ -168,7 +166,7 @@ servicesRouter.put('/:name/:type', async (c) => {
 })
 
 // Delete service
-servicesRouter.delete('/:name/:type', async (c) => {
+servicesRouter.delete('/:name/:type', async c => {
   const name = c.req.param('name')
   const type = c.req.param('type')
 
@@ -179,12 +177,9 @@ servicesRouter.delete('/:name/:type', async (c) => {
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
-  const deleted = await db.delete(services)
-    .where(and(
-      eq(services.tenantId, tenantId),
-      eq(services.name, name),
-      eq(services.type, type)
-    ))
+  const deleted = await db
+    .delete(services)
+    .where(and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)))
     .returning()
 
   if (deleted.length === 0) {

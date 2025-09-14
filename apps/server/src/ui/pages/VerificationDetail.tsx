@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useParams, Link } from 'react-router-dom'
 import { useState } from 'react'
-import { verificationApi } from '../utils/api'
-import TimestampDisplay from '../components/TimestampDisplay'
+import { Link, useParams } from 'react-router-dom'
 import ErrorDetails from '../components/ErrorDetails'
+import TimestampDisplay from '../components/TimestampDisplay'
+import { verificationApi } from '../utils/api'
 
 function VerificationDetail() {
   const { id } = useParams<{ id: string }>()
@@ -13,7 +13,7 @@ function VerificationDetail() {
   const {
     data: verification,
     isLoading,
-    error
+    error,
   } = useQuery({
     queryKey: ['verification', id],
     queryFn: () => verificationApi.getById(id!),
@@ -35,16 +35,16 @@ function VerificationDetail() {
       <div className="space-y-6">
         <div className="breadcrumbs text-sm">
           <ul>
-            <li><Link to="/verification">Verification</Link></li>
+            <li>
+              <Link to="/verification">Verification</Link>
+            </li>
             <li>Loading...</li>
           </ul>
         </div>
 
         <div>
           <h1 className="text-3xl font-bold text-base-content">Verification Details</h1>
-          <p className="text-base-content/70 mt-1">
-            Loading verification details...
-          </p>
+          <p className="text-base-content/70 mt-1">Loading verification details...</p>
         </div>
 
         <div className="card bg-base-100 shadow-xl">
@@ -64,21 +64,26 @@ function VerificationDetail() {
       <div className="space-y-6">
         <div className="breadcrumbs text-sm">
           <ul>
-            <li><Link to="/verification">Verification</Link></li>
+            <li>
+              <Link to="/verification">Verification</Link>
+            </li>
             <li>Error</li>
           </ul>
         </div>
 
         <div>
           <h1 className="text-3xl font-bold text-base-content">Verification Details</h1>
-          <p className="text-base-content/70 mt-1">
-            Error loading verification details
-          </p>
+          <p className="text-base-content/70 mt-1">Error loading verification details</p>
         </div>
 
         <div className="alert alert-error">
           <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
           </svg>
           <span>Failed to load verification details</span>
         </div>
@@ -91,21 +96,26 @@ function VerificationDetail() {
       <div className="space-y-6">
         <div className="breadcrumbs text-sm">
           <ul>
-            <li><Link to="/verification">Verification</Link></li>
+            <li>
+              <Link to="/verification">Verification</Link>
+            </li>
             <li>Not Found</li>
           </ul>
         </div>
 
         <div>
           <h1 className="text-3xl font-bold text-base-content">Verification Details</h1>
-          <p className="text-base-content/70 mt-1">
-            Verification not found
-          </p>
+          <p className="text-base-content/70 mt-1">Verification not found</p>
         </div>
 
         <div className="alert alert-warning">
           <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"></path>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"
+            ></path>
           </svg>
           <span>The requested verification could not be found.</span>
         </div>
@@ -113,22 +123,25 @@ function VerificationDetail() {
     )
   }
 
-  const passRate = verification.total > 0 ? Math.round((verification.passed / verification.total) * 100) : 0
+  const passRate =
+    verification.total > 0 ? Math.round((verification.passed / verification.total) * 100) : 0
 
   return (
     <div className="space-y-6">
       <div className="breadcrumbs text-sm">
         <ul>
-          <li><Link to="/verification">Verification</Link></li>
-          <li>{verification.provider} v{verification.providerVersion}</li>
+          <li>
+            <Link to="/verification">Verification</Link>
+          </li>
+          <li>
+            {verification.provider} v{verification.providerVersion}
+          </li>
         </ul>
       </div>
 
       <div>
         <h1 className="text-3xl font-bold text-base-content">Verification Details</h1>
-        <p className="text-base-content/70 mt-1">
-          Detailed view of provider verification results
-        </p>
+        <p className="text-base-content/70 mt-1">Detailed view of provider verification results</p>
       </div>
 
       {/* Overview Card */}
@@ -137,23 +150,42 @@ function VerificationDetail() {
           <h2 className="card-title">Overview</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <div><strong>Provider:</strong> {verification.provider}</div>
-              <div><strong>Provider Version:</strong> v{verification.providerVersion}</div>
-              <div><strong>Consumer:</strong> {verification.consumer || 'N/A'}</div>
-              <div><strong>Consumer Version:</strong> {verification.consumerVersion || 'N/A'}</div>
+              <div>
+                <strong>Provider:</strong> {verification.provider}
+              </div>
+              <div>
+                <strong>Provider Version:</strong> v{verification.providerVersion}
+              </div>
+              <div>
+                <strong>Consumer:</strong> {verification.consumer || 'N/A'}
+              </div>
+              <div>
+                <strong>Consumer Version:</strong> {verification.consumerVersion || 'N/A'}
+              </div>
             </div>
             <div className="space-y-2">
-              <div><strong>Task ID:</strong> <span className="font-mono text-sm">{verification.taskId}</span></div>
+              <div>
+                <strong>Task ID:</strong>{' '}
+                <span className="font-mono text-sm">{verification.taskId}</span>
+              </div>
               <div>
                 <strong>Status:</strong>
-                <span className={`badge ml-2 ${
-                  verification.status === 'passed' ? 'badge-success' :
-                  verification.status === 'failed' ? 'badge-error' : 'badge-warning'
-                }`}>
+                <span
+                  className={`badge ml-2 ${
+                    verification.status === 'passed'
+                      ? 'badge-success'
+                      : verification.status === 'failed'
+                        ? 'badge-error'
+                        : 'badge-warning'
+                  }`}
+                >
                   {verification.status}
                 </span>
               </div>
-              <div><strong>Submitted:</strong> <TimestampDisplay timestamp={verification.submittedAt} /></div>
+              <div>
+                <strong>Submitted:</strong>{' '}
+                <TimestampDisplay timestamp={verification.submittedAt} />
+              </div>
             </div>
           </div>
         </div>
@@ -164,10 +196,14 @@ function VerificationDetail() {
         <div className="stats shadow">
           <div className="stat">
             <div className="stat-title">Pass Rate</div>
-            <div className={`stat-value ${passRate >= 95 ? 'text-success' : passRate >= 80 ? 'text-warning' : 'text-error'}`}>
+            <div
+              className={`stat-value ${passRate >= 95 ? 'text-success' : passRate >= 80 ? 'text-warning' : 'text-error'}`}
+            >
               {passRate}%
             </div>
-            <div className="stat-desc">{verification.passed}/{verification.total} tests passed</div>
+            <div className="stat-desc">
+              {verification.passed}/{verification.total} tests passed
+            </div>
           </div>
         </div>
         <div className="stats shadow">
@@ -214,24 +250,26 @@ function VerificationDetail() {
                           {result.interaction?.method || 'N/A'}
                         </span>
                       </td>
-                      <td className="font-mono text-sm">
-                        {result.interaction?.path || 'N/A'}
-                      </td>
-                      <td className="text-sm">
-                        {result.interaction?.operation || 'N/A'}
-                      </td>
+                      <td className="font-mono text-sm">{result.interaction?.path || 'N/A'}</td>
+                      <td className="text-sm">{result.interaction?.operation || 'N/A'}</td>
                       <td>
-                        <span className={`badge ${
-                          result.actualResponse?.status >= 200 && result.actualResponse?.status < 300 ? 'badge-success' :
-                          result.actualResponse?.status >= 400 ? 'badge-error' : 'badge-warning'
-                        }`}>
+                        <span
+                          className={`badge ${
+                            result.actualResponse?.status >= 200 &&
+                            result.actualResponse?.status < 300
+                              ? 'badge-success'
+                              : result.actualResponse?.status >= 500
+                                ? 'badge-error'
+                                : 'badge-warning'
+                          }`}
+                        >
                           {result.actualResponse?.status || 'N/A'}
                         </span>
                       </td>
                       <td>
-                        <span className={`badge ${
-                          result.success ? 'badge-success' : 'badge-error'
-                        }`}>
+                        <span
+                          className={`badge ${result.success ? 'badge-success' : 'badge-error'}`}
+                        >
                           {result.success ? 'PASS' : 'FAIL'}
                         </span>
                       </td>
@@ -239,10 +277,7 @@ function VerificationDetail() {
                         {result.actualResponse?.headers?.['content-length'] || 'Unknown'} bytes
                       </td>
                       <td>
-                        <button
-                          className="btn btn-ghost btn-xs"
-                          onClick={() => openModal(result)}
-                        >
+                        <button className="btn btn-ghost btn-xs" onClick={() => openModal(result)}>
                           View JSON
                         </button>
                       </td>
@@ -271,12 +306,13 @@ function VerificationDetail() {
                   <div key={index} className="card bg-base-100 shadow border border-error/20">
                     <div className="card-body">
                       <div className="font-semibold">
-                        {result.interaction?.method || 'Unknown'} {result.interaction?.path || 'Unknown'}
+                        {result.interaction?.method || 'Unknown'}{' '}
+                        {result.interaction?.path || 'Unknown'}
                       </div>
                       <div className="text-sm mt-1">
-                        Operation: {result.interaction?.operation || 'N/A'} •
-                        Response Status: {result.actualResponse?.status || 'Unknown'} •
-                        Service: {result.interaction?.service || 'N/A'}
+                        Operation: {result.interaction?.operation || 'N/A'} • Response Status:{' '}
+                        {result.actualResponse?.status || 'Unknown'} • Service:{' '}
+                        {result.interaction?.service || 'N/A'}
                       </div>
                       {result.actualResponse?.body && (
                         <div className="bg-base-300/20 p-2 rounded mt-2">
@@ -315,11 +351,20 @@ function VerificationDetail() {
               {/* Test Information Header */}
               <div className="bg-base-200 p-3 rounded">
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><strong>Method:</strong> {selectedResult.interaction?.method || 'N/A'}</div>
-                  <div><strong>Path:</strong> {selectedResult.interaction?.path || 'N/A'}</div>
-                  <div><strong>Operation:</strong> {selectedResult.interaction?.operation || 'N/A'}</div>
-                  <div><strong>Success:</strong>
-                    <span className={`badge ml-2 ${selectedResult.success ? 'badge-success' : 'badge-error'}`}>
+                  <div>
+                    <strong>Method:</strong> {selectedResult.interaction?.method || 'N/A'}
+                  </div>
+                  <div>
+                    <strong>Path:</strong> {selectedResult.interaction?.path || 'N/A'}
+                  </div>
+                  <div>
+                    <strong>Operation:</strong> {selectedResult.interaction?.operation || 'N/A'}
+                  </div>
+                  <div>
+                    <strong>Success:</strong>
+                    <span
+                      className={`badge ml-2 ${selectedResult.success ? 'badge-success' : 'badge-error'}`}
+                    >
                       {selectedResult.success ? 'PASS' : 'FAIL'}
                     </span>
                   </div>
@@ -341,15 +386,15 @@ function VerificationDetail() {
               <div>
                 <h4 className="font-semibold mb-2">Complete Test Result:</h4>
                 <div className="bg-base-300 p-4 rounded max-h-96 overflow-auto">
-                  <pre className="text-xs">
-                    {JSON.stringify(selectedResult, null, 2)}
-                  </pre>
+                  <pre className="text-xs">{JSON.stringify(selectedResult, null, 2)}</pre>
                 </div>
               </div>
             </div>
 
             <div className="modal-action">
-              <button className="btn" onClick={closeModal}>Close</button>
+              <button className="btn" onClick={closeModal}>
+                Close
+              </button>
             </div>
           </div>
           <div className="modal-backdrop" onClick={closeModal}></div>

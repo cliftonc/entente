@@ -9,8 +9,5 @@
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "tests"],
-  "references": [
-    { "path": "../types" },
-    { "path": "../fixtures" }
-  ]
+  "references": [{ "path": "../types" }, { "path": "../fixtures" }]
 }

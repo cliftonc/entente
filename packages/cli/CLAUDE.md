@@ -60,7 +60,7 @@ pnpm test
 ```
 
 ## Environment Variables
-- `ENTENTE_SERVICE_URL` - Central service URL (default: http://localhost:3000)
+- `ENTENTE_SERVICE_URL` - Central service URL (default: https://entente.dev)
 - `USER` - Default user for deployment recording
 
 ## Implementation Status

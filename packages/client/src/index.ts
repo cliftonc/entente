@@ -1,3 +1,13 @@
+import { readFileSync } from "fs";
+import { resolve } from "path";
+import {
+  createFixtureManager,
+  extractOperationFromPath,
+  extractOperationFromSpec,
+  generateFixtureHash,
+  generateInteractionHash,
+  prioritizeFixtures,
+} from "@entente/fixtures";
 import type {
   ClientConfig,
   ClientInteraction,
@@ -7,14 +17,6 @@ import type {
   MockOptions,
   OpenAPISpec,
 } from "@entente/types";
-import {
-  createFixtureManager,
-  extractOperationFromPath,
-  extractOperationFromSpec,
-  prioritizeFixtures,
-  generateFixtureHash,
-  generateInteractionHash,
-} from "@entente/fixtures";
 import { getGitSha } from "./git-utils.js";
 
 export interface EntenteClient {
@@ -61,8 +63,59 @@ export interface InteractionRecorder {
   flush: () => Promise<void>;
 }
 
+const getPackageInfo = (): { name: string; version: string } => {
+  try {
+    // Look for package.json starting from current working directory
+    const packageJsonPath = resolve(process.cwd(), "package.json");
+    const packageJsonContent = readFileSync(packageJsonPath, "utf-8");
+    const packageJson = JSON.parse(packageJsonContent);
+
+    return {
+      name: packageJson.name || "unknown-service",
+      version: packageJson.version || "0.0.0",
+    };
+  } catch (error) {
+    // Fallback if package.json can't be read
+    return {
+      name: "unknown-service",
+      version: "0.0.0",
+    };
+  }
+};
+
 export const createClient = (config: ClientConfig): EntenteClient => {
-  const fixtureManager = createFixtureManager(config.serviceUrl, config.apiKey);
+  // Get package info for fallbacks
+  const packageInfo = getPackageInfo();
+
+  // Create resolved config with fallbacks
+  const resolvedConfig = {
+    ...config,
+    consumer: config.consumer || packageInfo.name,
+    consumerVersion: config.consumerVersion || packageInfo.version,
+  };
+
+  // Check if we're using fallback values and warn user
+  const usingFallbackName =
+    !config.consumer && packageInfo.name === "unknown-service";
+  const usingFallbackVersion =
+    !config.consumerVersion && packageInfo.version === "0.0.0";
+
+  if (usingFallbackName || usingFallbackVersion) {
+    console.warn(
+      `⚠️  Entente client using fallback values - operations will be skipped. Please provide consumer name/version or ensure package.json exists.`,
+    );
+    console.warn(
+      `   Consumer: ${resolvedConfig.consumer}${usingFallbackName ? " (fallback)" : ""}`,
+    );
+    console.warn(
+      `   Version: ${resolvedConfig.consumerVersion}${usingFallbackVersion ? " (fallback)" : ""}`,
+    );
+  }
+
+  const fixtureManager = createFixtureManager(
+    resolvedConfig.serviceUrl,
+    resolvedConfig.apiKey,
+  );
 
   return {
     createMock: async (
@@ -76,8 +129,8 @@ export const createClient = (config: ClientConfig): EntenteClient => {
 
       // Fetch OpenAPI spec from central service
       const spec = await fetchSpec(
-        config.serviceUrl,
-        config.apiKey,
+        resolvedConfig.serviceUrl,
+        resolvedConfig.apiKey,
         service,
         version,
         options?.branch,
@@ -87,11 +140,11 @@ export const createClient = (config: ClientConfig): EntenteClient => {
       let fixtures: Fixture[] = [];
       if (options?.useFixtures !== false) {
         fixtures = await fetchFixtures(
-          config.serviceUrl,
-          config.apiKey,
+          resolvedConfig.serviceUrl,
+          resolvedConfig.apiKey,
           service,
           version,
-          options?.localFixtures
+          options?.localFixtures,
         );
       }
 
@@ -104,10 +157,21 @@ export const createClient = (config: ClientConfig): EntenteClient => {
         validateResponse: options?.validateResponses ?? true,
       });
 
-      // Set up recording if enabled
+      // Set up recording if enabled and not using fallback values
       let recorder: InteractionRecorder | undefined;
-      if (config.recordingEnabled) {
-        recorder = createInteractionRecorder(config);
+      if (
+        resolvedConfig.recordingEnabled &&
+        !usingFallbackName &&
+        !usingFallbackVersion
+      ) {
+        recorder = createInteractionRecorder(resolvedConfig);
+      } else if (
+        resolvedConfig.recordingEnabled &&
+        (usingFallbackName || usingFallbackVersion)
+      ) {
+        console.log(
+          `🚫 Skipping interaction recording - consumer info unavailable`,
+        );
       }
 
       return createEntenteMock({
@@ -118,7 +182,8 @@ export const createClient = (config: ClientConfig): EntenteClient => {
         fixtures,
         fixtureManager,
         hasFixtures: fixtures.length > 0,
-        config, // Pass the full config for access to consumer info
+        config: resolvedConfig, // Pass the resolved config for access to consumer info
+        skipOperations: usingFallbackName || usingFallbackVersion, // Skip operations if using fallbacks
       });
     },
 
@@ -131,24 +196,35 @@ export const createClient = (config: ClientConfig): EntenteClient => {
         environment: string;
       },
     ): Promise<void> => {
-      const response = await fetch(`${config.serviceUrl}/api/specs/${service}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${config.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          spec,
-          metadata: {
-            service,
-            version,
-            branch: metadata.branch || "main",
-            environment: metadata.environment,
-            uploadedBy: config.consumer,
-            uploadedAt: new Date(),
+      // Skip upload if using fallback values
+      if (usingFallbackName || usingFallbackVersion) {
+        console.log(
+          `🚫 Skipping spec upload for ${service}@${version} - consumer info unavailable`,
+        );
+        return;
+      }
+
+      const response = await fetch(
+        `${resolvedConfig.serviceUrl}/api/specs/${service}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${resolvedConfig.apiKey}`,
+            "Content-Type": "application/json",
           },
-        }),
-      });
+          body: JSON.stringify({
+            spec,
+            metadata: {
+              service,
+              version,
+              branch: metadata.branch || "main",
+              environment: metadata.environment,
+              uploadedBy: resolvedConfig.consumer,
+              uploadedAt: new Date(),
+            },
+          }),
+        },
+      );
 
       if (!response.ok) {
         throw new Error(
@@ -193,7 +269,6 @@ const fetchFixtures = async (
   try {
     // If local fixtures are provided, use them and upload to server
     if (localFixtures && localFixtures.length > 0) {
-
       // Upload local fixtures to the server for future use
       await uploadLocalFixtures(serviceUrl, apiKey, localFixtures);
 
@@ -258,7 +333,6 @@ const createMockServer = async (config: {
   // This is a simplified implementation
   // In practice, this would use Prism or similar tool
 
-
   let server: MockServer;
 
   if (config.fixtures.length > 0) {
@@ -281,8 +355,9 @@ const createFixtureBasedMockServer = async (
   fixtures: Fixture[],
   port: number,
 ): Promise<MockServer> => {
-
-  const mockServer = await createBasicMockServer(port) as MockServer & { _startPrism: (spec: OpenAPISpec, fixtures: Fixture[]) => Promise<void> };
+  const mockServer = (await createBasicMockServer(port)) as MockServer & {
+    _startPrism: (spec: OpenAPISpec, fixtures: Fixture[]) => Promise<void>;
+  };
 
   // Start Prism with spec and fixtures
   await mockServer._startPrism(spec, fixtures);
@@ -294,8 +369,9 @@ const createSchemaMockServer = async (
   spec: OpenAPISpec,
   port: number,
 ): Promise<MockServer> => {
-
-  const mockServer = await createBasicMockServer(port) as MockServer & { _startPrism: (spec: OpenAPISpec, fixtures: Fixture[]) => Promise<void> };
+  const mockServer = (await createBasicMockServer(port)) as MockServer & {
+    _startPrism: (spec: OpenAPISpec, fixtures: Fixture[]) => Promise<void>;
+  };
 
   // Start Prism with spec but no fixtures (dynamic mode)
   await mockServer._startPrism(spec, []);
@@ -312,7 +388,9 @@ const createBasicMockServer = async (port: number): Promise<MockServer> => {
 };
 
 const createPrismMockServer = async (port: number): Promise<MockServer> => {
-  const { createInstance, getHttpOperationsFromSpec } = await import('@stoplight/prism-http');
+  const { createInstance, getHttpOperationsFromSpec } = await import(
+    "@stoplight/prism-http"
+  );
 
   let prismInstance: any = null;
   let httpServer: any = null;
@@ -322,7 +400,6 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
   > = [];
 
   const startPrism = async (spec: OpenAPISpec, fixtures: Fixture[] = []) => {
-
     // Inject fixtures as examples into the spec
     const specWithFixtures = injectFixturesIntoSpec(spec, fixtures);
 
@@ -330,61 +407,69 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
     operations = await getHttpOperationsFromSpec(specWithFixtures);
 
     // Create Prism instance with proper configuration for fixtures
-    prismInstance = createInstance({
-      mock: {
-        dynamic: fixtures.length === 0,  // Use dynamic mocking if no fixtures, static if we have fixtures
+    prismInstance = createInstance(
+      {
+        mock: {
+          dynamic: fixtures.length === 0, // Use dynamic mocking if no fixtures, static if we have fixtures
+        },
+        validateRequest: true,
+        validateResponse: true,
+        checkSecurity: false,
+        errors: false,
+      } as any,
+      {
+        logger: {
+          info: () => {},
+          warn: () => {},
+          error: () => {},
+          debug: () => {},
+        },
       },
-      validateRequest: true,
-      validateResponse: true,
-      checkSecurity: false,
-      errors: false
-    } as any, {
-      logger: {
-        info: () => {},
-        warn: () => {},
-        error: () => {},
-        debug: () => {},
-      }
-    });
+    );
 
     // Start HTTP server that uses Prism
-    const { createServer } = await import('http');
-    const { URL } = await import('url');
+    const { createServer } = await import("http");
+    const { URL } = await import("url");
 
     httpServer = createServer(async (req, res) => {
       const startTime = Date.now();
 
       try {
-        const url = new URL(req.url || '/', `http://localhost:${port}`);
-        const body = req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH'
-          ? await getRequestBody(req)
-          : undefined;
+        const url = new URL(req.url || "/", `http://localhost:${port}`);
+        const body =
+          req.method === "POST" ||
+          req.method === "PUT" ||
+          req.method === "PATCH"
+            ? await getRequestBody(req)
+            : undefined;
 
         // Normalize headers for Prism
         const normalizedHeaders: Record<string, string> = {};
         Object.entries(req.headers).forEach(([key, value]) => {
-          if (typeof value === 'string') {
+          if (typeof value === "string") {
             normalizedHeaders[key.toLowerCase()] = value;
           } else if (Array.isArray(value)) {
-            normalizedHeaders[key.toLowerCase()] = value.join(', ');
+            normalizedHeaders[key.toLowerCase()] = value.join(", ");
           }
         });
 
         // Create request object for Prism
         const prismRequest = {
-          method: req.method?.toLowerCase() || 'get',
+          method: req.method?.toLowerCase() || "get",
           url: {
             path: url.pathname,
             query: Object.fromEntries(url.searchParams.entries()),
-            baseUrl: `http://localhost:${port}`
+            baseUrl: `http://localhost:${port}`,
           },
           headers: normalizedHeaders,
-          body
+          body,
         };
 
         let output: any = null;
         let finalStatusCode = 500;
-        let finalHeaders: Record<string, string> = { 'content-type': 'application/json' };
+        let finalHeaders: Record<string, string> = {
+          "content-type": "application/json",
+        };
         let finalBody: any = null;
 
         // Use Prism to handle the request
@@ -396,18 +481,26 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
           finalStatusCode = output.statusCode || 200;
           finalHeaders = { ...finalHeaders, ...(output.headers || {}) };
           finalBody = output.body;
-
         } else {
           // If Prism didn't return output, try fallback fixture matching
-          const fallbackResponse = await tryFallbackFixtureMatch(prismRequest, fixtures);
+          const fallbackResponse = await tryFallbackFixtureMatch(
+            prismRequest,
+            fixtures,
+          );
           if (fallbackResponse) {
             finalStatusCode = fallbackResponse.status;
-            finalHeaders = { ...finalHeaders, ...(fallbackResponse.headers || {}) };
+            finalHeaders = {
+              ...finalHeaders,
+              ...(fallbackResponse.headers || {}),
+            };
             finalBody = fallbackResponse.body;
           } else {
             // Final fallback
             finalStatusCode = 404;
-            finalBody = { error: 'not_found', message: 'No matching operation found' };
+            finalBody = {
+              error: "not_found",
+              message: "No matching operation found",
+            };
           }
         }
 
@@ -418,11 +511,11 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
         res.statusCode = finalStatusCode;
 
         // Handle different response body types
-        let responseBody: string = '';
+        let responseBody = "";
         if (finalBody !== undefined && finalBody !== null) {
-          if (typeof finalBody === 'string') {
+          if (typeof finalBody === "string") {
             responseBody = finalBody;
-          } else if (typeof finalBody === 'object') {
+          } else if (typeof finalBody === "object") {
             responseBody = JSON.stringify(finalBody);
           } else {
             responseBody = String(finalBody);
@@ -436,18 +529,18 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
         const duration = Date.now() - startTime;
 
         const mockRequest: MockRequest = {
-          method: req.method || 'GET',
+          method: req.method || "GET",
           path: url.pathname,
           headers: normalizedHeaders,
           query: Object.fromEntries(url.searchParams.entries()),
-          body
+          body,
         };
 
         const mockResponse: MockResponse = {
           status: finalStatusCode,
           headers: finalHeaders,
           body: finalBody,
-          duration
+          duration,
         };
 
         // Invoke all registered handlers
@@ -456,10 +549,9 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
             await handler(mockRequest, mockResponse);
           } catch (handlerError) {
             // Log handler errors but don't fail the request
-            console.error('Handler error:', handlerError);
+            console.error("Handler error:", handlerError);
           }
         }
-
       } catch (error: any) {
         // Calculate duration even for errors
         const duration = Date.now() - startTime;
@@ -467,55 +559,55 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
         // Handle Prism errors gracefully
         let statusCode = 500;
         let errorResponse: any = {
-          error: 'InternalServerError',
-          message: 'An unexpected error occurred'
+          error: "InternalServerError",
+          message: "An unexpected error occurred",
         };
 
         // Check for validation errors
-        if (error.name === 'ProblemJsonError' || error.type) {
+        if (error.name === "ProblemJsonError" || error.type) {
           statusCode = error.status || 400;
           errorResponse = {
-            error: error.type || 'ValidationError',
+            error: error.type || "ValidationError",
             message: error.title || error.message,
-            details: error.detail || error.validation
+            details: error.detail || error.validation,
           };
         } else if (error.status || error.statusCode) {
           statusCode = error.status || error.statusCode;
           errorResponse = {
-            error: error.name || 'RequestError',
+            error: error.name || "RequestError",
             message: error.message,
-            details: error.validation || error.detail
+            details: error.validation || error.detail,
           };
         }
 
         res.statusCode = statusCode;
-        res.setHeader('content-type', 'application/json');
+        res.setHeader("content-type", "application/json");
         res.end(JSON.stringify(errorResponse));
 
         // Create mock objects for handlers even for errors
-        const url = new URL(req.url || '/', `http://localhost:${port}`);
+        const url = new URL(req.url || "/", `http://localhost:${port}`);
         const normalizedHeaders: Record<string, string> = {};
         Object.entries(req.headers).forEach(([key, value]) => {
-          if (typeof value === 'string') {
+          if (typeof value === "string") {
             normalizedHeaders[key.toLowerCase()] = value;
           } else if (Array.isArray(value)) {
-            normalizedHeaders[key.toLowerCase()] = value.join(', ');
+            normalizedHeaders[key.toLowerCase()] = value.join(", ");
           }
         });
 
         const mockRequest: MockRequest = {
-          method: req.method || 'GET',
+          method: req.method || "GET",
           path: url.pathname,
           headers: normalizedHeaders,
           query: Object.fromEntries(url.searchParams.entries()),
-          body: undefined // Don't try to read body again on error
+          body: undefined, // Don't try to read body again on error
         };
 
         const mockResponse: MockResponse = {
           status: statusCode,
-          headers: { 'content-type': 'application/json' },
+          headers: { "content-type": "application/json" },
           body: errorResponse,
-          duration
+          duration,
         };
 
         // Invoke all registered handlers for errors too
@@ -524,7 +616,7 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
             await handler(mockRequest, mockResponse);
           } catch (handlerError) {
             // Log handler errors but don't fail the request
-            console.error('Handler error:', handlerError);
+            console.error("Handler error:", handlerError);
           }
         }
       }
@@ -536,46 +628,54 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
         else resolve();
       });
     });
-
   };
 
   const getRequestBody = async (req: any): Promise<unknown> => {
     return new Promise((resolve, reject) => {
-      let body = '';
-      req.on('data', (chunk: Buffer) => {
+      let body = "";
+      req.on("data", (chunk: Buffer) => {
         body += chunk.toString();
       });
-      req.on('end', () => {
+      req.on("end", () => {
         try {
           resolve(body ? JSON.parse(body) : undefined);
         } catch (error) {
           resolve(body || undefined);
         }
       });
-      req.on('error', reject);
+      req.on("error", reject);
     });
   };
 
   const tryFallbackFixtureMatch = async (
     request: any,
-    availableFixtures: Fixture[]
-  ): Promise<{ status: number; headers: Record<string, string>; body: any } | null> => {
+    availableFixtures: Fixture[],
+  ): Promise<{
+    status: number;
+    headers: Record<string, string>;
+    body: any;
+  } | null> => {
     if (!availableFixtures || availableFixtures.length === 0) {
       return null;
     }
 
     // Find all matching fixtures by method and path, then prioritize
-    const candidateFixtures = availableFixtures.filter(fixture => {
+    const candidateFixtures = availableFixtures.filter((fixture) => {
       const fixtureRequest = fixture.data.request as any;
 
       // Match method
-      if (fixtureRequest.method.toLowerCase() !== request.method.toLowerCase()) {
+      if (
+        fixtureRequest.method.toLowerCase() !== request.method.toLowerCase()
+      ) {
         return false;
       }
 
       // For path matching, try exact match first, then pattern match
       const exactPathMatch = fixtureRequest.path === request.url.path;
-      const patternPathMatch = pathMatches(fixtureRequest.path, request.url.path);
+      const patternPathMatch = pathMatches(
+        fixtureRequest.path,
+        request.url.path,
+      );
 
       if (!exactPathMatch && !patternPathMatch) {
         return false;
@@ -601,12 +701,13 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
     }
 
     // Prioritize exact path matches over pattern matches
-    const exactMatches = candidateFixtures.filter(fixture => {
+    const exactMatches = candidateFixtures.filter((fixture) => {
       const fixtureRequest = fixture.data.request as any;
       return fixtureRequest.path === request.url.path;
     });
 
-    const matchingFixture = exactMatches.length > 0 ? exactMatches[0] : candidateFixtures[0];
+    const matchingFixture =
+      exactMatches.length > 0 ? exactMatches[0] : candidateFixtures[0];
 
     if (!matchingFixture) {
       return null;
@@ -615,8 +716,10 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
     const fixtureResponse = matchingFixture.data.response as any;
     return {
       status: fixtureResponse.status,
-      headers: fixtureResponse.headers || { 'content-type': 'application/json' },
-      body: fixtureResponse.body
+      headers: fixtureResponse.headers || {
+        "content-type": "application/json",
+      },
+      body: fixtureResponse.body,
     };
   };
 
@@ -652,7 +755,10 @@ const createFixtureCollector = (
   version: string,
   fixtureManager: ReturnType<typeof createFixtureManager>,
 ): FixtureCollector => {
-  const collectedFixtures = new Map<string, { operation: string; data: { request?: unknown; response: unknown } }>();
+  const collectedFixtures = new Map<
+    string,
+    { operation: string; data: { request?: unknown; response: unknown } }
+  >();
 
   return {
     collect: async (
@@ -688,8 +794,7 @@ const createFixtureCollector = (
             },
             notes: "Auto-generated fixture from consumer test",
           });
-        } catch (error) {
-        }
+        } catch (error) {}
       }
 
       collectedFixtures.clear();
@@ -707,7 +812,8 @@ const createEntenteMock = (mockConfig: {
   fixtures: Fixture[];
   fixtureManager: ReturnType<typeof createFixtureManager>;
   hasFixtures: boolean;
-  config: ClientConfig;
+  config: ClientConfig & { consumer: string; consumerVersion: string }; // Resolved config with required fields
+  skipOperations: boolean; // Skip operations when using fallback values
 }): EntenteMock => {
   // Create fixture collector for deduplication
   const fixtureCollector = createFixtureCollector(
@@ -720,12 +826,16 @@ const createEntenteMock = (mockConfig: {
   if (mockConfig.recorder) {
     mockConfig.mockServer.onRequest(async (request, response) => {
       // Get operations from the mock server for spec-based operation extraction
-      const operations = (mockConfig.mockServer as any)._getOperations?.() || [];
-      const operation = extractOperationFromSpec(request.method, request.path, operations);
+      const operations =
+        (mockConfig.mockServer as any)._getOperations?.() || [];
+      const operation = extractOperationFromSpec(
+        request.method,
+        request.path,
+        operations,
+      );
 
       await mockConfig.recorder!.record({
         service: mockConfig.service,
-        serviceVersion: mockConfig.version,
         consumer: mockConfig.config.consumer,
         consumerVersion: mockConfig.config.consumerVersion,
         environment: mockConfig.config.environment,
@@ -747,14 +857,19 @@ const createEntenteMock = (mockConfig: {
     });
   }
 
-  // Set up fixture collection if no fixtures exist
-  if (!mockConfig.hasFixtures && process.env.CI) {
+  // Set up fixture collection if no fixtures exist and not skipping operations
+  if (!mockConfig.hasFixtures && process.env.CI && !mockConfig.skipOperations) {
     mockConfig.mockServer.onRequest(async (request, response) => {
       // Only collect fixtures for successful responses
       if (response.status >= 200 && response.status < 300) {
         // Get operations from the mock server for spec-based operation extraction
-        const operations = (mockConfig.mockServer as any)._getOperations?.() || [];
-        const operation = extractOperationFromSpec(request.method, request.path, operations);
+        const operations =
+          (mockConfig.mockServer as any)._getOperations?.() || [];
+        const operation = extractOperationFromSpec(
+          request.method,
+          request.path,
+          operations,
+        );
 
         await fixtureCollector.collect(operation, {
           request: {
@@ -772,6 +887,12 @@ const createEntenteMock = (mockConfig: {
         });
       }
     });
+  } else if (
+    !mockConfig.hasFixtures &&
+    process.env.CI &&
+    mockConfig.skipOperations
+  ) {
+    console.log(`🚫 Skipping fixture collection - consumer info unavailable`);
   }
 
   return {
@@ -792,6 +913,13 @@ const createEntenteMock = (mockConfig: {
       operation: string,
       data: { request?: unknown; response: unknown },
     ) => {
+      if (mockConfig.skipOperations) {
+        console.log(
+          `🚫 Skipping fixture proposal for ${operation} - consumer info unavailable`,
+        );
+        return;
+      }
+
       await mockConfig.fixtureManager.propose({
         service: mockConfig.service,
         serviceVersion: mockConfig.version,
@@ -810,7 +938,7 @@ const createEntenteMock = (mockConfig: {
 };
 
 const createInteractionRecorder = (
-  config: ClientConfig,
+  config: ClientConfig & { consumer: string; consumerVersion: string },
 ): InteractionRecorder => {
   const pendingInteractions: ClientInteraction[] = [];
   const seenInteractionHashes = new Set<string>();
@@ -821,20 +949,27 @@ const createInteractionRecorder = (
 
     try {
       // Send all interactions in one batch request
-      const response = await fetch(`${config.serviceUrl}/api/interactions/batch`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${config.apiKey}`,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${config.serviceUrl}/api/interactions/batch`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${config.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(pendingInteractions),
         },
-        body: JSON.stringify(pendingInteractions),
-      });
+      );
 
       if (response.ok) {
         const result = await response.json();
-        console.log(`✅ Batch uploaded ${pendingInteractions.length} interactions: ${result.results.recorded} recorded, ${result.results.duplicates} duplicates`);
+        console.log(
+          `✅ Batch uploaded ${pendingInteractions.length} interactions: ${result.results.recorded} recorded, ${result.results.duplicates} duplicates`,
+        );
       } else {
-        console.error(`❌ Failed to upload interactions batch: ${response.status} ${response.statusText}`);
+        console.error(
+          `❌ Failed to upload interactions batch: ${response.status} ${response.statusText}`,
+        );
       }
 
       pendingInteractions.length = 0; // Clear array
@@ -902,18 +1037,20 @@ const generateId = (): string => {
   return `int_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
-const injectFixturesIntoSpec = (spec: OpenAPISpec, fixtures: Fixture[]): OpenAPISpec => {
+const injectFixturesIntoSpec = (
+  spec: OpenAPISpec,
+  fixtures: Fixture[],
+): OpenAPISpec => {
   if (fixtures.length === 0) {
     return spec;
   }
-
 
   // Create a deep copy of the spec
   const modifiedSpec = JSON.parse(JSON.stringify(spec));
 
   // Group fixtures by operation
   const fixturesByOperation = new Map<string, Fixture[]>();
-  fixtures.forEach(fixture => {
+  fixtures.forEach((fixture) => {
     const operation = fixture.operation;
     if (!fixturesByOperation.has(operation)) {
       fixturesByOperation.set(operation, []);
@@ -923,7 +1060,11 @@ const injectFixturesIntoSpec = (spec: OpenAPISpec, fixtures: Fixture[]): OpenAPI
 
   Object.entries(modifiedSpec.paths).forEach(([path, pathItem]) => {
     Object.entries(pathItem as any).forEach(([method, operation]) => {
-      if (typeof operation === 'object' && operation && (operation as any).operationId) {
+      if (
+        typeof operation === "object" &&
+        operation &&
+        (operation as any).operationId
+      ) {
       }
     });
   });
@@ -931,7 +1072,11 @@ const injectFixturesIntoSpec = (spec: OpenAPISpec, fixtures: Fixture[]): OpenAPI
   // Inject fixtures as examples into the spec
   Object.entries(modifiedSpec.paths).forEach(([path, pathItem]) => {
     Object.entries(pathItem as any).forEach(([method, operation]) => {
-      if (typeof operation !== 'object' || !operation || !(operation as any).operationId) {
+      if (
+        typeof operation !== "object" ||
+        !operation ||
+        !(operation as any).operationId
+      ) {
         return;
       }
 
@@ -943,7 +1088,7 @@ const injectFixturesIntoSpec = (spec: OpenAPISpec, fixtures: Fixture[]): OpenAPI
 
       // Group fixtures by status code
       const fixturesByStatus = new Map<number, Fixture[]>();
-      operationFixtures.forEach(fixture => {
+      operationFixtures.forEach((fixture) => {
         const response = fixture.data.response as any;
         const status = response.status;
         if (!fixturesByStatus.has(status)) {
@@ -959,32 +1104,34 @@ const injectFixturesIntoSpec = (spec: OpenAPISpec, fixtures: Fixture[]): OpenAPI
           const statusKey = status.toString();
           if (operationObj.responses[statusKey]) {
             const response = operationObj.responses[statusKey];
-            if (response.content && response.content['application/json']) {
+            if (response.content && response.content["application/json"]) {
               // Use the first fixture's response body as the primary example
               const exampleBody = (statusFixtures[0].data.response as any).body;
 
               // Set both example and examples for Prism compatibility
-              response.content['application/json'].example = exampleBody;
+              response.content["application/json"].example = exampleBody;
 
               // Also set examples array with named examples for Prism to pick from
-              response.content['application/json'].examples = {
-                'default': {
+              response.content["application/json"].examples = {
+                default: {
                   summary: `Default response for ${operationId}`,
-                  value: exampleBody
-                }
+                  value: exampleBody,
+                },
               };
 
               // If there are multiple fixtures for this status, add them as additional examples
               statusFixtures.forEach((fixture, index) => {
                 if (index > 0) {
-                  const additionalExampleBody = (fixture.data.response as any).body;
-                  response.content['application/json'].examples[`example_${index}`] = {
+                  const additionalExampleBody = (fixture.data.response as any)
+                    .body;
+                  response.content["application/json"].examples[
+                    `example_${index}`
+                  ] = {
                     summary: `Alternative response ${index + 1} for ${operationId}`,
-                    value: additionalExampleBody
+                    value: additionalExampleBody,
                   };
                 }
               });
-
             }
           }
         });
@@ -998,16 +1145,15 @@ const injectFixturesIntoSpec = (spec: OpenAPISpec, fixtures: Fixture[]): OpenAPI
 const uploadLocalFixtures = async (
   serviceUrl: string,
   apiKey: string,
-  fixtures: Fixture[]
+  fixtures: Fixture[],
 ): Promise<void> => {
   try {
-
     for (const fixture of fixtures) {
       const response = await fetch(`${serviceUrl}/api/fixtures`, {
-        method: 'POST',
+        method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(fixture),
       });
@@ -1016,12 +1162,14 @@ const uploadLocalFixtures = async (
       } else {
       }
     }
-  } catch (error) {
-  }
+  } catch (error) {}
 };
 
-const findMatchingFixture = (fixtures: Fixture[], request: MockRequest): Fixture | undefined => {
-  return fixtures.find(fixture => {
+const findMatchingFixture = (
+  fixtures: Fixture[],
+  request: MockRequest,
+): Fixture | undefined => {
+  return fixtures.find((fixture) => {
     const fixtureRequest = fixture.data.request as any;
 
     // Match method
@@ -1061,8 +1209,8 @@ const pathMatches = (fixturePath: string, requestPath: string): boolean => {
   }
 
   // Pattern match for path parameters (e.g., /castles/{id} matches /castles/123)
-  const fixtureSegments = fixturePath.split('/');
-  const requestSegments = requestPath.split('/');
+  const fixtureSegments = fixturePath.split("/");
+  const requestSegments = requestPath.split("/");
 
   if (fixtureSegments.length !== requestSegments.length) {
     return false;
@@ -1073,7 +1221,11 @@ const pathMatches = (fixturePath: string, requestPath: string): boolean => {
     const requestSegment = requestSegments[i];
 
     // If fixture segment is a parameter (contains alphanumeric chars), it matches any value
-    if (fixtureSegment && /^[a-zA-Z0-9-]+$/.test(fixtureSegment) && requestSegment) {
+    if (
+      fixtureSegment &&
+      /^[a-zA-Z0-9-]+$/.test(fixtureSegment) &&
+      requestSegment
+    ) {
       continue;
     }
 
@@ -1086,33 +1238,36 @@ const pathMatches = (fixturePath: string, requestPath: string): boolean => {
   return true;
 };
 
-const generateResponseFromSpec = (spec: OpenAPISpec, request: MockRequest): MockResponse | null => {
+const generateResponseFromSpec = (
+  spec: OpenAPISpec,
+  request: MockRequest,
+): MockResponse | null => {
   const path = findSpecPath(spec, request.path, request.method);
   if (!path) {
     return null;
   }
 
   const operation = path[request.method.toLowerCase() as keyof typeof path];
-  if (!operation || typeof operation !== 'object') {
+  if (!operation || typeof operation !== "object") {
     return null;
   }
 
   // Try to find a 200 response, or the first available response
   const responses = (operation as any).responses;
-  const responseKey = responses['200'] ? '200' : Object.keys(responses)[0];
+  const responseKey = responses["200"] ? "200" : Object.keys(responses)[0];
   const responseSpec = responses[responseKey];
 
   if (!responseSpec) {
     return null;
   }
 
-  const status = parseInt(responseKey, 10);
-  const headers = { 'content-type': 'application/json' };
+  const status = Number.parseInt(responseKey, 10);
+  const headers = { "content-type": "application/json" };
 
   // Try to get example from spec
   let body = null;
-  if (responseSpec.content && responseSpec.content['application/json']) {
-    const jsonContent = responseSpec.content['application/json'];
+  if (responseSpec.content && responseSpec.content["application/json"]) {
+    const jsonContent = responseSpec.content["application/json"];
     if (jsonContent.example) {
       body = jsonContent.example;
     } else if (jsonContent.schema && jsonContent.schema.example) {
@@ -1123,7 +1278,11 @@ const generateResponseFromSpec = (spec: OpenAPISpec, request: MockRequest): Mock
   return { status, headers, body, duration: 0 };
 };
 
-const findSpecPath = (spec: OpenAPISpec, requestPath: string, method: string): any => {
+const findSpecPath = (
+  spec: OpenAPISpec,
+  requestPath: string,
+  method: string,
+): any => {
   const paths = spec.paths;
 
   // Try exact match first
@@ -1142,8 +1301,8 @@ const findSpecPath = (spec: OpenAPISpec, requestPath: string, method: string): a
 };
 
 const pathMatchesSpec = (specPath: string, requestPath: string): boolean => {
-  const specSegments = specPath.split('/');
-  const requestSegments = requestPath.split('/');
+  const specSegments = specPath.split("/");
+  const requestSegments = requestPath.split("/");
 
   if (specSegments.length !== requestSegments.length) {
     return false;
@@ -1154,7 +1313,7 @@ const pathMatchesSpec = (specPath: string, requestPath: string): boolean => {
     const requestSegment = requestSegments[i];
 
     // If spec segment is a parameter (e.g., {id}), it matches any value
-    if (specSegment.startsWith('{') && specSegment.endsWith('}')) {
+    if (specSegment.startsWith("{") && specSegment.endsWith("}")) {
       continue;
     }
 
@@ -1166,5 +1325,3 @@ const pathMatchesSpec = (specPath: string, requestPath: string): boolean => {
 
   return true;
 };
-
-

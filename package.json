@@ -16,13 +16,7 @@
     "server:build": "pnpm --filter @entente/server build",
     "cli": "pnpm --filter @entente/cli build && node packages/cli/dist/cli.js"
   },
-  "keywords": [
-    "contract-testing",
-    "openapi",
-    "testing",
-    "api",
-    "schema-first"
-  ],
+  "keywords": ["contract-testing", "openapi", "testing", "api", "schema-first"],
   "author": "Your Name",
   "license": "MIT",
   "devDependencies": {

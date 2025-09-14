@@ -1,17 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { interactionApi } from '../utils/api'
-import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import TimestampDisplay from '../components/TimestampDisplay'
+import ConsumerFilter from '../components/ConsumerFilter'
 import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
-import ConsumerFilter from '../components/ConsumerFilter'
+import TimestampDisplay from '../components/TimestampDisplay'
+import { interactionApi } from '../utils/api'
 
 function Interactions() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [selectedProvider, setSelectedProvider] = useState<string>(searchParams.get('provider') || searchParams.get('service') || '')
-  const [selectedConsumer, setSelectedConsumer] = useState<string>(searchParams.get('consumer') || '')
+  const [selectedProvider, setSelectedProvider] = useState<string>(
+    searchParams.get('provider') || searchParams.get('service') || ''
+  )
+  const [selectedConsumer, setSelectedConsumer] = useState<string>(
+    searchParams.get('consumer') || ''
+  )
 
   // Update filters when URL params change
   useEffect(() => {
@@ -28,14 +32,15 @@ function Interactions() {
   const {
     data: interactions,
     isLoading: interactionsLoading,
-    error: interactionsError
+    error: interactionsError,
   } = useQuery({
     queryKey: ['interactions', 'all', selectedProvider, selectedConsumer],
-    queryFn: () => interactionApi.getAll({
-      provider: selectedProvider || undefined,
-      consumer: selectedConsumer || undefined,
-      limit: 200
-    }),
+    queryFn: () =>
+      interactionApi.getAll({
+        provider: selectedProvider || undefined,
+        consumer: selectedConsumer || undefined,
+        limit: 200,
+      }),
   })
 
   // Handle filter changes
@@ -91,6 +96,8 @@ function Interactions() {
                   <tr>
                     <th>Service</th>
                     <th>Consumer</th>
+                    <th>Consumer Version</th>
+                    <th>Consumer Git SHA</th>
                     <th>Operation</th>
                     <th>Status</th>
                     <th>Timestamp</th>
@@ -100,12 +107,30 @@ function Interactions() {
                 <tbody>
                   {[1, 2, 3, 4, 5].map(i => (
                     <tr key={i}>
-                      <td><div className="skeleton h-4 w-24"></div></td>
-                      <td><div className="skeleton h-4 w-20"></div></td>
-                      <td><div className="skeleton h-4 w-16"></div></td>
-                      <td><div className="skeleton h-4 w-12"></div></td>
-                      <td><div className="skeleton h-4 w-16"></div></td>
-                      <td><div className="skeleton h-4 w-12"></div></td>
+                      <td>
+                        <div className="skeleton h-4 w-24"></div>
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-20"></div>
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-16"></div>
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-12"></div>
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-16"></div>
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-12"></div>
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-16"></div>
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-12"></div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -128,7 +153,12 @@ function Interactions() {
         </div>
         <div className="alert alert-error">
           <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
           </svg>
           <span>Error loading interactions data</span>
         </div>
@@ -150,20 +180,11 @@ function Interactions() {
 
       {/* Provider and Consumer Filters */}
       <div className="flex gap-4 items-end bg-base-100 p-4 rounded-lg shadow">
-        <ProviderFilter
-          value={selectedProvider}
-          onChange={handleProviderChange}
-        />
-        <ConsumerFilter
-          value={selectedConsumer}
-          onChange={handleConsumerChange}
-        />
+        <ProviderFilter value={selectedProvider} onChange={handleProviderChange} />
+        <ConsumerFilter value={selectedConsumer} onChange={handleConsumerChange} />
         {(selectedProvider || selectedConsumer) && (
           <div className="form-control">
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={clearFilters}
-            >
+            <button className="btn btn-ghost btn-sm" onClick={clearFilters}>
               Clear Filters
             </button>
           </div>
@@ -180,12 +201,13 @@ function Interactions() {
               </span>
             )}
           </h2>
-            <div className="overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className="table table-zebra">
               <thead>
                 <tr>
                   <th>Service</th>
                   <th>Consumer</th>
+                  <th>Consumer Version</th>
                   <th>Consumer Git SHA</th>
                   <th>Operation</th>
                   <th>Status</th>
@@ -196,11 +218,10 @@ function Interactions() {
               <tbody>
                 {!interactions || interactions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center text-base-content/70 py-8">
-                      {selectedProvider || selectedConsumer ?
-                        'No interactions found with current filters' :
-                        'No interactions recorded yet. Use filters above to search for specific interactions.'
-                      }
+                    <td colSpan={8} className="text-center text-base-content/70 py-8">
+                      {selectedProvider || selectedConsumer
+                        ? 'No interactions found with current filters'
+                        : 'No interactions recorded yet. Use filters above to search for specific interactions.'}
                     </td>
                   </tr>
                 ) : (
@@ -223,6 +244,9 @@ function Interactions() {
                         </Link>
                       </td>
                       <td>
+                        <span className="badge badge-outline">v{interaction.consumerVersion}</span>
+                      </td>
+                      <td>
                         <GitShaLink
                           sha={interaction.consumerGitSha}
                           repositoryUrl={interaction.consumerGitRepositoryUrl}
@@ -230,15 +254,24 @@ function Interactions() {
                       </td>
                       <td>{interaction.operation}</td>
                       <td>
-                        <span className={`badge ${
-                          interaction.response?.status >= 200 && interaction.response?.status < 300 ? 'badge-success' :
-                          interaction.response?.status >= 500 ? 'badge-error' :
-                          interaction.response?.status >= 300 ? 'badge-warning' : 'badge-neutral'
-                        }`}>
+                        <span
+                          className={`badge ${
+                            interaction.response?.status >= 200 &&
+                            interaction.response?.status < 300
+                              ? 'badge-success'
+                              : interaction.response?.status >= 500
+                                ? 'badge-error'
+                                : interaction.response?.status >= 300
+                                  ? 'badge-warning'
+                                  : 'badge-neutral'
+                          }`}
+                        >
                           {interaction.response?.status || 'N/A'}
                         </span>
                       </td>
-                      <td><TimestampDisplay timestamp={interaction.timestamp} /></td>
+                      <td>
+                        <TimestampDisplay timestamp={interaction.timestamp} />
+                      </td>
                       <td>
                         <Link
                           to={`/interactions/${interaction.id}`}
@@ -252,9 +285,9 @@ function Interactions() {
                 )}
               </tbody>
             </table>
-            </div>
           </div>
         </div>
+      </div>
     </div>
   )
 }

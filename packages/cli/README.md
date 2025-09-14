@@ -136,7 +136,7 @@ user-service@3.0.0 (deployed 2024-01-13T09:15:00Z)
 ## Configuration
 
 ### Environment Variables
-- `ENTENTE_SERVICE_URL` - Central service URL (default: http://localhost:3000)
+- `ENTENTE_SERVICE_URL` - Central service URL (default: https://entente.dev)
 - `USER` - Default user for deployment recording
 
 ### Global Options (Planned)

@@ -35,12 +35,21 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 
 // Services API functions (unified)
 export const serviceApi = {
-  getAll: (type?: 'consumer' | 'provider') => fetchApi<any[]>(`/services${type ? `?type=${type}` : ''}`),
-  getOne: (name: string, type: 'consumer' | 'provider') => fetchApi<any>(`/services/${name}/${type}`),
-  create: (service: { name: string; type: 'consumer' | 'provider'; description?: string; packageJson: any }) =>
-    fetchApi<any>('/services', { method: 'POST', body: JSON.stringify(service) }),
-  update: (name: string, type: 'consumer' | 'provider', updates: { description?: string; packageJson?: any }) =>
-    fetchApi<any>(`/services/${name}/${type}`, { method: 'PUT', body: JSON.stringify(updates) }),
+  getAll: (type?: 'consumer' | 'provider') =>
+    fetchApi<any[]>(`/services${type ? `?type=${type}` : ''}`),
+  getOne: (name: string, type: 'consumer' | 'provider') =>
+    fetchApi<any>(`/services/${name}/${type}`),
+  create: (service: {
+    name: string
+    type: 'consumer' | 'provider'
+    description?: string
+    packageJson: any
+  }) => fetchApi<any>('/services', { method: 'POST', body: JSON.stringify(service) }),
+  update: (
+    name: string,
+    type: 'consumer' | 'provider',
+    updates: { description?: string; packageJson?: any }
+  ) => fetchApi<any>(`/services/${name}/${type}`, { method: 'PUT', body: JSON.stringify(updates) }),
   delete: (name: string, type: 'consumer' | 'provider') =>
     fetchApi<any>(`/services/${name}/${type}`, { method: 'DELETE' }),
 }
@@ -59,7 +68,12 @@ export const providerApi = {
 
 // Interaction API functions
 export const interactionApi = {
-  getAll: (params?: { provider?: string; consumer?: string; environment?: string; limit?: number }) => {
+  getAll: (params?: {
+    provider?: string
+    consumer?: string
+    environment?: string
+    limit?: number
+  }) => {
     const searchParams = new URLSearchParams()
     if (params?.provider) searchParams.set('provider', params.provider)
     if (params?.consumer) searchParams.set('consumer', params.consumer)
@@ -68,15 +82,23 @@ export const interactionApi = {
     const queryString = searchParams.toString()
     return fetchApi<any[]>(`/interactions${queryString ? `?${queryString}` : ''}`)
   },
-  getByService: (service: string, version: string) => fetchApi<any[]>(`/interactions/${service}?version=${version}`),
-  getByConsumer: (consumer: string, version: string = 'latest') => fetchApi<any[]>(`/interactions/consumer/${consumer}?version=${version}`),
+  getByService: (service: string, version: string) =>
+    fetchApi<any[]>(`/interactions/${service}?version=${version}`),
+  getByConsumer: (consumer: string, version = 'latest') =>
+    fetchApi<any[]>(`/interactions/consumer/${consumer}?version=${version}`),
   getById: (id: string) => fetchApi<any>(`/interactions/by-id/${id}`),
-  getStats: (service: string, version: string) => fetchApi<any>(`/interactions/${service}/stats?version=${version}`),
+  getStats: (service: string, version: string) =>
+    fetchApi<any>(`/interactions/${service}/stats?version=${version}`),
 }
 
 // Fixture API functions
 export const fixtureApi = {
-  getAll: (params?: { service?: string; provider?: string; consumer?: string; status?: string }) => {
+  getAll: (params?: {
+    service?: string
+    provider?: string
+    consumer?: string
+    status?: string
+  }) => {
     const searchParams = new URLSearchParams()
     if (params?.service) searchParams.set('service', params.service)
     if (params?.provider) searchParams.set('provider', params.provider)
@@ -85,38 +107,55 @@ export const fixtureApi = {
     const queryString = searchParams.toString()
     return fetchApi<any[]>(`/fixtures${queryString ? `?${queryString}` : ''}`)
   },
-  getPending: (service?: string) => fetchApi<any[]>(`/fixtures/pending${service ? `?service=${service}` : ''}`),
-  getByService: (service: string, status?: string) => fetchApi<any[]>(`/fixtures/service/${service}${status ? `?status=${status}` : ''}`),
-  getAllByService: (service: string) => Promise.all([
-    fetchApi<any[]>(`/fixtures/service/${service}?status=approved`),
-    fetchApi<any[]>(`/fixtures/service/${service}?status=draft`)
-  ]).then(([approved, draft]) => [...approved, ...draft]),
-  getByOperation: (operation: string, service: string, version: string) => fetchApi<any[]>(`/fixtures/${operation}?service=${service}&version=${version}`),
+  getPending: (service?: string) =>
+    fetchApi<any[]>(`/fixtures/pending${service ? `?service=${service}` : ''}`),
+  getByService: (service: string, status?: string) =>
+    fetchApi<any[]>(`/fixtures/service/${service}${status ? `?status=${status}` : ''}`),
+  getAllByService: (service: string) =>
+    Promise.all([
+      fetchApi<any[]>(`/fixtures/service/${service}?status=approved`),
+      fetchApi<any[]>(`/fixtures/service/${service}?status=draft`),
+    ]).then(([approved, draft]) => [...approved, ...draft]),
+  getByOperation: (operation: string, service: string, version: string) =>
+    fetchApi<any[]>(`/fixtures/${operation}?service=${service}&version=${version}`),
   getById: (id: string) => fetchApi<any>(`/fixtures/by-id/${id}`),
-  approve: (id: string, approvedBy: string, notes?: string) => fetchApi<any>(`/fixtures/${id}/approve`, {
-    method: 'POST',
-    body: JSON.stringify({ approvedBy, notes })
-  }),
-  reject: (id: string, rejectedBy: string, notes?: string) => fetchApi<any>(`/fixtures/${id}/reject`, {
-    method: 'POST',
-    body: JSON.stringify({ rejectedBy, notes })
-  }),
-  revoke: (id: string, revokedBy: string, notes?: string) => fetchApi<any>(`/fixtures/${id}/revoke`, {
-    method: 'POST',
-    body: JSON.stringify({ revokedBy, notes })
-  }),
+  approve: (id: string, approvedBy: string, notes?: string) =>
+    fetchApi<any>(`/fixtures/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ approvedBy, notes }),
+    }),
+  reject: (id: string, rejectedBy: string, notes?: string) =>
+    fetchApi<any>(`/fixtures/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ rejectedBy, notes }),
+    }),
+  revoke: (id: string, revokedBy: string, notes?: string) =>
+    fetchApi<any>(`/fixtures/${id}/revoke`, {
+      method: 'POST',
+      body: JSON.stringify({ revokedBy, notes }),
+    }),
 }
 
 // Deployment API functions
 export const deploymentApi = {
-  getActive: (environment?: string) => fetchApi<any[]>(`/deployments/active${environment ? `?environment=${environment}` : '?environment=production'}`),
+  getActive: (environment?: string) =>
+    fetchApi<any[]>(
+      `/deployments/active${environment ? `?environment=${environment}` : '?environment=production'}`
+    ),
   getSummary: () => fetchApi<any>('/deployments/summary'),
-  getHistory: (service: string, environment?: string) => fetchApi<any[]>(`/deployments/${service}/history${environment ? `?environment=${environment}` : ''}`),
-  getActiveForAllEnvs: () => Promise.all([
-    fetchApi<any[]>('/deployments/active?environment=production&include_inactive=true'),
-    fetchApi<any[]>('/deployments/active?environment=staging&include_inactive=true'),
-    fetchApi<any[]>('/deployments/active?environment=development&include_inactive=true')
-  ]).then(([prod, staging, dev]) => [...prod, ...staging, ...dev])
+  getHistory: (service: string, environment?: string) =>
+    fetchApi<any[]>(
+      `/deployments/${service}/history${environment ? `?environment=${environment}` : ''}`
+    ),
+  getEnvironments: () => fetchApi<string[]>('/deployments/environments'),
+  getActiveForAllEnvs: async () => {
+    const environments = await fetchApi<string[]>('/deployments/environments')
+    const deploymentPromises = environments.map(env =>
+      fetchApi<any[]>(`/deployments/active?environment=${env}&include_inactive=true`)
+    )
+    const results = await Promise.all(deploymentPromises)
+    return results.flat()
+  },
 }
 
 // Verification API functions
@@ -124,14 +163,16 @@ export const verificationApi = {
   getAll: () => fetchApi<any[]>('/verification'),
   getById: (id: string) => fetchApi<any>(`/verification/result/${id}`),
   getByProvider: (provider: string) => fetchApi<any[]>(`/verification/${provider}/history`),
-  getByConsumer: (consumer: string) => fetchApi<any[]>(`/verification/consumer/${consumer}/history`),
+  getByConsumer: (consumer: string) =>
+    fetchApi<any[]>(`/verification/consumer/${consumer}/history`),
   getTasks: (provider: string) => fetchApi<any[]>(`/verification/${provider}`),
   getStats: (provider: string) => fetchApi<any>(`/verification/${provider}/stats`),
 }
 
 // Spec API functions
 export const specApi = {
-  getByService: (service: string, version: string) => fetchApi<any>(`/specs/${service}?version=${version}`),
+  getByService: (service: string, version: string) =>
+    fetchApi<any>(`/specs/${service}?version=${version}`),
   getVersions: (service: string) => fetchApi<any[]>(`/specs/${service}/versions`),
 }
 
@@ -156,12 +197,13 @@ export const dependenciesApi = {
 
 // Stats API functions (we'll need to create this endpoint)
 export const statsApi = {
-  getDashboard: () => fetchApi<{
-    totalServices: number
-    totalInteractions: number
-    pendingFixtures: number
-    verificationRate: number
-    recentDeployments: any[]
-    serviceHealth: any[]
-  }>('/stats/dashboard'),
+  getDashboard: () =>
+    fetchApi<{
+      totalServices: number
+      totalInteractions: number
+      pendingFixtures: number
+      verificationRate: number
+      recentDeployments: any[]
+      serviceHealth: any[]
+    }>('/stats/dashboard'),
 }

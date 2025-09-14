@@ -1,32 +1,32 @@
-import { Hono } from 'hono'
-import { setCookie, getCookie } from 'hono/cookie'
 import { eq } from 'drizzle-orm'
-import { users, tenants, tenantUsers } from '../../db/schema'
+import { Hono } from 'hono'
+import { getCookie, setCookie } from 'hono/cookie'
+import { tenantUsers, tenants, users } from '../../db/schema'
 import {
-  getGitHubOAuth,
+  createStateCookie,
+  deleteStateCookie,
   fetchGitHubUser,
   generateState,
-  createStateCookie,
-  deleteStateCookie
+  getGitHubOAuth,
 } from '../auth/github'
 import {
   createSession,
-  validateSession,
-  deleteSession,
   createSessionCookie,
-  deleteSessionCookie
+  deleteSession,
+  deleteSessionCookie,
+  validateSession,
 } from '../auth/sessions'
-import { getRequiredEnv, getEnv } from '../middleware/env'
+import { getEnv, getRequiredEnv } from '../middleware/env'
 
 const authRouter = new Hono()
 
 // Initiate GitHub OAuth
-authRouter.get('/github', async (c) => {
+authRouter.get('/github', async c => {
   try {
     const env = c.get('env')
     const clientId = getRequiredEnv(env, 'GITHUB_CLIENT_ID')
     const clientSecret = getRequiredEnv(env, 'GITHUB_CLIENT_SECRET')
-    const appUrl = getEnv(env, 'APP_URL', 'http://localhost:3000')
+    const appUrl = getEnv(env, 'APP_URL') || 'https://entente.dev'
 
     const github = getGitHubOAuth(clientId, clientSecret, appUrl)
     const state = generateState()
@@ -44,7 +44,7 @@ authRouter.get('/github', async (c) => {
 })
 
 // Handle GitHub OAuth callback
-authRouter.get('/github/callback', async (c) => {
+authRouter.get('/github/callback', async c => {
   const code = c.req.query('code')
   const state = c.req.query('state')
   const storedState = getCookie(c, 'github_oauth_state')
@@ -66,18 +66,14 @@ authRouter.get('/github/callback', async (c) => {
     const env = c.get('env')
     const clientId = getRequiredEnv(env, 'GITHUB_CLIENT_ID')
     const clientSecret = getRequiredEnv(env, 'GITHUB_CLIENT_SECRET')
-    const appUrl = getEnv(env, 'APP_URL', 'http://localhost:3000')
+    const appUrl = getEnv(env, 'APP_URL') || 'https://entente.dev'
 
     const github = getGitHubOAuth(clientId, clientSecret, appUrl)
     const tokens = await github.validateAuthorizationCode(code)
     const githubUser = await fetchGitHubUser(tokens.accessToken())
 
     // Check if user exists
-    let user = await db
-      .select()
-      .from(users)
-      .where(eq(users.githubId, githubUser.id))
-      .limit(1)
+    let user = await db.select().from(users).where(eq(users.githubId, githubUser.id)).limit(1)
 
     if (user.length === 0) {
       // Create new user
@@ -141,8 +137,13 @@ authRouter.get('/github/callback', async (c) => {
 
       if (userTenant.length === 0) {
         // Clear CLI cookie
-        c.header('Set-Cookie', 'cli_redirect_uri=; HttpOnly; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure')
-        return c.redirect(`${cliRedirectUri}?error=${encodeURIComponent('User has no associated tenant')}`)
+        c.header(
+          'Set-Cookie',
+          'cli_redirect_uri=; HttpOnly; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure'
+        )
+        return c.redirect(
+          `${cliRedirectUri}?error=${encodeURIComponent('User has no associated tenant')}`
+        )
       }
 
       const keyName = `user-${user[0].username}`
@@ -152,14 +153,16 @@ authRouter.get('/github/callback', async (c) => {
       const { and } = await import('drizzle-orm')
 
       // Check if API key already exists
-      let existingKey = await db
+      const existingKey = await db
         .select()
         .from(keys)
-        .where(and(
-          eq(keys.tenantId, userTenant[0].tenantId),
-          eq(keys.name, keyName),
-          eq(keys.isActive, true)
-        ))
+        .where(
+          and(
+            eq(keys.tenantId, userTenant[0].tenantId),
+            eq(keys.name, keyName),
+            eq(keys.isActive, true)
+          )
+        )
         .limit(1)
 
       let apiKey: string
@@ -197,7 +200,10 @@ authRouter.get('/github/callback', async (c) => {
       }
 
       // Clear CLI cookie and redirect to CLI callback with API key
-      c.header('Set-Cookie', 'cli_redirect_uri=; HttpOnly; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure')
+      c.header(
+        'Set-Cookie',
+        'cli_redirect_uri=; HttpOnly; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure'
+      )
       return c.redirect(`${cliRedirectUri}?key=${encodeURIComponent(apiKey)}`)
     }
 
@@ -209,8 +215,13 @@ authRouter.get('/github/callback', async (c) => {
 
     // Handle CLI error redirect
     if (cliRedirectUri) {
-      c.header('Set-Cookie', 'cli_redirect_uri=; HttpOnly; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure')
-      return c.redirect(`${cliRedirectUri}?error=${encodeURIComponent('OAuth authentication failed')}`)
+      c.header(
+        'Set-Cookie',
+        'cli_redirect_uri=; HttpOnly; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure'
+      )
+      return c.redirect(
+        `${cliRedirectUri}?error=${encodeURIComponent('OAuth authentication failed')}`
+      )
     }
 
     return c.json({ error: 'OAuth authentication failed' }, 500)
@@ -218,7 +229,7 @@ authRouter.get('/github/callback', async (c) => {
 })
 
 // Get current session info
-authRouter.get('/session', async (c) => {
+authRouter.get('/session', async c => {
   const db = c.get('db')
 
   // Try API key authentication first
@@ -315,7 +326,7 @@ authRouter.get('/session', async (c) => {
 })
 
 // Logout
-authRouter.post('/logout', async (c) => {
+authRouter.post('/logout', async c => {
   const sessionId = getCookie(c, 'sessionId')
 
   if (sessionId) {
@@ -328,7 +339,7 @@ authRouter.post('/logout', async (c) => {
 })
 
 // CLI Authentication endpoints
-authRouter.get('/cli', async (c) => {
+authRouter.get('/cli', async c => {
   const redirectUri = c.req.query('redirect_uri')
 
   if (!redirectUri) {
@@ -361,14 +372,16 @@ authRouter.get('/cli', async (c) => {
       const keyName = `user-${user.username}`
 
       // Check if API key already exists
-      let existingKey = await db
+      const existingKey = await db
         .select()
         .from(keys)
-        .where(and(
-          eq(keys.tenantId, userTenant[0].tenantId),
-          eq(keys.name, keyName),
-          eq(keys.isActive, true)
-        ))
+        .where(
+          and(
+            eq(keys.tenantId, userTenant[0].tenantId),
+            eq(keys.name, keyName),
+            eq(keys.isActive, true)
+          )
+        )
         .limit(1)
 
       let apiKey: string
@@ -414,7 +427,10 @@ authRouter.get('/cli', async (c) => {
   // User not authenticated, show login page
   // Store CLI redirect URI in a cookie and redirect to GitHub OAuth
   const expires = new Date(Date.now() + 1000 * 60 * 10) // 10 minutes
-  c.header('Set-Cookie', `cli_redirect_uri=${encodeURIComponent(redirectUri)}; HttpOnly; SameSite=Lax; Path=/; Expires=${expires.toUTCString()}; Secure`)
+  c.header(
+    'Set-Cookie',
+    `cli_redirect_uri=${encodeURIComponent(redirectUri)}; HttpOnly; SameSite=Lax; Path=/; Expires=${expires.toUTCString()}; Secure`
+  )
 
   const html = `
     <!DOCTYPE html>

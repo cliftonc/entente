@@ -12,14 +12,14 @@ interface ConsumerFilterProps {
 function ConsumerFilter({
   value,
   onChange,
-  label = "Consumer",
-  className = "",
-  disabled = false
+  label = 'Consumer',
+  className = '',
+  disabled = false,
 }: ConsumerFilterProps) {
   const {
     data: consumers,
     isLoading: consumersLoading,
-    error: consumersError
+    error: consumersError,
   } = useQuery({
     queryKey: ['consumers'],
     queryFn: consumerApi.getAll,
@@ -33,7 +33,7 @@ function ConsumerFilter({
       <select
         className="select select-bordered"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={e => onChange(e.target.value)}
         disabled={disabled || consumersLoading}
       >
         <option value="">All Consumers</option>
