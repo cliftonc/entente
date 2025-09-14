@@ -18,7 +18,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "vitest"
+    "test": "echo 'Types only package, no tests ...'"
   },
   "devDependencies": {
     "typescript": "^5.7.2",
