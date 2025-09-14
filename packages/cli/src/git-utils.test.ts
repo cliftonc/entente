@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { getGitSha, getGitRepositoryUrl, getGitInfo } from './git-utils.js'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getGitInfo, getGitRepositoryUrl, getGitSha } from './git-utils.js'
 
 // Mock external modules
 vi.mock('node:child_process')
@@ -57,7 +57,7 @@ describe('Git Utilities', () => {
     })
 
     it('should read SHA from git HEAD file when direct SHA', () => {
-      mockExistsSync.mockImplementation((path) => {
+      mockExistsSync.mockImplementation(path => {
         return path.includes('.git') && (path.endsWith('/.git') || path.endsWith('/HEAD'))
       })
       mockReadFileSync.mockReturnValue('abc123def456\n')
@@ -72,11 +72,10 @@ describe('Git Utilities', () => {
     })
 
     it('should follow reference when HEAD points to branch', () => {
-      mockExistsSync.mockImplementation((path) => {
-        return path.includes('.git') && (
-          path.endsWith('/.git') ||
-          path.endsWith('/HEAD') ||
-          path.includes('/refs/heads/main')
+      mockExistsSync.mockImplementation(path => {
+        return (
+          path.includes('.git') &&
+          (path.endsWith('/.git') || path.endsWith('/HEAD') || path.includes('/refs/heads/main'))
         )
       })
       mockReadFileSync
@@ -88,7 +87,10 @@ describe('Git Utilities', () => {
       const result = getGitSha()
 
       expect(result).toBe('branch-commit-sha')
-      expect(mockReadFileSync).toHaveBeenCalledWith(join('/mock/cwd', '.git', 'refs/heads/main'), 'utf8')
+      expect(mockReadFileSync).toHaveBeenCalledWith(
+        join('/mock/cwd', '.git', 'refs/heads/main'),
+        'utf8'
+      )
     })
 
     it('should return null if .git directory not found', () => {
@@ -102,7 +104,7 @@ describe('Git Utilities', () => {
     })
 
     it('should return null if HEAD file not found', () => {
-      mockExistsSync.mockImplementation((path) => {
+      mockExistsSync.mockImplementation(path => {
         return path.endsWith('/.git')
       })
 
@@ -114,7 +116,7 @@ describe('Git Utilities', () => {
     })
 
     it('should return null if branch reference file not found', () => {
-      mockExistsSync.mockImplementation((path) => {
+      mockExistsSync.mockImplementation(path => {
         return path.endsWith('/.git') || path.endsWith('/HEAD')
       })
       mockReadFileSync.mockReturnValue('ref: refs/heads/feature\n')
@@ -262,7 +264,7 @@ describe('Git Utilities', () => {
 
   describe('Git Directory Walking', () => {
     it('should find .git directory in parent directories', () => {
-      mockExistsSync.mockImplementation((path) => {
+      mockExistsSync.mockImplementation(path => {
         return path.includes('/parent/.git')
       })
       mockReadFileSync.mockReturnValue('abc123\n')

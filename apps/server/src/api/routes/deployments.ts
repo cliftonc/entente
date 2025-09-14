@@ -3,46 +3,36 @@ import type {
   ConsumerDeployment,
   DeploymentState,
   ProviderDeployment,
-} from "@entente/types";
-import { Hono } from "hono";
+} from '@entente/types'
+import { Hono } from 'hono'
 
-import { and, count, desc, eq, gte, ne } from "drizzle-orm";
-import { deployments, services } from "../../db/schema";
+import { and, count, desc, eq, gte, ne } from 'drizzle-orm'
+import { deployments, services } from '../../db/schema'
 
-export const deploymentsRouter = new Hono();
+export const deploymentsRouter = new Hono()
 
 // Deploy a consumer with dependencies
-deploymentsRouter.post("/consumer", async (c) => {
-  const consumerDeployment: ConsumerDeployment = await c.req.json();
+deploymentsRouter.post('/consumer', async c => {
+  const consumerDeployment: ConsumerDeployment = await c.req.json()
 
-  if (
-    !consumerDeployment.name ||
-    !consumerDeployment.version ||
-    !consumerDeployment.environment
-  ) {
-    return c.json(
-      { error: "Missing required fields: name, version, environment" },
-      400,
-    );
+  if (!consumerDeployment.name || !consumerDeployment.version || !consumerDeployment.environment) {
+    return c.json({ error: 'Missing required fields: name, version, environment' }, 400)
   }
 
-  const db = c.get("db");
-  const { tenantId } = c.get("session");
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
 
   // Find the consumer service
   const consumer = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
       eq(services.name, consumerDeployment.name),
-      eq(services.type, "consumer"),
+      eq(services.type, 'consumer')
     ),
-  });
+  })
 
   if (!consumer) {
-    return c.json(
-      { error: "Consumer service not found. Register the consumer first." },
-      404,
-    );
+    return c.json({ error: 'Consumer service not found. Register the consumer first.' }, 404)
   }
 
   // Create deployment record
@@ -50,17 +40,17 @@ deploymentsRouter.post("/consumer", async (c) => {
     .insert(deployments)
     .values({
       tenantId,
-      type: "consumer",
+      type: 'consumer',
       serviceId: consumer.id,
       service: consumerDeployment.name, // Backward compatibility
       version: consumerDeployment.version,
       gitSha: consumerDeployment.gitSha,
       environment: consumerDeployment.environment,
       deployedAt: new Date(),
-      deployedBy: consumerDeployment.deployedBy || "unknown",
+      deployedBy: consumerDeployment.deployedBy || 'unknown',
       active: true,
     })
-    .returning();
+    .returning()
 
   // Deactivate other versions in same environment
   await db
@@ -71,62 +61,52 @@ deploymentsRouter.post("/consumer", async (c) => {
         eq(deployments.tenantId, tenantId),
         eq(deployments.serviceId, consumer.id),
         eq(deployments.environment, consumerDeployment.environment),
-        ne(deployments.id, deployment.id),
-      ),
-    );
+        ne(deployments.id, deployment.id)
+      )
+    )
 
   console.log(
-    `🚀 Consumer deployed: ${consumerDeployment.name}@${consumerDeployment.version} in ${consumerDeployment.environment}`,
-  );
+    `🚀 Consumer deployed: ${consumerDeployment.name}@${consumerDeployment.version} in ${consumerDeployment.environment}`
+  )
 
   return c.json(
     {
-      status: "deployed",
+      status: 'deployed',
       deployment: {
         id: deployment.id,
-        type: "consumer",
+        type: 'consumer',
         name: consumerDeployment.name,
         version: consumerDeployment.version,
         environment: consumerDeployment.environment,
         deployedAt: deployment.deployedAt,
       },
     },
-    201,
-  );
-});
+    201
+  )
+})
 
 // Deploy a provider
-deploymentsRouter.post("/provider", async (c) => {
-  const providerDeployment: ProviderDeployment = await c.req.json();
+deploymentsRouter.post('/provider', async c => {
+  const providerDeployment: ProviderDeployment = await c.req.json()
 
-  if (
-    !providerDeployment.name ||
-    !providerDeployment.version ||
-    !providerDeployment.environment
-  ) {
-    return c.json(
-      { error: "Missing required fields: name, version, environment" },
-      400,
-    );
+  if (!providerDeployment.name || !providerDeployment.version || !providerDeployment.environment) {
+    return c.json({ error: 'Missing required fields: name, version, environment' }, 400)
   }
 
-  const db = c.get("db");
-  const { tenantId } = c.get("session");
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
 
   // Find the provider service
   const provider = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
       eq(services.name, providerDeployment.name),
-      eq(services.type, "provider"),
+      eq(services.type, 'provider')
     ),
-  });
+  })
 
   if (!provider) {
-    return c.json(
-      { error: "Provider service not found. Register the provider first." },
-      404,
-    );
+    return c.json({ error: 'Provider service not found. Register the provider first.' }, 404)
   }
 
   // Create deployment record
@@ -134,17 +114,17 @@ deploymentsRouter.post("/provider", async (c) => {
     .insert(deployments)
     .values({
       tenantId,
-      type: "provider",
+      type: 'provider',
       serviceId: provider.id,
       service: providerDeployment.name, // Backward compatibility
       version: providerDeployment.version,
       gitSha: providerDeployment.gitSha,
       environment: providerDeployment.environment,
       deployedAt: new Date(),
-      deployedBy: providerDeployment.deployedBy || "unknown",
+      deployedBy: providerDeployment.deployedBy || 'unknown',
       active: true,
     })
-    .returning();
+    .returning()
 
   // Deactivate other versions in same environment
   await db
@@ -155,50 +135,50 @@ deploymentsRouter.post("/provider", async (c) => {
         eq(deployments.tenantId, tenantId),
         eq(deployments.serviceId, provider.id),
         eq(deployments.environment, providerDeployment.environment),
-        ne(deployments.id, deployment.id),
-      ),
-    );
+        ne(deployments.id, deployment.id)
+      )
+    )
 
   console.log(
-    `🚀 Provider deployed: ${providerDeployment.name}@${providerDeployment.version} in ${providerDeployment.environment}`,
-  );
+    `🚀 Provider deployed: ${providerDeployment.name}@${providerDeployment.version} in ${providerDeployment.environment}`
+  )
 
   return c.json(
     {
-      status: "deployed",
+      status: 'deployed',
       deployment: {
         id: deployment.id,
-        type: "provider",
+        type: 'provider',
         name: providerDeployment.name,
         version: providerDeployment.version,
         environment: providerDeployment.environment,
         deployedAt: deployment.deployedAt,
       },
     },
-    201,
-  );
-});
+    201
+  )
+})
 
 // Get active versions by environment
-deploymentsRouter.get("/active", async (c) => {
-  const environment = c.req.query("environment");
-  const includeInactive = c.req.query("include_inactive") === "true";
+deploymentsRouter.get('/active', async c => {
+  const environment = c.req.query('environment')
+  const includeInactive = c.req.query('include_inactive') === 'true'
 
   if (!environment) {
-    return c.json({ error: "Environment parameter is required" }, 400);
+    return c.json({ error: 'Environment parameter is required' }, 400)
   }
 
-  const db = c.get("db");
-  const { tenantId } = c.get("session");
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
 
   const whereConditions = [
     eq(deployments.tenantId, tenantId),
     eq(deployments.environment, environment),
-  ];
+  ]
 
   // Only filter by active status if not including inactive deployments
   if (!includeInactive) {
-    whereConditions.push(eq(deployments.active, true));
+    whereConditions.push(eq(deployments.active, true))
   }
 
   const activeDeployments = await db
@@ -217,9 +197,9 @@ deploymentsRouter.get("/active", async (c) => {
     .from(deployments)
     .leftJoin(services, eq(deployments.serviceId, services.id))
     .where(and(...whereConditions))
-    .orderBy(desc(deployments.deployedAt));
+    .orderBy(desc(deployments.deployedAt))
 
-  const activeVersions = activeDeployments.map((d) => ({
+  const activeVersions = activeDeployments.map(d => ({
     id: d.id,
     serviceType: d.type,
     service: d.service,
@@ -230,37 +210,33 @@ deploymentsRouter.get("/active", async (c) => {
     deployedAt: d.deployedAt,
     deployedBy: d.deployedBy,
     active: d.active,
-  }));
+  }))
 
-  return c.json(activeVersions);
-});
+  return c.json(activeVersions)
+})
 
 // Get deployment history for a service
-deploymentsRouter.get("/:service/history", async (c) => {
-  const service = c.req.param("service");
-  const environment = c.req.query("environment");
-  const limit = Number.parseInt(c.req.query("limit") || "50");
+deploymentsRouter.get('/:service/history', async c => {
+  const service = c.req.param('service')
+  const environment = c.req.query('environment')
+  const limit = Number.parseInt(c.req.query('limit') || '50')
 
-  const db = c.get("db");
-  const { tenantId } = c.get("session");
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
 
-  const whereConditions = [
-    eq(deployments.tenantId, tenantId),
-    eq(deployments.service, service),
-  ];
+  const whereConditions = [eq(deployments.tenantId, tenantId), eq(deployments.service, service)]
 
-  if (environment)
-    whereConditions.push(eq(deployments.environment, environment));
+  if (environment) whereConditions.push(eq(deployments.environment, environment))
 
   const deploymentHistory = await db.query.deployments.findMany({
     where: and(...whereConditions),
     orderBy: desc(deployments.deployedAt),
     limit,
-  });
+  })
 
-  const deploymentStates: DeploymentState[] = deploymentHistory.map((d) => ({
+  const deploymentStates: DeploymentState[] = deploymentHistory.map(d => ({
     id: d.id,
-    type: d.type as "provider" | "consumer",
+    type: d.type as 'provider' | 'consumer',
     tenantId: d.tenantId,
     service: d.service,
     version: d.version,
@@ -268,33 +244,28 @@ deploymentsRouter.get("/:service/history", async (c) => {
     deployedAt: d.deployedAt,
     deployedBy: d.deployedBy,
     active: d.active,
-  }));
+  }))
 
-  return c.json(deploymentStates);
-});
+  return c.json(deploymentStates)
+})
 
 // Get deployment summary for dashboard
-deploymentsRouter.get("/summary", async (c) => {
-  const db = c.get("db");
-  const { tenantId } = c.get("session");
+deploymentsRouter.get('/summary', async c => {
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
 
   // Get total active deployments
   const totalActiveResult = await db
     .select({ count: count() })
     .from(deployments)
-    .where(
-      and(eq(deployments.tenantId, tenantId), eq(deployments.active, true)),
-    );
+    .where(and(eq(deployments.tenantId, tenantId), eq(deployments.active, true)))
 
-  const totalActiveDeployments = totalActiveResult[0]?.count || 0;
+  const totalActiveDeployments = totalActiveResult[0]?.count || 0
 
   // Get recent deployments (last 24 hours)
-  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const recentDeployments = await db.query.deployments.findMany({
-    where: and(
-      eq(deployments.tenantId, tenantId),
-      gte(deployments.deployedAt, twentyFourHoursAgo),
-    ),
+    where: and(eq(deployments.tenantId, tenantId), gte(deployments.deployedAt, twentyFourHoursAgo)),
     orderBy: desc(deployments.deployedAt),
     limit: 10,
     columns: {
@@ -304,54 +275,49 @@ deploymentsRouter.get("/summary", async (c) => {
       deployedAt: true,
       deployedBy: true,
     },
-  });
+  })
 
   // Get environment breakdown (simplified - would need proper groupBy in production)
   const allActiveDeployments = await db.query.deployments.findMany({
-    where: and(
-      eq(deployments.tenantId, tenantId),
-      eq(deployments.active, true),
-    ),
+    where: and(eq(deployments.tenantId, tenantId), eq(deployments.active, true)),
     columns: {
       environment: true,
     },
-  });
+  })
 
   const environmentCounts = allActiveDeployments.reduce(
     (acc, dep) => {
-      acc[dep.environment] = (acc[dep.environment] || 0) + 1;
-      return acc;
+      acc[dep.environment] = (acc[dep.environment] || 0) + 1
+      return acc
     },
-    {} as Record<string, number>,
-  );
+    {} as Record<string, number>
+  )
 
-  const environmentBreakdown = Object.entries(environmentCounts).map(
-    ([environment, count]) => ({
-      environment,
-      count,
-    }),
-  );
+  const environmentBreakdown = Object.entries(environmentCounts).map(([environment, count]) => ({
+    environment,
+    count,
+  }))
 
   const summary = {
     totalActiveDeployments: Number(totalActiveDeployments),
     environmentBreakdown,
     recentDeployments,
-  };
+  }
 
-  return c.json(summary);
-});
+  return c.json(summary)
+})
 
 // Get unique environments
-deploymentsRouter.get("/environments", async (c) => {
-  const db = c.get("db");
-  const { tenantId } = c.get("session");
+deploymentsRouter.get('/environments', async c => {
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
 
   const environments = await db
     .selectDistinct({ environment: deployments.environment })
     .from(deployments)
-    .where(eq(deployments.tenantId, tenantId));
+    .where(eq(deployments.tenantId, tenantId))
 
-  const uniqueEnvironments = environments.map((e) => e.environment);
+  const uniqueEnvironments = environments.map(e => e.environment)
 
-  return c.json(uniqueEnvironments);
-});
+  return c.json(uniqueEnvironments)
+})

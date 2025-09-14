@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setupDefaultMocks } from './setup.js'
 import type { ClientConfig, OpenAPISpec } from '@entente/types'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { setupDefaultMocks } from './setup.js'
 
 describe('@entente/consumer', () => {
   let mocks: ReturnType<typeof setupDefaultMocks>
@@ -18,7 +18,7 @@ describe('@entente/consumer', () => {
         apiKey: 'test-key',
         consumer: 'test-consumer',
         consumerVersion: '1.0.0',
-        environment: 'test'
+        environment: 'test',
       }
 
       const client = createClient(config)
@@ -36,7 +36,7 @@ describe('@entente/consumer', () => {
       const config: ClientConfig = {
         serviceUrl: 'https://test.entente.com',
         apiKey: 'test-key',
-        environment: 'test'
+        environment: 'test',
       }
 
       const client = createClient(config)
@@ -53,7 +53,7 @@ describe('@entente/consumer', () => {
       const config: ClientConfig = {
         serviceUrl: 'https://test.entente.com',
         apiKey: 'test-key',
-        environment: 'test'
+        environment: 'test',
       }
 
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -77,7 +77,7 @@ describe('@entente/consumer', () => {
         apiKey: 'test-key',
         consumer: 'test-consumer',
         consumerVersion: '1.0.0',
-        environment: 'test'
+        environment: 'test',
       }
 
       const client = createClient(config)
@@ -105,7 +105,7 @@ describe('@entente/consumer', () => {
         apiKey: 'test-key',
         consumer: 'test-consumer',
         consumerVersion: '1.0.0',
-        environment: 'test'
+        environment: 'test',
       }
 
       const client = createClient(config)
@@ -115,8 +115,8 @@ describe('@entente/consumer', () => {
         'https://test.entente.com/api/specs/test-service?version=1.0.0&branch=main',
         expect.objectContaining({
           headers: expect.objectContaining({
-            Authorization: 'Bearer test-key'
-          })
+            Authorization: 'Bearer test-key',
+          }),
         })
       )
     })
@@ -129,7 +129,7 @@ describe('@entente/consumer', () => {
         apiKey: 'test-key',
         consumer: 'test-consumer',
         consumerVersion: '1.0.0',
-        environment: 'test'
+        environment: 'test',
       }
 
       const client = createClient(config)
@@ -139,8 +139,8 @@ describe('@entente/consumer', () => {
         'https://test.entente.com/api/fixtures/service/test-service?version=1.0.0&status=approved',
         expect.objectContaining({
           headers: expect.objectContaining({
-            Authorization: 'Bearer test-key'
-          })
+            Authorization: 'Bearer test-key',
+          }),
         })
       )
 
@@ -155,12 +155,12 @@ describe('@entente/consumer', () => {
         apiKey: 'test-key',
         consumer: 'test-consumer',
         consumerVersion: '1.0.0',
-        environment: 'test'
+        environment: 'test',
       }
 
       const client = createClient(config)
       const mock = await client.createMock('test-service', '1.0.0', {
-        useFixtures: false
+        useFixtures: false,
       })
 
       expect(mocks.fetch.fetch).not.toHaveBeenCalledWith(
@@ -179,8 +179,8 @@ describe('@entente/consumer', () => {
         output: {
           statusCode: 200,
           headers: { 'content-type': 'application/json' },
-          body: { message: 'test on custom port' }
-        }
+          body: { message: 'test on custom port' },
+        },
       })
 
       const config: ClientConfig = {
@@ -188,12 +188,12 @@ describe('@entente/consumer', () => {
         apiKey: 'test-key',
         consumer: 'test-consumer',
         consumerVersion: '1.0.0',
-        environment: 'test'
+        environment: 'test',
       }
 
       const client = createClient(config)
       const mock = await client.createMock('test-service', '1.0.0', {
-        port: 4000
+        port: 4000,
       })
 
       // The mock will still return the default port, but we can verify the mock was called
@@ -212,19 +212,19 @@ describe('@entente/consumer', () => {
         apiKey: 'test-key',
         consumer: 'test-consumer',
         consumerVersion: '1.0.0',
-        environment: 'test'
+        environment: 'test',
       }
 
       const spec: OpenAPISpec = {
         openapi: '3.0.0',
         info: { title: 'Test API', version: '1.0.0' },
-        paths: {}
+        paths: {},
       }
 
       const client = createClient(config)
       await client.uploadSpec('test-service', '1.0.0', spec, {
         environment: 'test',
-        branch: 'main'
+        branch: 'main',
       })
 
       expect(mocks.fetch.fetch).toHaveBeenCalledWith(
@@ -233,9 +233,9 @@ describe('@entente/consumer', () => {
           method: 'POST',
           headers: expect.objectContaining({
             Authorization: 'Bearer test-key',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           }),
-          body: expect.stringContaining('test-service')
+          body: expect.stringContaining('test-service'),
         })
       )
     })
@@ -248,25 +248,23 @@ describe('@entente/consumer', () => {
       const config: ClientConfig = {
         serviceUrl: 'https://test.entente.com',
         apiKey: 'test-key',
-        environment: 'test'
+        environment: 'test',
       }
 
       const spec: OpenAPISpec = {
         openapi: '3.0.0',
         info: { title: 'Test API', version: '1.0.0' },
-        paths: {}
+        paths: {},
       }
 
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
       const client = createClient(config)
       await client.uploadSpec('test-service', '1.0.0', spec, {
-        environment: 'test'
+        environment: 'test',
       })
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('🚫 Skipping spec upload')
-      )
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('🚫 Skipping spec upload'))
 
       expect(mocks.fetch.fetch).not.toHaveBeenCalledWith(
         expect.stringContaining('/api/specs/'),
@@ -291,20 +289,22 @@ describe('@entente/consumer', () => {
         apiKey: 'test-key',
         consumer: 'test-consumer',
         consumerVersion: '1.0.0',
-        environment: 'test'
+        environment: 'test',
       }
 
       const spec: OpenAPISpec = {
         openapi: '3.0.0',
         info: { title: 'Test API', version: '1.0.0' },
-        paths: {}
+        paths: {},
       }
 
       const client = createClient(config)
 
-      await expect(client.uploadSpec('test-service', '1.0.0', spec, {
-        environment: 'test'
-      })).rejects.toThrow('Failed to upload spec: 500 ')
+      await expect(
+        client.uploadSpec('test-service', '1.0.0', spec, {
+          environment: 'test',
+        })
+      ).rejects.toThrow('Failed to upload spec: 500 ')
     })
   })
 
@@ -317,7 +317,7 @@ describe('@entente/consumer', () => {
         apiKey: 'test-key',
         consumer: 'test-consumer',
         consumerVersion: '1.0.0',
-        environment: 'test'
+        environment: 'test',
       }
 
       const client = createClient(config)
@@ -337,7 +337,7 @@ describe('@entente/consumer', () => {
         apiKey: 'test-key',
         consumer: 'test-consumer',
         consumerVersion: '1.0.0',
-        environment: 'test'
+        environment: 'test',
       }
 
       const client = createClient(config)
@@ -345,7 +345,7 @@ describe('@entente/consumer', () => {
 
       const fixtureData = {
         request: { method: 'GET', path: '/test' },
-        response: { status: 200, body: { message: 'test' } }
+        response: { status: 200, body: { message: 'test' } },
       }
 
       await mock.proposeFixture('getTest', fixtureData)
@@ -356,7 +356,7 @@ describe('@entente/consumer', () => {
           serviceVersion: '1.0.0',
           operation: 'getTest',
           source: 'consumer',
-          data: fixtureData
+          data: fixtureData,
         })
       )
 
@@ -371,7 +371,7 @@ describe('@entente/consumer', () => {
       const config: ClientConfig = {
         serviceUrl: 'https://test.entente.com',
         apiKey: 'test-key',
-        environment: 'test'
+        environment: 'test',
       }
 
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -381,7 +381,7 @@ describe('@entente/consumer', () => {
 
       const fixtureData = {
         request: { method: 'GET', path: '/test' },
-        response: { status: 200, body: { message: 'test' } }
+        response: { status: 200, body: { message: 'test' } },
       }
 
       await mock.proposeFixture('getTest', fixtureData)

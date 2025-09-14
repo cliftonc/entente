@@ -1,14 +1,14 @@
-import { describe, it, expect } from 'vitest'
-import { validateResponse, validateJsonStructure } from '../src/index.js'
+import { describe, expect, it } from 'vitest'
+import { validateJsonStructure, validateResponse } from '../src/index.js'
 import {
-  mockSuccessResponse,
-  mockCreatedResponse,
-  mockNotFoundResponse,
   mockArrayResponse,
+  mockCreatedResponse,
   mockEmptyArrayResponse,
+  mockNotFoundResponse,
   mockResponseWithDifferentStatus,
-  mockResponseWithMissingFields,
   mockResponseWithExtraFields,
+  mockResponseWithMissingFields,
+  mockSuccessResponse,
 } from './mocks/responses.mock.js'
 
 describe('validateResponse', () => {

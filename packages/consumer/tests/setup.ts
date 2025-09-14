@@ -1,9 +1,9 @@
 import { beforeEach, vi } from 'vitest'
 import { setupFetchMock } from './mocks/fetch.js'
-import { setupPrismMock } from './mocks/prism.js'
 import { setupFsMock } from './mocks/filesystem.js'
 import { setupFixturesMock } from './mocks/fixtures.js'
 import { setupGitUtilsMock } from './mocks/git-utils.js'
+import { setupPrismMock } from './mocks/prism.js'
 
 // Setup all mocks before each test
 beforeEach(() => {
@@ -24,7 +24,7 @@ export const createTestMocks = () => {
     prism: prismMock,
     fs: fsMock,
     fixtures: fixturesMock,
-    gitUtils: gitUtilsMock
+    gitUtils: gitUtilsMock,
   }
 }
 
@@ -33,35 +33,40 @@ export const setupDefaultMocks = () => {
   const mocks = createTestMocks()
 
   // Setup default package.json at the current working directory
-  mocks.fs.setMockFile(`${process.cwd()}/package.json`, JSON.stringify({
-    name: 'test-consumer',
-    version: '1.0.0'
-  }))
+  mocks.fs.setMockFile(
+    `${process.cwd()}/package.json`,
+    JSON.stringify({
+      name: 'test-consumer',
+      version: '1.0.0',
+    })
+  )
 
   // Setup default fetch responses
   mocks.fetch.fetch.mockImplementation((url: string, options?: any) => {
     if (url.includes('/api/specs/')) {
-      return Promise.resolve(mocks.fetch.mockSuccess({
-        openapi: '3.0.0',
-        info: { title: 'Test API', version: '1.0.0' },
-        paths: {
-          '/test': {
-            get: {
-              operationId: 'getTest',
-              responses: {
-                '200': {
-                  description: 'Success',
-                  content: {
-                    'application/json': {
-                      example: { message: 'test response' }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }))
+      return Promise.resolve(
+        mocks.fetch.mockSuccess({
+          openapi: '3.0.0',
+          info: { title: 'Test API', version: '1.0.0' },
+          paths: {
+            '/test': {
+              get: {
+                operationId: 'getTest',
+                responses: {
+                  '200': {
+                    description: 'Success',
+                    content: {
+                      'application/json': {
+                        example: { message: 'test response' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        })
+      )
     }
 
     if (url.includes('/api/fixtures/')) {
@@ -69,9 +74,11 @@ export const setupDefaultMocks = () => {
     }
 
     if (url.includes('/api/interactions/batch')) {
-      return Promise.resolve(mocks.fetch.mockSuccess({
-        results: { recorded: 1, duplicates: 0 }
-      }))
+      return Promise.resolve(
+        mocks.fetch.mockSuccess({
+          results: { recorded: 1, duplicates: 0 },
+        })
+      )
     }
 
     return Promise.resolve(mocks.fetch.mockSuccess({}))

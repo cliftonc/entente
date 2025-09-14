@@ -15,18 +15,18 @@ export const createMockPrismHttp = () => {
       output: {
         statusCode: 200,
         headers: { 'content-type': 'application/json' },
-        body: { message: 'mocked response' }
-      }
-    })
+        body: { message: 'mocked response' },
+      },
+    }),
   }
 
   const mockHttpServer: MockHttpServer = {
     listen: vi.fn().mockImplementation((port, callback) => {
       if (callback) callback()
     }),
-    close: vi.fn().mockImplementation((callback) => {
+    close: vi.fn().mockImplementation(callback => {
       if (callback) callback()
-    })
+    }),
   }
 
   const mockCreateInstance = vi.fn().mockReturnValue(mockInstance)
@@ -34,8 +34,8 @@ export const createMockPrismHttp = () => {
     {
       method: 'get',
       path: '/test',
-      operationId: 'getTest'
-    }
+      operationId: 'getTest',
+    },
   ])
 
   const mockCreateServer = vi.fn().mockReturnValue(mockHttpServer)
@@ -45,7 +45,7 @@ export const createMockPrismHttp = () => {
     getHttpOperationsFromSpec: mockGetHttpOperationsFromSpec,
     mockInstance,
     mockHttpServer,
-    mockCreateServer
+    mockCreateServer,
   }
 }
 
@@ -55,7 +55,7 @@ export const setupPrismMock = () => {
 
   vi.doMock('@stoplight/prism-http', () => prismMock)
   vi.doMock('http', () => ({
-    createServer: prismMock.mockCreateServer
+    createServer: prismMock.mockCreateServer,
   }))
   vi.doMock('url', () => ({
     URL: class URL {
@@ -77,7 +77,7 @@ export const setupPrismMock = () => {
       entries() {
         return this.searchParams.entries()
       }
-    }
+    },
   }))
 
   return prismMock

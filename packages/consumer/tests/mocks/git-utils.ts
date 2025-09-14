@@ -11,7 +11,7 @@ export const createMockGitUtils = () => {
 
   return {
     getGitSha,
-    setMockGitSha
+    setMockGitSha,
   }
 }
 

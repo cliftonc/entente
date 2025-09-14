@@ -14,17 +14,15 @@ export const createMockFetch = () => {
     ok: options.ok ?? true,
     status: options.status ?? 200,
     statusText: options.status === 404 ? 'Not Found' : 'OK',
-    json: vi.fn().mockResolvedValue(data)
+    json: vi.fn().mockResolvedValue(data),
   })
 
   return {
     fetch: mockFetch,
     mockResponse,
     mockSuccess: (data: any) => mockResponse(data),
-    mockError: (status: number, message: string) => mockResponse(
-      { error: message },
-      { status, ok: false }
-    )
+    mockError: (status: number, message: string) =>
+      mockResponse({ error: message }, { status, ok: false }),
   }
 }
 

@@ -7,12 +7,7 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     coverage: {
       reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/**',
-        'dist/**',
-        'tests/**',
-        'vitest.config.ts'
-      ]
-    }
-  }
+      exclude: ['node_modules/**', 'dist/**', 'tests/**', 'vitest.config.ts'],
+    },
+  },
 })

@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 PACKAGES=(
   "types"
   "fixtures"
-  "client"
+  "consumer"
   "provider"
   "cli"
 )
@@ -65,13 +65,53 @@ for PACKAGE in "${PACKAGES[@]}"; do
   cd ../..
 done
 
-echo -e "${BLUE}📝 What would happen:${NC}"
-echo "  1. Build all packages"
-echo "  2. Run all tests"
-echo "  3. For each package (in order):"
+echo -e "${BLUE}🔨 Running build and test for each package...${NC}"
+
+# Process each package in order - build and test
+for PACKAGE in "${PACKAGES[@]}"; do
+  PACKAGE_DIR="packages/$PACKAGE"
+
+  if [ ! -d "$PACKAGE_DIR" ]; then
+    echo -e "${YELLOW}⚠️  Skipping $PACKAGE (directory not found)${NC}"
+    continue
+  fi
+
+  echo -e "${BLUE}🔨 Building and testing @entente/$PACKAGE...${NC}"
+
+  cd "$PACKAGE_DIR"
+
+  # Build the package
+  echo -e "  📦 Building @entente/$PACKAGE..."
+  if pnpm build; then
+    echo -e "  ✅ Build successful"
+  else
+    echo -e "${RED}❌ Build failed for @entente/$PACKAGE${NC}"
+    cd ../..
+    exit 1
+  fi
+
+  # Run tests if test script exists
+  if grep -q '"test"' package.json; then
+    echo -e "  🧪 Testing @entente/$PACKAGE..."
+    if pnpm test; then
+      echo -e "  ✅ Tests passed"
+    else
+      echo -e "${RED}❌ Tests failed for @entente/$PACKAGE${NC}"
+      cd ../..
+      exit 1
+    fi
+  else
+    echo -e "  ⚠️  No test script found, skipping tests"
+  fi
+
+  cd ../..
+done
+
+echo -e "${GREEN}✅ All packages built and tested successfully!${NC}"
+echo -e "${BLUE}📝 What publishing would do:${NC}"
+echo "  1. For each package (in order):"
 echo "     - Increment patch version"
-echo "     - Build package"
 echo "     - Commit version change"
 echo "     - Publish to npm with --access public"
 
-echo -e "${YELLOW}💡 To actually run: pnpm version-and-publish${NC}"
+echo -e "${YELLOW}💡 To actually publish: pnpm version-and-publish${NC}"

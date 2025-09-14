@@ -1,11 +1,11 @@
-import type { ClientInteraction, VerificationTask, HTTPRequest, HTTPResponse } from '@entente/types'
+import type { ClientInteraction, HTTPRequest, HTTPResponse, VerificationTask } from '@entente/types'
 
 export const mockHTTPRequest: HTTPRequest = {
   method: 'GET',
   path: '/api/orders/123',
   headers: {
-    'Accept': 'application/json',
-    'Authorization': 'Bearer token123',
+    Accept: 'application/json',
+    Authorization: 'Bearer token123',
   },
   query: {
     include: 'items',
@@ -17,7 +17,7 @@ export const mockHTTPRequestPost: HTTPRequest = {
   path: '/api/orders',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer token456',
+    Authorization: 'Bearer token456',
   },
   body: {
     customerId: 'customer-456',

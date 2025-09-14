@@ -1,8 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createProvider } from '../src/index.js'
-import { mockProviderConfig, mockProviderConfigWithoutProvider, mockVerifyOptions } from './mocks/provider-config.mock.js'
-import { mockVerificationTasks, mockVerificationTask } from './mocks/interactions.mock.js'
+import { mockVerificationTask, mockVerificationTasks } from './mocks/interactions.mock.js'
 import { mockPackageJson, mockPackageJsonFallback } from './mocks/package.mock.js'
+import {
+  mockProviderConfig,
+  mockProviderConfigWithoutProvider,
+  mockVerifyOptions,
+} from './mocks/provider-config.mock.js'
 
 vi.mock('fs', () => ({
   readFileSync: vi.fn(),

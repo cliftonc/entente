@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getGitSha } from '../src/git-utils.js'
 
 vi.mock('fs', () => ({
@@ -59,7 +59,7 @@ describe('getGitSha', () => {
     const { existsSync, readFileSync } = vi.mocked(await import('fs'))
 
     // Mock finding .git directory
-    existsSync.mockImplementation((path) => {
+    existsSync.mockImplementation(path => {
       if (typeof path === 'string' && path.includes('.git')) {
         return true
       }
@@ -83,7 +83,7 @@ describe('getGitSha', () => {
     existsSync.mockReturnValue(true)
 
     // Mock HEAD file containing branch reference
-    readFileSync.mockImplementation((path) => {
+    readFileSync.mockImplementation(path => {
       if (typeof path === 'string' && path.endsWith('HEAD')) {
         return 'ref: refs/heads/main\n'
       }
@@ -112,7 +112,7 @@ describe('getGitSha', () => {
   it('should return null when HEAD file does not exist', async () => {
     const { existsSync } = vi.mocked(await import('fs'))
 
-    existsSync.mockImplementation((path) => {
+    existsSync.mockImplementation(path => {
       if (typeof path === 'string' && path.includes('.git') && !path.includes('HEAD')) {
         return true
       }
@@ -127,7 +127,7 @@ describe('getGitSha', () => {
   it('should return null when referenced branch file does not exist', async () => {
     const { existsSync, readFileSync } = vi.mocked(await import('fs'))
 
-    existsSync.mockImplementation((path) => {
+    existsSync.mockImplementation(path => {
       if (typeof path === 'string' && path.includes('.git') && !path.includes('refs/heads')) {
         return true
       }

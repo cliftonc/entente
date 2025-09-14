@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { replayRequest } from '../src/index.js'
 import { mockHTTPRequest, mockHTTPRequestPost } from './mocks/interactions.mock.js'
 
@@ -25,17 +25,14 @@ describe('replayRequest', () => {
 
     const result = await replayRequest('http://localhost:3000', mockHTTPRequest)
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:3000/api/orders/123?include=items',
-      {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer token123',
-        },
-        body: undefined,
-      }
-    )
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/orders/123?include=items', {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: 'Bearer token123',
+      },
+      body: undefined,
+    })
 
     expect(result.status).toBe(200)
     expect(result.headers).toEqual({ 'content-type': 'application/json' })
@@ -54,20 +51,17 @@ describe('replayRequest', () => {
 
     const result = await replayRequest('http://localhost:3000', mockHTTPRequestPost)
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:3000/api/orders',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer token456',
-        },
-        body: JSON.stringify({
-          customerId: 'customer-456',
-          items: [{ productId: 'prod-789', quantity: 2 }],
-        }),
-      }
-    )
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token456',
+      },
+      body: JSON.stringify({
+        customerId: 'customer-456',
+        items: [{ productId: 'prod-789', quantity: 2 }],
+      }),
+    })
 
     expect(result.status).toBe(201)
     expect(result.body).toEqual({ id: 'order-456', status: 'created' })
@@ -214,7 +208,8 @@ describe('replayRequest', () => {
 
     await replayRequest('http://localhost:3000', requestWithMultipleQuery)
 
-    const expectedUrl = 'http://localhost:3000/api/orders/123?include=items&sort=created_at&limit=10&filter=active'
+    const expectedUrl =
+      'http://localhost:3000/api/orders/123?include=items&sort=created_at&limit=10&filter=active'
     expect(mockFetch).toHaveBeenCalledWith(expectedUrl, expect.any(Object))
   })
 
@@ -222,8 +217,9 @@ describe('replayRequest', () => {
     const mockFetch = vi.mocked(global.fetch)
     mockFetch.mockRejectedValue(new Error('Network error'))
 
-    await expect(replayRequest('http://localhost:3000', mockHTTPRequest))
-      .rejects.toThrow('Network error')
+    await expect(replayRequest('http://localhost:3000', mockHTTPRequest)).rejects.toThrow(
+      'Network error'
+    )
   })
 
   it('should preserve different HTTP methods', async () => {

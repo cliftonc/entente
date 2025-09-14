@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('git-utils', () => {
   beforeEach(() => {
@@ -69,7 +69,7 @@ describe('git-utils', () => {
         }),
         readFileSync: vi.fn().mockImplementation(() => {
           throw new Error('Mocked error')
-        })
+        }),
       }))
 
       const { getGitSha } = await import('../src/git-utils.js')

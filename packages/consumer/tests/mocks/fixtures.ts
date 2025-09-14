@@ -1,5 +1,5 @@
-import { vi } from 'vitest'
 import type { Fixture } from '@entente/types'
+import { vi } from 'vitest'
 
 export const createMockFixtureManager = () => {
   const mockFixtures: Fixture[] = []
@@ -20,7 +20,7 @@ export const createMockFixtureManager = () => {
     propose,
     addMockFixture,
     clearMockFixtures,
-    getMockFixtures
+    getMockFixtures,
   }
 }
 
@@ -41,7 +41,7 @@ export const setupFixturesMock = () => {
     extractOperationFromSpec,
     generateFixtureHash,
     generateInteractionHash,
-    prioritizeFixtures
+    prioritizeFixtures,
   }))
 
   return {
@@ -51,6 +51,6 @@ export const setupFixturesMock = () => {
     generateFixtureHash,
     generateInteractionHash,
     prioritizeFixtures,
-    fixtureManagerMock
+    fixtureManagerMock,
   }
 }

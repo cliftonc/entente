@@ -23,8 +23,8 @@ export const mockVerifyOptions: VerifyOptions = {
   baseUrl: 'http://localhost:3000',
   environment: 'test',
   stateHandlers: {
-    'getOrder': vi.fn().mockResolvedValue(undefined),
-    'createUser': vi.fn().mockResolvedValue(undefined),
+    getOrder: vi.fn().mockResolvedValue(undefined),
+    createUser: vi.fn().mockResolvedValue(undefined),
   },
   cleanup: vi.fn().mockResolvedValue(undefined),
 }

@@ -35,7 +35,7 @@ export const createMockFs = () => {
     setMockFile,
     removeMockFile,
     clearMockFiles,
-    mockFiles
+    mockFiles,
   }
 }
 

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import * as fs from 'node:fs/promises'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as config from './config.js'
 import * as gitUtils from './git-utils.js'
 
