@@ -1,0 +1,339 @@
+name: Deploy Castle Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/castle-service/**'
+      - '.github/workflows/castle-service-deploy.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'examples/castle-service/**'
+      - '.github/workflows/castle-service-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    outputs:
+      should-deploy: ${{ steps.changes.outputs.castle-service }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Generate version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            VERSION="pr-${{ github.event.number }}-$(echo ${{ github.sha }} | cut -c1-7)"
+          else
+            VERSION="$(date +%Y%m%d)-$(echo ${{ github.sha }} | cut -c1-7)"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+
+      - name: Check path changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            castle-service:
+              - 'examples/castle-service/**'
+              - '.github/workflows/castle-service-deploy.yml'
+
+      - name: Build castle-service
+        if: steps.changes.outputs.castle-service == 'true'
+        run: pnpm --filter @entente/example-castle-service build
+
+      - name: Run castle-service tests
+        if: steps.changes.outputs.castle-service == 'true'
+        run: pnpm --filter @entente/example-castle-service test
+
+  deploy-development:
+    if: needs.build-and-test.outputs.should-deploy == 'true' && (github.event_name == 'push' || github.event_name == 'pull_request' || github.event.inputs.environment == 'development')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: development
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Build castle-service
+        run: pnpm --filter @entente/example-castle-service build
+
+      - name: Register service with Entente
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          node ../../packages/cli/dist/cli.js register-service \
+            --type provider \
+            --name castle-service \
+            --spec spec/openapi.json \
+            --spec-version ${{ needs.build-and-test.outputs.version }} \
+            --environment development
+
+      - name: Upload OpenAPI spec
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          node ../../packages/cli/dist/cli.js upload-spec \
+            --service castle-service \
+            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --environment development \
+            --spec spec/openapi.json
+
+      - name: Check deployment readiness
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          node ../../packages/cli/dist/cli.js can-i-deploy \
+            --type provider \
+            --service castle-service \
+            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --environment development
+
+      - name: Deploy to Cloudflare Workers (Development)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: examples/castle-service
+          command: deploy --name castle-service-dev --env development
+        env:
+          ENVIRONMENT: development
+
+      - name: Record deployment
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          node ../../packages/cli/dist/cli.js record-deployment \
+            --service castle-service \
+            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --environment development
+
+      - name: Run smoke tests
+        run: |
+          sleep 10
+          curl -f https://castle-service-dev.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1
+
+  deploy-staging:
+    if: needs.build-and-test.outputs.should-deploy == 'true' && (github.event_name == 'push' || github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'production')
+    needs: [build-and-test, deploy-development]
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Build castle-service
+        run: pnpm --filter @entente/example-castle-service build
+
+      - name: Register service with Entente
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          node ../../packages/cli/dist/cli.js register-service \
+            --type provider \
+            --name castle-service \
+            --spec spec/openapi.json \
+            --spec-version ${{ needs.build-and-test.outputs.version }} \
+            --environment staging
+
+      - name: Upload OpenAPI spec
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          node ../../packages/cli/dist/cli.js upload-spec \
+            --service castle-service \
+            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --environment staging \
+            --spec spec/openapi.json
+
+      - name: Check deployment readiness
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          node ../../packages/cli/dist/cli.js can-i-deploy \
+            --type provider \
+            --service castle-service \
+            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --environment staging
+
+      - name: Deploy to Cloudflare Workers (Staging)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: examples/castle-service
+          command: deploy --name castle-service-staging --env staging
+        env:
+          ENVIRONMENT: staging
+
+      - name: Record deployment
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          node ../../packages/cli/dist/cli.js record-deployment \
+            --service castle-service \
+            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --environment staging
+
+      - name: Run smoke tests
+        run: |
+          sleep 10
+          curl -f https://castle-service-staging.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1
+
+  deploy-production:
+    if: needs.build-and-test.outputs.should-deploy == 'true' && (github.event_name == 'push' || github.event.inputs.environment == 'production')
+    needs: [build-and-test, deploy-staging]
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Build castle-service
+        run: pnpm --filter @entente/example-castle-service build
+
+      - name: Register service with Entente
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          node ../../packages/cli/dist/cli.js register-service \
+            --type provider \
+            --name castle-service \
+            --spec spec/openapi.json \
+            --spec-version ${{ needs.build-and-test.outputs.version }} \
+            --environment production
+
+      - name: Upload OpenAPI spec
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          node ../../packages/cli/dist/cli.js upload-spec \
+            --service castle-service \
+            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --environment production \
+            --spec spec/openapi.json
+
+      - name: Check deployment readiness
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          node ../../packages/cli/dist/cli.js can-i-deploy \
+            --type provider \
+            --service castle-service \
+            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --environment production
+
+      - name: Deploy to Cloudflare Workers (Production)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: examples/castle-service
+          command: deploy --name castle-service --env production
+        env:
+          ENVIRONMENT: production
+
+      - name: Record deployment
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          node ../../packages/cli/dist/cli.js record-deployment \
+            --service castle-service \
+            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --environment production
+
+      - name: Run smoke tests
+        run: |
+          sleep 10
+          curl -f https://castle-service.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1

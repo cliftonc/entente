@@ -7,9 +7,15 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/server.ts",
+    "build:worker": "tsc src/worker.ts --outDir dist --target es2022 --module es2022 --moduleResolution bundler --allowSyntheticDefaultImports",
+    "dev": "wrangler dev",
+    "dev:node": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "test": "vitest run test/provider.test.ts",
+    "deploy": "wrangler deploy",
+    "deploy:dev": "wrangler deploy --env development",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:prod": "wrangler deploy --env production",
     "register:provider": "node ../../packages/cli/dist/cli.js register-service --type provider --name castle-service --spec spec/openapi.json --spec-version 0.1.0 --environment test",
     "upload:spec": "node ../../packages/cli/dist/cli.js upload-spec --service castle-service --service-version 0.1.0 --environment test --spec spec/openapi.json",
     "deploy:provider": "node ../../packages/cli/dist/cli.js deploy-service --type provider --name castle-service --service-version 0.1.0 --environment test",
@@ -26,10 +32,13 @@
     "hono": "^4.6.7"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250913.0",
     "@types/node": "^24.0.0",
+    "swagger-ui-dist": "^5.17.14",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "wrangler": "latest"
   },
   "keywords": ["entente", "contract-testing", "example", "provider", "hono", "openapi"]
 }

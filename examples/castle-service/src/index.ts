@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { swaggerUI } from '@hono/swagger-ui'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
@@ -13,10 +10,7 @@ import {
   getAllCastles,
   getCastleById,
 } from './db.js'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const openApiSpec = JSON.parse(readFileSync(join(__dirname, '../spec/openapi.json'), 'utf-8'))
+import { openApiSpec } from './openapi-spec.js'
 
 const app = new Hono()
 
@@ -122,7 +116,25 @@ app.get('/health', c => {
 
 // Serve OpenAPI specification as JSON
 app.get('/openapi.json', c => {
-  return c.json(openApiSpec)
+  const url = new URL(c.req.url)
+  const baseUrl = `${url.protocol}//${url.host}`
+
+  // Get environment from Cloudflare Workers env
+  const environment = (c.env as any)?.ENVIRONMENT || 'development'
+
+  const spec = {
+    ...openApiSpec,
+    servers: [
+      {
+        url: baseUrl,
+        description: environment === 'production' ? 'Production server' :
+                     environment === 'staging' ? 'Staging server' :
+                     'Development server'
+      }
+    ]
+  }
+
+  return c.json(spec)
 })
 
 // Serve Swagger UI documentation
