@@ -14,16 +14,36 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100 flex items-center justify-center">
       <div className="card w-96 bg-base-100 shadow-xl">
         <div className="card-body">
-          {/* Header */}
-          <div className="flex items-center gap-1 justify-center mb-6">
-            <div className="avatar">
-              <div className="w-8 rounded bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white">
-                <div className="flex items-center justify-center w-full h-full">
-                  <span className="text-lg font-bold">E</span>
+          {/* Header and Docs */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-1">
+              <div className="avatar">
+                <div className="w-8 rounded bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white">
+                  <div className="flex items-center justify-center w-full h-full">
+                    <span className="text-lg font-bold">E</span>
+                  </div>
                 </div>
               </div>
+              <span className="text-2xl font-bold">ntente</span>
             </div>
-            <span className="text-2xl font-bold">ntente</span>
+
+            <a
+              href="https://docs.entente.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-2 text-base text-base-content/70 hover:text-base-content hover:bg-base-200 rounded transition-colors"
+              title="Documentation"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.832 18.477 19.246 18 17.5 18c-1.746 0-3.332.477-4.5 1.253"
+                />
+              </svg>
+              Docs
+            </a>
           </div>
 
 

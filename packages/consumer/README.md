@@ -11,21 +11,32 @@ The client library allows consumer applications to create mock servers from Open
 ### OpenAPI-First Mock Creation
 ```typescript
 import { createClient } from '@entente/consumer'
+import type { Fixture } from '@entente/types'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const entente = createClient({
-  serviceUrl: 'https://entente.company.com',
-  consumer: 'web-app',
-  consumerVersion: '1.0.0',
-  environment: 'test',
-  recordingEnabled: process.env.CI === 'true' // Only record in CI
+  serviceUrl: process.env.ENTENTE_SERVICE_URL || '',
+  apiKey: process.env.ENTENTE_API_KEY || '',
+  consumer: 'castle-client',
+  environment: 'test', // Test context (not deployment environment)
+  recordingEnabled: process.env.CI === 'true', // Only record in CI
 })
 
+// Load local fixtures for fallback
+const fixturesPath = join(process.cwd(), 'fixtures', 'castle-service.json')
+const localFixtures: Fixture[] = JSON.parse(readFileSync(fixturesPath, 'utf-8'))
+
 // Create mock from centrally managed OpenAPI spec
-const mock = await entente.createMock('order-service', '2.1.0', {
+const mock = await entente.createMock('castle-service', '0.1.0', {
+  useFixtures: true,
   validateRequests: true,
   validateResponses: true,
-  useFixtures: true // Default: use approved fixtures when available
+  localFixtures, // Fallback fixtures when service is unavailable
 })
+
+// Use the mock URL in your API client
+const castleApi = new CastleApiClient(mock.url)
 ```
 
 ### Smart Fixture Support
@@ -73,38 +84,94 @@ When `recordingEnabled: true` (CI environments):
 
 ## Usage Examples
 
-### Basic Consumer Test
+### Real Consumer Test from Castle Client
 ```typescript
-describe('Order Service Client Tests', () => {
-  let entente: ReturnType<typeof createClient>
-  let orderMock: Awaited<ReturnType<typeof entente.createMock>>
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { createClient } from '@entente/consumer'
+import type { Fixture } from '@entente/types'
+import dotenv from 'dotenv'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { CastleApiClient } from '../src/castle-api.js'
+
+// Load environment variables from .env file
+dotenv.config()
+
+describe('Castle Client Consumer Contract Tests', () => {
+  let client: ReturnType<typeof createClient>
+  let mock: Awaited<ReturnType<typeof client.createMock>>
+  let castleApi: CastleApiClient
 
   beforeAll(async () => {
-    entente = createClient({
-      serviceUrl: 'https://entente.company.com',
-      consumer: 'order-web',
-      consumerVersion: process.env.CONSUMER_VERSION || '1.0.0',
-      environment: process.env.ENVIRONMENT || 'test',
-      recordingEnabled: process.env.CI === 'true'
+    // Load local fixtures
+    const fixturesPath = join(process.cwd(), 'fixtures', 'castle-service.json')
+    const localFixtures: Fixture[] = JSON.parse(readFileSync(fixturesPath, 'utf-8'))
+
+    client = createClient({
+      serviceUrl: process.env.ENTENTE_SERVICE_URL || '',
+      apiKey: process.env.ENTENTE_API_KEY || '',
+      consumer: 'castle-client',
+      environment: 'test', // Test context (not deployment environment)
+      recordingEnabled: process.env.CI === 'true',
     })
 
-    orderMock = await entente.createMock('order-service', '2.1.0')
+    mock = await client.createMock('castle-service', '0.1.0', {
+      useFixtures: true,
+      validateRequests: true,
+      validateResponses: true,
+      localFixtures,
+    })
+
+    castleApi = new CastleApiClient(mock.url)
   })
 
   afterAll(async () => {
-    await orderMock.close()
+    if (mock) {
+      await mock.close()
+    }
   })
 
-  it('should get order successfully', async () => {
-    const orderClient = new OrderClient({ baseUrl: orderMock.url })
-    
-    // This interaction is automatically recorded in CI
-    const order = await orderClient.getOrder('ord-123')
-    
-    expect(order).toMatchObject({
-      id: 'ord-123',
-      status: expect.any(String)
-    })
+  it('should get all castles from the service', async () => {
+    const castles = await castleApi.getAllCastles()
+
+    expect(Array.isArray(castles)).toBe(true)
+    expect(castles.length).toBeGreaterThan(0)
+
+    const castle = castles[0]
+    expect(castle).toHaveProperty('id')
+    expect(castle).toHaveProperty('name')
+    expect(castle).toHaveProperty('region')
+    expect(castle).toHaveProperty('yearBuilt')
+
+    expect(typeof castle.id).toBe('string')
+    expect(typeof castle.name).toBe('string')
+    expect(typeof castle.region).toBe('string')
+    expect(typeof castle.yearBuilt).toBe('number')
+  })
+
+  it('should create a new castle', async () => {
+    const newCastleData = {
+      name: 'Château de Test',
+      region: 'Test Region',
+      yearBuilt: 1500,
+    }
+
+    const createdCastle = await castleApi.createCastle(newCastleData)
+
+    expect(createdCastle).toHaveProperty('id')
+    expect(createdCastle.name).toBe(newCastleData.name)
+    expect(createdCastle.region).toBe(newCastleData.region)
+    expect(createdCastle.yearBuilt).toBe(newCastleData.yearBuilt)
+  })
+
+  it('should handle validation errors for castle creation', async () => {
+    const invalidCastleData = {
+      name: '',
+      region: 'Test Region',
+      yearBuilt: 999,
+    }
+
+    await expect(castleApi.createCastle(invalidCastleData)).rejects.toThrow()
   })
 })
 ```
@@ -127,19 +194,19 @@ console.log('📋 Using approved fixtures for deterministic mocking')
 ## Configuration
 
 ### Environment Variables
+- `ENTENTE_SERVICE_URL` - URL of your Entente service
+- `ENTENTE_API_KEY` - API key for authentication
 - `CI` - Enables interaction recording when 'true'
-- `CONSUMER_VERSION` - Version of the consumer service
 - `ENVIRONMENT` - Target environment (test, staging, production)
-- `BUILD_ID` - Build identifier for fixture tracking
 
 ### Mock Options
 ```typescript
 interface MockOptions {
-  branch?: string              // Git branch for spec (default: 'main')
-  port?: number               // Specific port (default: random)
+  useFixtures?: boolean       // Use approved fixtures when available (default: true)
   validateRequests?: boolean  // Validate requests against OpenAPI (default: true)
-  validateResponses?: boolean // Validate responses against OpenAPI (default: true)  
-  useFixtures?: boolean      // Use approved fixtures when available (default: true)
+  validateResponses?: boolean // Validate responses against OpenAPI (default: true)
+  localFixtures?: Fixture[]   // Local fallback fixtures
+  port?: number              // Specific port (default: random)
 }
 ```
 

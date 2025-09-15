@@ -74,56 +74,636 @@ Question: Can consumer abc1234 deploy to staging?
 
 ## Getting Started
 
-```bash
-# Install dependencies
-pnpm install
+### Prerequisites
 
-# Start development server
+- **Node.js 20+** - Required for all packages
+- **pnpm 9+** - Package manager for the monorepo
+- **Entente API Key** - Get this from your Entente service dashboard
+
+### Environment Setup
+
+1. **Clone the repository** (or create a new service)
+2. **Install dependencies**:
+   ```bash
+   pnpm install
+   ```
+
+3. **Configure environment variables**:
+   Create a `.env` file in your service directory:
+   ```bash
+   ENTENTE_SERVICE_URL=https://your-entente-service.com
+   ENTENTE_API_KEY=your-api-key-here
+
+   # For GitHub integration (optional)
+   GITHUB_CLIENT_ID=your-github-app-client-id
+   GITHUB_CLIENT_SECRET=your-github-app-client-secret
+   ```
+
+4. **Install Entente CLI globally**:
+   ```bash
+   npm install -g @entente/cli
+   ```
+
+5. **Authenticate with CLI**:
+   ```bash
+   entente login
+   ```
+
+### Quick Start for New Services
+
+1. **Create your OpenAPI specification** (for providers):
+   ```bash
+   mkdir spec
+   # Create spec/openapi.json with your API definition
+   ```
+
+2. **Register your service**:
+   ```bash
+   # For consumers
+   entente register-service --type consumer --name my-service --environment test
+
+   # For providers
+   entente register-service --type provider --name my-service --spec spec/openapi.json --environment test
+   ```
+
+3. **Add Entente to your tests**:
+   ```bash
+   npm install @entente/consumer  # for consumer tests
+   npm install @entente/provider  # for provider tests
+   ```
+
+4. **Write contract tests** (see Usage section for examples)
+
+### Development Commands
+
+```bash
+# Start development server (for the main Entente server)
 pnpm server:dev
 
 # Run tests
 pnpm test
 
+# Run tests for specific example
+pnpm --filter @entente/example-castle-client test
+pnpm --filter @entente/example-castle-service test
+
 # Lint and format
 pnpm lint:fix
 pnpm format
+
+# Build all packages
+pnpm build
 ```
+
+### API Key Setup
+
+Your Entente API key can be configured in several ways:
+
+1. **Environment variable**: `ENTENTE_API_KEY=your-key`
+2. **CLI login**: `entente login` (stores in `~/.entente/entente.json`)
+3. **GitHub Secrets**: For CI/CD workflows
+4. **Local config file**: `~/.entente/entente.json`
+
+### Fixture Management
+
+Fixtures provide fallback data when services aren't available:
+
+1. **Create fixtures directory**:
+   ```bash
+   mkdir fixtures
+   ```
+
+2. **Add fixture files**:
+   ```json
+   // fixtures/my-provider-service.json
+   [
+     {
+       "service": "my-provider-service",
+       "operation": "getUsers",
+       "data": {
+         "request": { "method": "GET", "path": "/users" },
+         "response": { "status": 200, "body": [...] }
+       }
+     }
+   ]
+   ```
+
+3. **Use fixtures in tests**:
+   ```typescript
+   const mock = await client.createMock('my-provider-service', '1.0.0', {
+     useFixtures: true,
+     localFixtures: require('./fixtures/my-provider-service.json')
+   })
+   ```
 
 ## Usage
 
 ### Consumer Testing
 
+Create contract tests that record interactions against mock services. Here's a real example from the castle-client:
+
 ```typescript
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { createClient } from '@entente/consumer'
+import type { Fixture } from '@entente/types'
+import dotenv from 'dotenv'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { CastleApiClient } from '../src/castle-api.js'
 
-const entente = createClient({
-  serviceUrl: 'https://entente.company.com',
-  consumer: 'web-app',
-  version: '1.0.0'
+// Load environment variables
+dotenv.config()
+
+describe('Castle Client Consumer Contract Tests', () => {
+  let client: ReturnType<typeof createClient>
+  let mock: Awaited<ReturnType<typeof client.createMock>>
+  let castleApi: CastleApiClient
+
+  beforeAll(async () => {
+    // Load local fixtures for fallback
+    const fixturesPath = join(process.cwd(), 'fixtures', 'castle-service.json')
+    const localFixtures: Fixture[] = JSON.parse(readFileSync(fixturesPath, 'utf-8'))
+
+    client = createClient({
+      serviceUrl: process.env.ENTENTE_SERVICE_URL || '',
+      apiKey: process.env.ENTENTE_API_KEY || '',
+      consumer: 'castle-client',
+      environment: 'test', // Test context (not deployment environment)
+      recordingEnabled: process.env.CI === 'true', // Record in CI only
+    })
+
+    // Create mock with fixtures and validation
+    mock = await client.createMock('castle-service', '0.1.0', {
+      useFixtures: true,
+      validateRequests: true,
+      validateResponses: true,
+      localFixtures,
+    })
+
+    // Initialize your API client with the mock URL
+    castleApi = new CastleApiClient(mock.url)
+  })
+
+  afterAll(async () => {
+    if (mock) {
+      await mock.close()
+    }
+  })
+
+  it('should get all castles from the service', async () => {
+    const castles = await castleApi.getAllCastles()
+
+    expect(Array.isArray(castles)).toBe(true)
+    expect(castles.length).toBeGreaterThan(0)
+
+    const castle = castles[0]
+    expect(castle).toHaveProperty('id')
+    expect(castle).toHaveProperty('name')
+    expect(castle).toHaveProperty('region')
+    expect(castle).toHaveProperty('yearBuilt')
+  })
+
+  it('should create a new castle', async () => {
+    const newCastleData = {
+      name: 'Château de Test',
+      region: 'Test Region',
+      yearBuilt: 1500,
+    }
+
+    const createdCastle = await castleApi.createCastle(newCastleData)
+
+    expect(createdCastle).toHaveProperty('id')
+    expect(createdCastle.name).toBe(newCastleData.name)
+  })
 })
-
-const mock = await entente.createMock('order-service', '2.1.0')
-// Use mock.url for testing...
-await mock.close()
 ```
 
 ### Provider Verification
 
+Verify that your provider service can handle recorded consumer interactions. Here's the castle-service provider test:
+
 ```typescript
 import { createProvider } from '@entente/provider'
+import { serve } from '@hono/node-server'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { resetCastles } from '../src/db.js'
+import app from '../src/index.js'
 
-const provider = createProvider({
-  serviceUrl: 'https://entente.company.com',
-  provider: 'order-service',
-  version: '2.1.0'
+describe('Castle Service Provider Verification', () => {
+  let server: ReturnType<typeof serve>
+  const testPort = 4001
+
+  beforeEach(async () => {
+    resetCastles() // Reset test data
+
+    server = serve({
+      fetch: app.fetch,
+      port: testPort,
+    })
+
+    await new Promise(resolve => setTimeout(resolve, 100))
+  })
+
+  afterEach(async () => {
+    if (server) {
+      server.close()
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+  })
+
+  it('should verify provider against recorded consumer interactions', async () => {
+    const provider = createProvider({
+      serviceUrl: process.env.ENTENTE_SERVICE_URL,
+      apiKey: process.env.ENTENTE_API_KEY,
+      provider: 'castle-service',
+    })
+
+    const results = await provider.verify({
+      baseUrl: `http://localhost:${testPort}`,
+      environment: 'test', // Verification context
+      stateHandlers: {
+        listCastles: async () => {
+          console.log('🔄 Resetting castles to default state')
+          resetCastles()
+        },
+        getCastle: async () => {
+          resetCastles()
+        },
+        createCastle: async () => {
+          resetCastles()
+        },
+        deleteCastle: async () => {
+          resetCastles()
+        },
+      },
+      cleanup: async () => {
+        resetCastles()
+      },
+    })
+
+    console.log(`📋 Total interactions tested: ${results.results.length}`)
+
+    const failedResults = results.results.filter(r => !r.success)
+    if (failedResults.length > 0) {
+      console.log('❌ Failed verifications:')
+      for (const result of failedResults) {
+        console.log(`  - ${result.interactionId}: ${result.error}`)
+      }
+    }
+
+    // All verifications should pass
+    expect(failedResults.length).toBe(0)
+  })
+})
+```
+
+## GitHub Actions Integration
+
+Entente integrates seamlessly with GitHub Actions for automated CI/CD workflows. Here are real examples from the castle-client and castle-service:
+
+### Build & Test Workflow
+
+This workflow runs tests and records interactions in CI:
+
+```yaml
+name: Castle Client - Build & Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/castle-client/**'
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install Entente CLI globally
+        run: npm install -g @entente/cli@latest
+
+      - name: Install dependencies
+        working-directory: examples/castle-client
+        run: pnpm install
+
+      - name: Register service with Entente
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-client
+          entente register-service \
+            --type consumer \
+            --name castle-client \
+            --environment development
+
+      - name: Run tests (records interactions in CI)
+        env:
+          ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: pnpm --filter @entente/example-castle-client test
+```
+
+### Deployment Workflow with can-i-deploy
+
+This workflow checks deployment safety before deploying to each environment:
+
+```yaml
+name: Castle Client - Deploy
+
+on:
+  workflow_run:
+    workflows: ["Castle Client - Build & Test"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy-development:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: development
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & pnpm
+        # ... setup steps
+
+      - name: Check deployment readiness
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-client
+          VERSION=$(node -p "require('./package.json').version")
+          entente can-i-deploy \
+            --type consumer \
+            --service castle-client \
+            --service-version $VERSION \
+            --environment development
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: examples/castle-client
+          command: deploy --name castle-client-dev --env development
+
+      - name: Record deployment
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-client
+          VERSION=$(node -p "require('./package.json').version")
+          entente deploy-service \
+            --name castle-client \
+            --service-version $VERSION \
+            --environment development \
+            --type consumer
+
+  deploy-staging:
+    needs: [deploy-development]
+    if: needs.deploy-development.result == 'success'
+    environment: staging
+    # ... similar steps for staging
+
+  deploy-production:
+    needs: [deploy-staging]
+    if: needs.deploy-staging.result == 'success'
+    environment: production
+    # ... similar steps for production
+```
+
+### Provider Verification in CI
+
+Provider services verify against consumer interactions:
+
+```yaml
+name: Castle Service - Build & Test
+
+jobs:
+  build-and-test:
+    steps:
+      - name: Register provider service
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          VERSION=$(node -p "require('./package.json').version")
+          entente register-service \
+            --type provider \
+            --name castle-service \
+            --spec spec/openapi.json \
+            --spec-version $VERSION \
+            --environment development
+
+      - name: Run provider verification tests
+        env:
+          ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: pnpm --filter @entente/example-castle-service test
+```
+
+### Required GitHub Secrets & Variables
+
+Configure these in your repository settings:
+
+**Repository Secrets:**
+- `ENTENTE_API_KEY` - Your Entente service API key
+- `CLOUDFLARE_API_TOKEN` - For Cloudflare Workers deployment
+- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
+
+**Repository Variables:**
+- `ENTENTE_SERVICE_URL` - URL of your Entente service
+- `CLOUDFLARE_WORKERS_SUBDOMAIN` - Your Workers subdomain
+
+## GitHub App Integration
+
+Entente provides GitHub App integration for repository-level automation and monitoring.
+
+### Setting Up GitHub App Integration
+
+1. **Install the Entente GitHub App** in your organization or repositories
+2. **Configure in Entente Settings** - Link your services to GitHub repositories
+3. **Automatic Repository Detection** - Services are automatically mapped to repositories
+
+### Automatic Service-to-Repository Mapping
+
+The system automatically maps services to GitHub repositories:
+
+```typescript
+// Services can include GitHub repository URLs
+{
+  "name": "castle-client",
+  "gitRepositoryUrl": "https://github.com/myorg/castle-client",
+  // ... other service config
+}
+```
+
+### GitHub Actions Workflow Monitoring
+
+Monitor your CI/CD pipelines directly from the Entente dashboard:
+
+- **Workflow Status** - See build and test results
+- **Deployment Tracking** - Monitor deployments across environments
+- **Contract Verification** - Track provider verification results
+- **Pull Request Integration** - Contract testing results on PRs
+
+### Triggering Workflows
+
+Entente can trigger GitHub Actions workflows programmatically:
+
+```typescript
+// Trigger deployment workflow
+await github.triggerWorkflow('owner', 'repo', 'deploy.yml', 'main', {
+  environment: 'staging',
+  version: '1.2.3'
 })
 
-const results = await provider.verify({
-  baseUrl: 'http://localhost:3000',
-  stateHandlers: {
-    'getOrder': async () => setupTestData()
+// Monitor workflow runs
+const runs = await github.getWorkflowRuns('owner', 'repo', {
+  status: 'completed',
+  branch: 'main'
+})
+```
+
+### Repository Integration Features
+
+- **Automatic Detection** - Services mapped to repositories via git URLs
+- **Workflow Monitoring** - Track CI/CD pipeline status
+- **Pull Request Comments** - Automated contract testing feedback
+- **Deployment Verification** - can-i-deploy checks before deployments
+- **Multi-tenant Support** - Each organization gets isolated GitHub access
+
+## CLI Usage
+
+The Entente CLI provides commands for service registration, deployment checks, and fixture management.
+
+### Installation
+
+```bash
+npm install -g @entente/cli
+```
+
+### Authentication
+
+```bash
+# Login to your Entente service
+entente login
+
+# Check current authentication
+entente whoami
+```
+
+### Service Registration
+
+Register consumers and providers with your Entente service:
+
+```bash
+# Register a consumer service
+entente register-service \
+  --type consumer \
+  --name castle-client \
+  --environment development
+
+# Register a provider with OpenAPI spec
+entente register-service \
+  --type provider \
+  --name castle-service \
+  --spec spec/openapi.json \
+  --spec-version 1.0.0 \
+  --environment development
+
+# Upload/update just the OpenAPI spec
+entente upload-spec \
+  --service castle-service \
+  --service-version 1.0.0 \
+  --environment development \
+  --spec spec/openapi.json
+```
+
+### Deployment Safety Checks
+
+Check if your service can safely deploy to an environment:
+
+```bash
+# Check if consumer can deploy to staging
+entente can-i-deploy \
+  --type consumer \
+  --service castle-client \
+  --service-version 1.2.3 \
+  --environment staging
+
+# Check if provider can deploy to production
+entente can-i-deploy \
+  --type provider \
+  --service castle-service \
+  --service-version 2.1.0 \
+  --environment production
+```
+
+### Recording Deployments
+
+Record when services are deployed to environments:
+
+```bash
+# Record consumer deployment
+entente deploy-service \
+  --name castle-client \
+  --service-version 1.2.3 \
+  --environment staging \
+  --type consumer
+
+# Record provider deployment
+entente deploy-service \
+  --name castle-service \
+  --service-version 2.1.0 \
+  --environment production \
+  --type provider
+```
+
+### Fixture Management
+
+```bash
+# List fixtures for a service
+entente fixtures list --service castle-service
+
+# Approve fixtures (coming soon)
+entente fixtures approve --service castle-service --fixture-id abc123
+```
+
+### Environment Status
+
+```bash
+# Show deployment status for an environment
+entente status --environment staging
+```
+
+### Integration with package.json
+
+Add common commands to your package.json scripts:
+
+```json
+{
+  "scripts": {
+    "entente:register": "entente register-service --type consumer --name castle-client --environment test",
+    "entente:can-deploy": "entente can-i-deploy --type consumer --service castle-client --environment staging",
+    "entente:deploy": "entente deploy-service --name castle-client --type consumer --environment staging"
   }
-})
+}
 ```
 
 ## License

@@ -11,31 +11,54 @@ The provider library allows service providers to verify their implementations ag
 ### Real Interaction Verification
 ```typescript
 import { createProvider } from '@entente/provider'
+import { serve } from '@hono/node-server'
+import { resetCastles } from '../src/db.js'
+import app from '../src/index.js'
 
 const provider = createProvider({
-  serviceUrl: 'https://entente.company.com',
-  provider: 'order-service',
-  providerVersion: '2.1.0'
+  serviceUrl: process.env.ENTENTE_SERVICE_URL,
+  apiKey: process.env.ENTENTE_API_KEY,
+  provider: 'castle-service',
 })
 
 const results = await provider.verify({
-  baseUrl: 'http://localhost:3000',
-  environment: 'test',
+  baseUrl: `http://localhost:4001`,
+  environment: 'test', // Verification context (where verification runs)
   stateHandlers: {
-    'getOrder': async () => {
-      // Setup test data for getOrder operation
-      await setupTestOrder('ord-123')
+    listCastles: async () => {
+      console.log('🔄 Resetting castles to default state')
+      resetCastles()
     },
-    'createOrder': async () => {
-      // Setup test data for createOrder operation
-      await setupTestCustomer('cust-456')
-    }
+    getCastle: async () => {
+      console.log('🔄 Resetting castles to default state')
+      resetCastles()
+    },
+    createCastle: async () => {
+      console.log('🔄 Resetting castles to default state')
+      resetCastles()
+    },
+    deleteCastle: async () => {
+      console.log('🔄 Resetting castles to default state')
+      resetCastles()
+    },
   },
   cleanup: async () => {
-    // Clean up test data after each interaction
-    await cleanupTestData()
-  }
+    resetCastles()
+  },
 })
+
+console.log(`📋 Total interactions tested: ${results.results.length}`)
+
+const failedResults = results.results.filter(r => !r.success)
+if (failedResults.length > 0) {
+  console.log('❌ Failed verifications:')
+  for (const result of failedResults) {
+    console.log(`  - ${result.interactionId}: ${result.error}`)
+  }
+}
+
+// All verifications should pass
+expect(failedResults.length).toBe(0)
 ```
 
 ### State Management
@@ -80,48 +103,84 @@ Validates that provider responses match the structure of recorded consumer inter
 
 ## Usage Examples
 
-### Basic Provider Verification
+### Real Provider Verification from Castle Service
 ```typescript
-describe('Order Service Provider Verification', () => {
-  let app: any
-  let provider: ReturnType<typeof createProvider>
+import { createProvider } from '@entente/provider'
+import { serve } from '@hono/node-server'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { resetCastles } from '../src/db.js'
+import app from '../src/index.js'
 
-  beforeAll(async () => {
-    // Start your application
-    app = await startApp()
-    
-    provider = createProvider({
-      serviceUrl: 'https://entente.company.com',
-      provider: 'order-service',
-      providerVersion: process.env.PROVIDER_VERSION || '2.1.0'
+describe('Castle Service Provider Verification', () => {
+  let server: ReturnType<typeof serve>
+  const testPort = 4001
+
+  beforeEach(async () => {
+    resetCastles()
+
+    server = serve({
+      fetch: app.fetch,
+      port: testPort,
     })
+
+    await new Promise(resolve => setTimeout(resolve, 100))
   })
 
-  afterAll(async () => {
-    await app.close()
+  afterEach(async () => {
+    if (server) {
+      server.close()
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
   })
 
-  it('should verify all recorded consumer interactions', async () => {
+  it('should verify provider against recorded consumer interactions', async () => {
+    const provider = createProvider({
+      serviceUrl: process.env.ENTENTE_SERVICE_URL,
+      apiKey: process.env.ENTENTE_API_KEY,
+      provider: 'castle-service',
+    })
+
     const results = await provider.verify({
-      baseUrl: `http://localhost:${app.port}`,
-      environment: process.env.ENVIRONMENT || 'test',
-      
+      baseUrl: `http://localhost:${testPort}`,
+      environment: 'test', // Verification context (where verification runs)
       stateHandlers: {
-        'getOrder': async () => {
-          await setupTestOrder('ord-123')
+        listCastles: async () => {
+          console.log('🔄 Resetting castles to default state')
+          resetCastles()
         },
-        'createOrder': async () => {
-          await setupTestCustomer('cust-456')
-        }
+        getCastle: async () => {
+          resetCastles()
+        },
+        createCastle: async () => {
+          resetCastles()
+        },
+        deleteCastle: async () => {
+          resetCastles()
+        },
       },
-      
       cleanup: async () => {
-        await cleanupTestData()
-      }
+        resetCastles()
+      },
     })
 
-    console.log(`Verification completed: ${results.passed}/${results.totalInteractions} passed`)
-    expect(results.failed).toBe(0)
+    console.log('\n📀 Provider verification completed')
+    console.log(`📋 Total interactions tested: ${results.results.length}`)
+
+    const successfulResults = results.results.filter(r => r.success)
+    const failedResults = results.results.filter(r => !r.success)
+
+    console.log(`✅ Successful verifications: ${successfulResults.length}`)
+    console.log(`❌ Failed verifications: ${failedResults.length}`)
+
+    if (failedResults.length > 0) {
+      console.log('\n❌ Failed verifications:')
+      for (const result of failedResults) {
+        console.log(`  - ${result.interactionId}: ${result.error}`)
+      }
+    }
+
+    // All verifications should pass if the provider correctly implements the contract
+    expect(failedResults.length).toBe(0)
   })
 })
 ```
@@ -144,25 +203,48 @@ console.log(`✅ Verified ${results.results.length} interactions`)
 
 ### State Handler Implementation
 ```typescript
+// Real example from castle-service tests
 const stateHandlers = {
-  'getOrder': async () => {
-    // Setup database state for order retrieval
-    await database.orders.create({
-      id: 'ord-123',
-      customerId: 'cust-456',
-      status: 'completed',
-      total: 99.99
-    })
+  listCastles: async () => {
+    // Reset to default castle data
+    resetCastles()
   },
-  
-  'createOrder': async () => {
-    // Setup required customer data
-    await database.customers.create({
-      id: 'cust-456',
-      name: 'Test Customer',
-      email: 'test@example.com'
-    })
+
+  getCastle: async () => {
+    // Ensure specific castle exists for retrieval
+    resetCastles() // This populates default test castles
+  },
+
+  createCastle: async () => {
+    // Clear data for fresh castle creation
+    resetCastles()
+  },
+
+  deleteCastle: async () => {
+    // Ensure castle exists to be deleted
+    resetCastles()
   }
+}
+
+// Example of database reset function
+function resetCastles() {
+  // Reset in-memory castle data to known state
+  castleDatabase = [
+    {
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      name: 'Château de Versailles',
+      region: 'Île-de-France',
+      yearBuilt: 1623,
+      description: 'Famous royal residence known for its opulent architecture'
+    },
+    {
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      name: 'Château de Fontainebleau',
+      region: 'Île-de-France',
+      yearBuilt: 1137,
+      description: 'Historic royal palace with Renaissance architecture'
+    }
+  ]
 }
 ```
 
@@ -189,9 +271,10 @@ const isValid = validateJsonStructure(expectedResponse, actualResponse)
 ## Configuration
 
 ### Environment Variables
-- `PROVIDER_VERSION` - Version of the provider service
+- `ENTENTE_SERVICE_URL` - URL of your Entente service
+- `ENTENTE_API_KEY` - API key for authentication
 - `ENVIRONMENT` - Target environment for verification
-- `BUILD_ID` - Build identifier for verification tracking
+- `CI` - Set to 'true' in CI environments
 
 ### Verify Options
 ```typescript
