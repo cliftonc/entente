@@ -53,16 +53,13 @@ jobs:
       - name: Install Entente CLI globally
         run: npm install -g @entente/cli@latest
 
-      - name: Generate version
+      - name: Get version from package.json
         id: version
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            VERSION="pr-${{ github.event.number }}-$(echo ${{ github.sha }} | cut -c1-7)"
-          else
-            VERSION="$(date +%Y%m%d)-$(echo ${{ github.sha }} | cut -c1-7)"
-          fi
+          cd examples/castle-service
+          VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Generated version: $VERSION"
+          echo "Using package.json version: $VERSION"
 
       - name: Check path changes
         uses: dorny/paths-filter@v3
@@ -134,17 +131,6 @@ jobs:
             --spec-version ${{ needs.build-and-test.outputs.version }} \
             --environment development
 
-      - name: Upload OpenAPI spec
-        env:
-          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
-        run: |
-          cd examples/castle-service
-          entente upload-spec \
-            --service castle-service \
-            --service-version ${{ needs.build-and-test.outputs.version }} \
-            --environment development \
-            --spec spec/openapi.json
-
       - name: Check deployment readiness
         env:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
@@ -171,7 +157,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          entente record-deployment \
+          entente deploy-service \
             --service castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment development
@@ -265,7 +251,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          entente record-deployment \
+          entente deploy-service \
             --service castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment staging
@@ -359,7 +345,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          entente record-deployment \
+          entente deploy-service \
             --service castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment production
