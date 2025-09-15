@@ -84,10 +84,7 @@ export async function updateSelectedTenant(
   sessionId: string,
   selectedTenantId: string | null
 ): Promise<void> {
-  await db
-    .update(userSessions)
-    .set({ selectedTenantId })
-    .where(eq(userSessions.id, sessionId))
+  await db.update(userSessions).set({ selectedTenantId }).where(eq(userSessions.id, sessionId))
 }
 
 export async function deleteUserSessions(
@@ -104,7 +101,6 @@ export function createSessionCookie(sessionId: string): string {
 
   // No domain attribute - let the browser handle it naturally
   const cookieString = `sessionId=${sessionId}; HttpOnly; SameSite=Lax; Path=/; Expires=${expires.toUTCString()}${secure}`
-  console.log('🍪 Creating session cookie:', { isProduction, secure, cookieString: cookieString.substring(0, 100) + '...' })
   return cookieString
 }
 

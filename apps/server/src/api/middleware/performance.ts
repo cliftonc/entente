@@ -13,17 +13,14 @@ export async function performanceMiddleware(c: Context, next: Next) {
   c.set('startTime', startTime)
   c.set('timings', {})
 
-  console.log(`🚀 [${c.req.method}] ${c.req.url} - START`)
-
   await next()
 
   const totalTime = Date.now() - startTime
   const timings = c.get('timings') || {}
 
-  console.log(`✅ [${c.req.method}] ${c.req.url} - COMPLETE (${totalTime}ms)`)
-
   // Log detailed timings if we have them
-  if (Object.keys(timings).length > 0) {
+  const env = c.get('env')
+  if (Object.keys(timings).length > 0 && env?.DEBUG === 'true') {
     console.log('📊 Detailed timings:')
     for (const [operation, duration] of Object.entries(timings)) {
       console.log(`   ${operation}: ${duration}ms`)
@@ -46,7 +43,10 @@ export function timeOperation<T>(
       timings[operationName] = duration
       c.set('timings', timings)
 
-      console.log(`⏱️  ${operationName}: ${duration}ms`)
+      const env = c.get('env')
+      if (env?.DEBUG === 'true') {
+        console.log(`⏱️  ${operationName}: ${duration}ms`)
+      }
       return result
     })
     .catch(error => {
@@ -55,7 +55,10 @@ export function timeOperation<T>(
       timings[`${operationName} (ERROR)`] = duration
       c.set('timings', timings)
 
-      console.log(`❌ ${operationName}: ${duration}ms (ERROR: ${error.message})`)
+      const env = c.get('env')
+      if (env?.DEBUG === 'true') {
+        console.log(`❌ ${operationName}: ${duration}ms (ERROR: ${error.message})`)
+      }
       throw error
     })
 }

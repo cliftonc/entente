@@ -3,6 +3,92 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { TenantSettings, TenantSettingsUpdate } from '@entente/types'
 import SettingToggle from './components/SettingToggle'
 
+function DeleteTenantSection() {
+  const [slugInput, setSlugInput] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [currentSlug, setCurrentSlug] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Fetch session to get current tenant slug list
+    const load = async () => {
+      try {
+        const res = await fetch('/auth/session')
+        if (!res.ok) return
+        const data = await res.json()
+        if (data?.tenants && data.currentTenantId) {
+          const t = data.tenants.find((t: any) => t.tenant.id === data.currentTenantId)
+          if (t) setCurrentSlug(t.tenant.slug)
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    load()
+  }, [])
+
+  const disabled = !currentSlug || slugInput !== currentSlug || isDeleting
+
+  const handleDelete = async () => {
+    if (disabled || !currentSlug) return
+    setIsDeleting(true)
+    setError(null)
+    try {
+      const res = await fetch('/auth/delete-tenant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: currentSlug, confirm: slugInput }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete tenant')
+      }
+      if (data.logout) {
+        // No remaining tenants: force logout UI state (session cleared of tenant); redirect home or reload
+        window.location.href = '/'
+      } else {
+        // Switched to another tenant; reload to refresh context
+        window.location.href = '/'
+      }
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  return (
+    <div className="bg-base-100 rounded-lg border border-error/40 p-6">
+      <h2 className="text-lg font-semibold mb-4 text-error">Danger Zone</h2>
+      <p className="text-sm text-base-content/70 mb-4">
+        Permanently delete this tenant and all associated data (services, specs, interactions,
+        contracts, fixtures, verifications, deployments, keys, invitations). This action cannot be
+        undone.
+      </p>
+      <div className="space-y-3 max-w-xl">
+        <div className="text-sm">
+          Type the tenant slug{' '}
+          <span className="font-mono font-semibold">{currentSlug || '...'}</span> to confirm
+          deletion.
+        </div>
+        <input
+          type="text"
+          className="input input-bordered w-full"
+          placeholder="Enter tenant slug to confirm"
+          value={slugInput}
+          onChange={e => setSlugInput(e.target.value.trim())}
+          disabled={!currentSlug || isDeleting}
+        />
+        <button type="button" className="btn btn-error" disabled={disabled} onClick={handleDelete}>
+          {isDeleting && <span className="loading loading-spinner loading-sm"></span>}
+          Delete Tenant
+        </button>
+        {error && <div className="text-sm text-error">{error}</div>}
+      </div>
+    </div>
+  )
+}
+
 // Custom input component that doesn't auto-save
 interface LocalSettingInputProps {
   label: string
@@ -27,7 +113,7 @@ function LocalSettingInput({
   min,
   max,
   suffix,
-  placeholder
+  placeholder,
 }: LocalSettingInputProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = type === 'number' ? Number(e.target.value) : e.target.value
@@ -37,12 +123,8 @@ function LocalSettingInput({
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex-1">
-        <label className="text-base font-medium text-base-content">
-          {label}
-        </label>
-        <p className="text-sm text-base-content/60 mt-1">
-          {description}
-        </p>
+        <label className="text-base font-medium text-base-content">{label}</label>
+        <p className="text-sm text-base-content/60 mt-1">{description}</p>
       </div>
 
       <div className="flex items-center gap-2 min-w-0">
@@ -57,11 +139,67 @@ function LocalSettingInput({
             max={max}
             placeholder={placeholder}
           />
-          {suffix && (
-            <span className="text-sm text-base-content/60">{suffix}</span>
-          )}
+          {suffix && <span className="text-sm text-base-content/60">{suffix}</span>}
         </div>
       </div>
+    </div>
+  )
+}
+
+function CreateTenantSection() {
+  const [name, setName] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleCreate = async () => {
+    if (!name.trim()) return
+    setIsCreating(true)
+    setError(null)
+    try {
+      const res = await fetch('/auth/create-tenant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to create tenant')
+      }
+      // Backend switches session to new tenant; trigger hard redirect to root to load new context
+      window.location.href = '/'
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  return (
+    <div className="bg-base-100 rounded-lg border border-dashed border-base-300 p-6">
+      <h2 className="text-lg font-semibold mb-4">Create New Tenant</h2>
+      <p className="text-sm text-base-content/60 mb-4">
+        Create an additional tenant (workspace) for a separate team or environment.
+      </p>
+      <div className="flex gap-3 max-w-xl">
+        <input
+          type="text"
+          className="input input-bordered flex-1"
+          placeholder="New tenant name"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          disabled={isCreating}
+        />
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={handleCreate}
+          disabled={!name.trim() || isCreating}
+        >
+          {isCreating && <span className="loading loading-spinner loading-sm"></span>}
+          Create New
+        </button>
+      </div>
+      {error && <div className="mt-3 text-sm text-error">{error}</div>}
     </div>
   )
 }
@@ -115,7 +253,7 @@ function GeneralSettings() {
 
     setLocalSettings(prev => ({
       ...prev!,
-      [field]: value
+      [field]: value,
     }))
     setHasChanges(true)
   }
@@ -171,9 +309,7 @@ function GeneralSettings() {
   if (!settings || !localSettings) {
     return (
       <div className="bg-base-100 rounded-lg border border-base-300 p-6">
-        <div className="text-center text-base-content/60">
-          Failed to load settings
-        </div>
+        <div className="text-center text-base-content/60">Failed to load settings</div>
       </div>
     )
   }
@@ -186,9 +322,7 @@ function GeneralSettings() {
         <div className="space-y-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <label className="text-base font-medium text-base-content">
-                Tenant name
-              </label>
+              <label className="text-base font-medium text-base-content">Tenant name</label>
               <p className="text-sm text-base-content/60 mt-1">
                 The display name for your organization or workspace
               </p>
@@ -198,7 +332,7 @@ function GeneralSettings() {
                 type="text"
                 className="input input-bordered w-full"
                 value={localSettings.tenantName}
-                onChange={(e) => handleLocalUpdate('tenantName', e.target.value)}
+                onChange={e => handleLocalUpdate('tenantName', e.target.value)}
                 placeholder="Enter tenant name"
               />
             </div>
@@ -214,7 +348,7 @@ function GeneralSettings() {
             label="Auto-cleanup"
             description="Automatically clean up old interactions and data"
             checked={localSettings.autoCleanupEnabled}
-            onChange={(checked) => handleLocalUpdate('autoCleanupEnabled', checked)}
+            onChange={checked => handleLocalUpdate('autoCleanupEnabled', checked)}
           />
 
           <LocalSettingInput
@@ -226,7 +360,7 @@ function GeneralSettings() {
             max={365}
             suffix="days"
             disabled={!localSettings.autoCleanupEnabled}
-            onChange={(value) => handleLocalUpdate('autoCleanupDays', value)}
+            onChange={value => handleLocalUpdate('autoCleanupDays', value)}
           />
 
           <LocalSettingInput
@@ -237,7 +371,7 @@ function GeneralSettings() {
             min={7}
             max={1095}
             suffix="days"
-            onChange={(value) => handleLocalUpdate('dataRetentionDays', value)}
+            onChange={value => handleLocalUpdate('dataRetentionDays', value)}
           />
         </div>
       </div>
@@ -250,7 +384,7 @@ function GeneralSettings() {
             label="Email notifications"
             description="Receive email notifications for important events"
             checked={localSettings.notificationsEnabled}
-            onChange={(checked) => handleLocalUpdate('notificationsEnabled', checked)}
+            onChange={checked => handleLocalUpdate('notificationsEnabled', checked)}
           />
         </div>
       </div>
@@ -258,7 +392,12 @@ function GeneralSettings() {
       {updateMutation.isError && (
         <div className="alert alert-error">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <span>Failed to update settings. Please try again.</span>
         </div>
@@ -276,9 +415,7 @@ function GeneralSettings() {
       <div className="bg-base-100 rounded-lg border border-base-300 p-6">
         <div className="flex items-center justify-between">
           <div className="text-sm text-base-content/60">
-            <p>
-              {hasChanges ? 'You have unsaved changes.' : 'All changes saved.'}
-            </p>
+            <p>{hasChanges ? 'You have unsaved changes.' : 'All changes saved.'}</p>
             <p>Last updated: {new Date(settings.updatedAt).toLocaleString()}</p>
           </div>
 
@@ -305,6 +442,12 @@ function GeneralSettings() {
           </div>
         </div>
       </div>
+
+      {/* Create New Tenant */}
+      <CreateTenantSection />
+
+      {/* Danger Zone: Delete Tenant */}
+      <DeleteTenantSection />
     </div>
   )
 }

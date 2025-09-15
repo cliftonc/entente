@@ -233,7 +233,7 @@ export async function validateApiKey(
     return { valid: false }
   }
 
-  const permissions = key.permissions.split(',').map(p => p.trim())
+  const permissions = key.permissions.split(',').map((p: string) => p.trim())
 
   return {
     valid: true,

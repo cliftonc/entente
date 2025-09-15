@@ -1,6 +1,6 @@
 import type { VerificationResult } from '@entente/types'
 import type { InferSelectModel } from 'drizzle-orm'
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import type { createDatabase } from './client'
 import type { fixtures, services, specs, verificationResults, verificationTasks } from './schema'
 import type * as schema from './schema'
 
@@ -29,4 +29,4 @@ export interface DbFixtureWithTypes
 }
 
 // Database connection type
-export type DbConnection = NodePgDatabase<typeof schema>
+export type DbConnection = ReturnType<typeof createDatabase>

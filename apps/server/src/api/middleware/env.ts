@@ -14,6 +14,7 @@ interface Env {
   NODE_ENV?: string
   RESEND_API_KEY?: string
   FROM_EMAIL?: string
+  DEBUG?: string
   // Add more environment variables as needed
 }
 
@@ -42,6 +43,7 @@ export async function envMiddleware(c: Context<{ Bindings: Env }>, next: Next) {
     NODE_ENV: c.env?.NODE_ENV || process.env.NODE_ENV,
     RESEND_API_KEY: c.env?.RESEND_API_KEY || process.env.RESEND_API_KEY,
     FROM_EMAIL: c.env?.FROM_EMAIL || process.env.FROM_EMAIL,
+    DEBUG: c.env?.DEBUG || process.env.DEBUG,
     // Add more environment variables as needed
   }
 

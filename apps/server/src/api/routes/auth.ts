@@ -231,21 +231,15 @@ authRouter.get('/github/callback', async c => {
             primary: boolean
             verified: boolean
           }>
-          console.log('📧 Emails from GitHub:', emails)
+
           const primaryEmail = emails.find(e => e.primary && e.verified)
           const fallbackEmail = emails.find(e => e.verified)
 
           if (primaryEmail) {
-            console.log('✅ Found primary email:', primaryEmail.email)
             githubUser.email = primaryEmail.email
           } else if (fallbackEmail) {
-            console.log('✅ Found fallback email:', fallbackEmail.email)
             githubUser.email = fallbackEmail.email
-          } else {
-            console.log('❌ No verified emails found')
           }
-        } else {
-          console.log('❌ Failed to fetch emails, status:', emailResponse.status)
         }
       } catch (error) {
         console.error('Failed to fetch GitHub user emails:', error)
@@ -254,7 +248,6 @@ authRouter.get('/github/callback', async c => {
 
     // If still no email, redirect to error page explaining they need to add email to GitHub
     if (!githubUser.email) {
-      console.log('🚨 Still no email after fallback, redirecting to error page')
       const errorUrl = `/github-email-required`
 
       // Clear state cookie
@@ -262,8 +255,6 @@ authRouter.get('/github/callback', async c => {
 
       return c.redirect(errorUrl, 302)
     }
-
-    console.log('✅ Final email check passed:', githubUser.email)
 
     // Check if user exists
     let user = await db.select().from(users).where(eq(users.githubId, githubUser.id)).limit(1)
@@ -314,7 +305,6 @@ authRouter.get('/github/callback', async c => {
 
     // Create session
     const sessionId = await createSession(db, user[0].id)
-    console.log('🔐 Session created with ID:', sessionId)
 
     // Clear state cookie and set session cookie
     c.header('Set-Cookie', deleteStateCookie(), { append: true })
@@ -322,7 +312,6 @@ authRouter.get('/github/callback', async c => {
     // Set session cookie (no Domain attribute so browser assigns current host; allows dev on different ports via proxy)
     const sessionCookieString = createSessionCookie(sessionId)
     c.header('Set-Cookie', sessionCookieString, { append: true })
-    console.log('🍪 Session cookie set using helper:', sessionCookieString)
 
     // Handle CLI flow
     if (cliRedirectUri) {
@@ -395,10 +384,6 @@ authRouter.get('/github/callback', async c => {
 
     // Check for pending invitation
     const pendingInvitation = getCookie(c, 'pending_invitation')
-    console.log(
-      '🔍 Checking for pending invitation cookie:',
-      pendingInvitation ? 'Found' : 'Not found'
-    )
     if (pendingInvitation) {
       try {
         const { teamInvitations, tenants } = await import('../../db/schema')
@@ -425,7 +410,6 @@ authRouter.get('/github/callback', async c => {
           new Date() <= new Date(invitation[0].expiresAt) &&
           invitation[0].email === user[0].email
         ) {
-          console.log('✅ Valid pending invitation found, will redirect back to invitation page')
           // Clear the pending invitation cookie since we'll let frontend handle acceptance
           c.header('Set-Cookie', clearCookieHeader('pending_invitation'), { append: true })
 
@@ -515,25 +499,14 @@ authRouter.get('/session', async c => {
 
   // Fall back to session-based authentication
   const sessionId = getCookie(c, 'sessionId')
-  console.log('🍪 Session cookie check:', {
-    sessionId: sessionId ? 'FOUND' : 'NOT_FOUND',
-    actualValue: sessionId,
-  })
 
   if (!sessionId) {
-    console.log('❌ No session cookie found - returning unauthenticated')
     return c.json({ authenticated: false })
   }
 
-  console.log('🔍 Validating session:', sessionId)
   const { user, session } = await validateSession(db, sessionId)
-  console.log('📊 Session validation result:', {
-    user: user ? { id: user.id, email: user.email } : null,
-    session: session ? { id: session.id, expiresAt: session.expiresAt } : null,
-  })
 
   if (!user || !session) {
-    console.log('❌ Session validation failed - deleting cookie and returning unauthenticated')
     setCookie(c, 'sessionId', '', {
       httpOnly: true,
       secure: false,
@@ -598,6 +571,163 @@ authRouter.post('/logout', async c => {
     path: '/',
   })
   return c.json({ success: true })
+})
+
+// Create a new tenant for the current user
+authRouter.post('/create-tenant', async c => {
+  const sessionId = getCookie(c, 'sessionId')
+  if (!sessionId) {
+    return c.json({ error: 'Authentication required' }, 401)
+  }
+  const db = c.get('db')
+  const { user } = await validateSession(db, sessionId)
+  if (!user) {
+    return c.json({ error: 'Invalid session' }, 401)
+  }
+  let body: any
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+  const { name } = body || {}
+  if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    return c.json({ error: 'name is required' }, 400)
+  }
+  const baseSlug =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'tenant'
+  let slug = baseSlug
+  let counter = 1
+  while (true) {
+    const existing = await db.select().from(tenants).where(eq(tenants.slug, slug)).limit(1)
+    if (existing.length === 0) break
+    counter += 1
+    slug = `${baseSlug}-${counter}`.slice(0, 50)
+    if (counter > 50) {
+      return c.json({ error: 'Failed to generate unique slug' }, 500)
+    }
+  }
+  const newTenant = await db.insert(tenants).values({ name, slug }).returning()
+  await db.insert(tenantUsers).values({ tenantId: newTenant[0].id, userId: user.id, role: 'owner' })
+  await updateSelectedTenant(db, sessionId, newTenant[0].id)
+  return c.json({ success: true, tenant: newTenant[0] })
+})
+
+// Delete current tenant and all associated data
+authRouter.post('/delete-tenant', async c => {
+  const sessionId = getCookie(c, 'sessionId')
+  if (!sessionId) {
+    return c.json({ error: 'Authentication required' }, 401)
+  }
+  const db = c.get('db')
+  const { user, session } = await validateSession(db, sessionId)
+  if (!user || !session) {
+    return c.json({ error: 'Invalid session' }, 401)
+  }
+
+  let body: any
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+  const { slug, confirm } = body || {}
+  if (!slug || confirm !== slug) {
+    return c.json({ error: 'Confirmation slug mismatch' }, 400)
+  }
+
+  // Ensure session has a selected tenant
+  const tenantId = session.selectedTenantId
+  if (!tenantId) {
+    return c.json({ error: 'No tenant selected in session' }, 400)
+  }
+
+  // Load tenant and verify slug
+  const tenantRecord = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1)
+  if (tenantRecord.length === 0) {
+    return c.json({ error: 'Tenant not found' }, 404)
+  }
+  if (tenantRecord[0].slug !== slug) {
+    return c.json({ error: 'Slug does not match current tenant' }, 400)
+  }
+
+  // Verify user is owner of tenant
+  const membership = await db
+    .select({ role: tenantUsers.role })
+    .from(tenantUsers)
+    .where(and(eq(tenantUsers.userId, user.id), eq(tenantUsers.tenantId, tenantId)))
+    .limit(1)
+  if (membership.length === 0 || membership[0].role !== 'owner') {
+    return c.json({ error: 'Only tenant owners can delete a tenant' }, 403)
+  }
+
+  // Import needed tables lazily to avoid circular issues
+  const {
+    verificationResults,
+    verificationTasks,
+    interactions,
+    contracts,
+    specs,
+    fixtures,
+    deployments,
+    serviceDependencies,
+    services,
+    githubAppInstallations,
+    teamInvitations,
+    keys,
+    tenantSettings,
+    userSessions,
+  } = await import('../../db/schema')
+
+  try {
+    // Execute deletions inside transactional boundary if available
+    // neon-http drizzle currently lacks full transaction API; perform sequential deletes
+    // All deletes are scoped by tenantId to avoid cross-tenant impact
+    await db.delete(verificationResults).where(eq(verificationResults.tenantId, tenantId))
+    await db.delete(verificationTasks).where(eq(verificationTasks.tenantId, tenantId))
+    await db.delete(interactions).where(eq(interactions.tenantId, tenantId))
+    await db.delete(contracts).where(eq(contracts.tenantId, tenantId))
+    await db.delete(specs).where(eq(specs.tenantId, tenantId))
+    await db.delete(fixtures).where(eq(fixtures.tenantId, tenantId))
+    await db.delete(deployments).where(eq(deployments.tenantId, tenantId))
+    await db.delete(serviceDependencies).where(eq(serviceDependencies.tenantId, tenantId))
+    await db.delete(services).where(eq(services.tenantId, tenantId))
+    await db.delete(githubAppInstallations).where(eq(githubAppInstallations.tenantId, tenantId))
+    await db.delete(teamInvitations).where(eq(teamInvitations.tenantId, tenantId))
+    await db.delete(keys).where(eq(keys.tenantId, tenantId))
+    await db.delete(tenantSettings).where(eq(tenantSettings.tenantId, tenantId))
+    await db
+      .update(userSessions)
+      .set({ selectedTenantId: null })
+      .where(eq(userSessions.selectedTenantId, tenantId))
+    await db.delete(tenantUsers).where(eq(tenantUsers.tenantId, tenantId))
+    await db.delete(tenants).where(eq(tenants.id, tenantId))
+
+    // Find another tenant for user (if any)
+    const remainingTenants = await db
+      .select({ tenantId: tenantUsers.tenantId })
+      .from(tenantUsers)
+      .where(eq(tenantUsers.userId, user.id))
+      .limit(1)
+
+    let switchedTenantId: string | null = null
+    if (remainingTenants.length > 0) {
+      switchedTenantId = remainingTenants[0].tenantId
+      await updateSelectedTenant(db, sessionId, switchedTenantId)
+    } else {
+      // No remaining tenants - clear selected tenant (could also logout client-side)
+      await updateSelectedTenant(db, sessionId, null)
+    }
+
+    return c.json({ success: true, switchedTenantId, logout: remainingTenants.length === 0 })
+  } catch (error) {
+    console.error('Failed to delete tenant:', error)
+    return c.json({ error: 'Failed to delete tenant' }, 500)
+  }
 })
 
 // Select tenant for current session

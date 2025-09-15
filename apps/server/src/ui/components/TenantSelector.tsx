@@ -69,7 +69,7 @@ function TenantSelector() {
           />
 
           {/* Menu */}
-          <div className="absolute bottom-full left-0 right-0 mb-2 bg-base-100 border border-base-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-base-100 border border-base-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
             {tenants.map(({ tenant, role }) => (
               <button
                 key={tenant.id}
