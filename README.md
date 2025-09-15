@@ -19,7 +19,7 @@ Schema-first contract testing with centralized management. Entente combines Open
 
 **1. Consumer Records Expectations (Testing Phase)**
 ```
-Consumer (v1.0.0 / SHA: abc1234)
+Consumer (v1.0.0)
   → Records interactions against mock server
   → Captures: "I expect these responses for these requests"
   → Tagged with environment context (e.g., "ci", "test", "local")
@@ -28,18 +28,18 @@ Consumer (v1.0.0 / SHA: abc1234)
 
 **2. Provider Verifies Capabilities (Verification Phase)**
 ```
-Provider (v2.0.0 / SHA: def5678)
+Provider (v2.0.0)
   → Fetches recorded consumer expectations
   → Verifies: "I can satisfy these consumer expectations"
-  → Creates version linkage: "Provider def5678 ✓ Consumer abc1234"
+  → Creates version linkage: "Provider v2.0.0 ✓ Consumer v1.0.0"
   → Tagged with verification environment
 ```
 
 **3. Deployment Decision (can-i-deploy)**
 ```
-Question: Can consumer abc1234 deploy to staging?
-  → What provider version is in staging? (e.g., def5678)
-  → Has provider def5678 verified against consumer abc1234?
+Question: Can consumer v1.0.0 deploy to staging?
+  → What provider version is in staging? (e.g., v2.0.0)
+  → Has provider v2.0.0 verified against consumer v1.0.0?
   → Decision: Safe to deploy ✓ or Not verified ✗
 ```
 
@@ -51,14 +51,14 @@ Question: Can consumer abc1234 deploy to staging?
   - For interactions: test context/quality level (ci vs local)
   - For verifications: where verification was performed
   - For deployments: actual runtime environment (staging, production)
-- **Git SHA versioning** - automatic, precise identification of what code was actually tested
+- **Semantic versioning** - clear identification of what service versions were tested
 
 ### Benefits
 
 - **Decoupled Development**: Consumers and providers evolve independently
 - **Flexible Compatibility**: One provider version can satisfy multiple consumer versions
 - **Clear Separation**: Expectations vs capabilities vs deployment state
-- **No Manual Versioning**: Git SHA eliminates version management overhead
+- **Semantic Versioning**: Clear version management using standard versioning practices
 
 ## Architecture
 
