@@ -1,5 +1,7 @@
 # Entente
 
+🌐 **Website**: [entente.dev](https://entente.dev) | 📚 **Documentation**: [docs.entente.dev](https://docs.entente.dev)
+
 Schema-first contract testing with centralized management. Entente combines OpenAPI specifications with real interaction recording to provide automated contract testing between services.
 
 ## Features
@@ -200,7 +202,21 @@ Fixtures provide fallback data when services aren't available:
 
 ### Consumer Testing
 
-Create contract tests that record interactions against mock services. Here's a real example from the castle-client:
+Consumer testing records your application's expectations when calling external services. The `@entente/consumer` library creates real mock servers based on OpenAPI specs and automatically records interactions in CI environments.
+
+#### How it Works
+
+1. **Create a Client** - The `createClient()` function configures your Entente connection
+2. **Create a Mock** - The `client.createMock()` method:
+   - Fetches the provider's OpenAPI spec from Entente
+   - Starts a real HTTP server using Prism (mock server)
+   - Uses fixtures for deterministic responses when available
+   - Sets up automatic interaction recording when `recordingEnabled: true`
+3. **Test Against the Mock** - Your application calls the mock server URL
+4. **Automatic Recording** - In CI, all requests/responses are recorded to Entente
+5. **Clean Up** - `mock.close()` uploads any collected data and shuts down the server
+
+Here's a real example from the castle-client:
 
 ```typescript
 import { readFileSync } from 'node:fs'
@@ -224,32 +240,37 @@ describe('Castle Client Consumer Contract Tests', () => {
     const fixturesPath = join(process.cwd(), 'fixtures', 'castle-service.json')
     const localFixtures: Fixture[] = JSON.parse(readFileSync(fixturesPath, 'utf-8'))
 
+    // 1. Create Entente client with your service configuration
     client = createClient({
       serviceUrl: process.env.ENTENTE_SERVICE_URL || '',
       apiKey: process.env.ENTENTE_API_KEY || '',
-      consumer: 'castle-client',
-      environment: 'test', // Test context (not deployment environment)
+      consumer: 'castle-client',                    // Your app name
+      environment: 'test',                          // Test context
       recordingEnabled: process.env.CI === 'true', // Record in CI only
     })
 
-    // Create mock with fixtures and validation
+    // 2. Create mock server for the provider service
+    // This fetches castle-service's OpenAPI spec and starts a real HTTP server
     mock = await client.createMock('castle-service', '0.1.0', {
-      useFixtures: true,
-      validateRequests: true,
-      validateResponses: true,
-      localFixtures,
+      useFixtures: true,        // Use fixtures for deterministic responses
+      validateRequests: true,   // Validate requests against OpenAPI spec
+      validateResponses: true,  // Validate responses against OpenAPI spec
+      localFixtures,           // Fallback fixtures if server is unavailable
     })
 
-    // Initialize your API client with the mock URL
+    // 3. Initialize your API client to point at the mock server
+    // mock.url is a real HTTP URL like http://localhost:3041
     castleApi = new CastleApiClient(mock.url)
   })
 
   afterAll(async () => {
+    // 4. Clean up: uploads recorded interactions and shuts down server
     if (mock) {
       await mock.close()
     }
   })
 
+  // 5. Write normal tests - interactions are automatically recorded in CI
   it('should get all castles from the service', async () => {
     const castles = await castleApi.getAllCastles()
 
@@ -277,6 +298,15 @@ describe('Castle Client Consumer Contract Tests', () => {
   })
 })
 ```
+
+#### Key Points
+
+- **Real HTTP Server**: `mock.url` points to an actual running HTTP server powered by Prism
+- **OpenAPI-Driven**: Responses are generated from the provider's OpenAPI specification
+- **Fixture-Aware**: Uses approved fixtures when available for deterministic testing
+- **Automatic Recording**: In CI (`recordingEnabled: true`), all interactions are captured
+- **Validation**: Requests and responses are validated against the OpenAPI spec
+- **Local Development**: Works offline using local fixtures when the Entente service is unavailable
 
 ### Provider Verification
 
