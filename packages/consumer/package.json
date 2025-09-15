@@ -1,6 +1,6 @@
 {
   "name": "@entente/consumer",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Consumer testing library for Entente contract testing",
   "type": "module",
   "main": "./dist/index.js",
