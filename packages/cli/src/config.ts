@@ -35,11 +35,21 @@ export async function saveConfig(config: EntenteConfig): Promise<void> {
 }
 
 export async function getApiKey(): Promise<string | undefined> {
+  // Check environment variable first (for CI/CD)
+  if (process.env.ENTENTE_API_KEY) {
+    return process.env.ENTENTE_API_KEY
+  }
+
   const config = await loadConfig()
   return config.apiKey
 }
 
 export async function getServerUrl(): Promise<string> {
+  // Check environment variable first (for CI/CD)
+  if (process.env.ENTENTE_SERVICE_URL) {
+    return process.env.ENTENTE_SERVICE_URL
+  }
+
   const config = await loadConfig()
   return config.serverUrl || 'https://entente.dev'
 }

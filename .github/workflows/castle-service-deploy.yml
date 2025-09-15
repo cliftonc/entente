@@ -51,7 +51,7 @@ jobs:
         run: pnpm install
 
       - name: Install Entente CLI globally
-        run: npm install -g @entente/cli@^0.1.2
+        run: npm install -g @entente/cli@latest
 
       - name: Generate version
         id: version
@@ -114,7 +114,7 @@ jobs:
         run: pnpm install
 
       - name: Install Entente CLI globally
-        run: npm install -g @entente/cli@^0.1.2
+        run: npm install -g @entente/cli@latest
 
       - name: Build castle-service
         env:
@@ -208,7 +208,7 @@ jobs:
         run: pnpm install
 
       - name: Install Entente CLI globally
-        run: npm install -g @entente/cli@^0.1.2
+        run: npm install -g @entente/cli@latest
 
       - name: Build castle-service
         env:
@@ -302,7 +302,7 @@ jobs:
         run: pnpm install
 
       - name: Install Entente CLI globally
-        run: npm install -g @entente/cli@^0.1.2
+        run: npm install -g @entente/cli@latest
 
       - name: Build castle-service
         env:
