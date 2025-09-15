@@ -298,36 +298,33 @@ authRouter.get('/github/callback', async c => {
 
       let apiKey: string
       if (existingKey.length > 0) {
-        // Generate new key data for existing key
-        const { generateApiKey } = await import('../utils/keys')
-        const keyData = generateApiKey()
+        // Return the existing key since we now store it in plaintext
+        apiKey = existingKey[0].keyHash
 
-        // Update the existing key with new hash
+        // Update last used timestamp
         await db
           .update(keys)
-          .set({
-            keyHash: keyData.keyHash,
-            keyPrefix: keyData.keyPrefix,
-            lastUsedAt: new Date(),
-          })
+          .set({ lastUsedAt: new Date() })
           .where(eq(keys.id, existingKey[0].id))
-
-        apiKey = keyData.fullKey
       } else {
         // Create new API key
+        console.log(`🔑 Creating new API key for user ${user[0].username}`)
         const { generateApiKey } = await import('../utils/keys')
         const keyData = generateApiKey()
+        console.log(`🔑 Generated key data:`, { fullKey: keyData.fullKey, keyHash: keyData.keyHash, keyPrefix: keyData.keyPrefix })
 
-        await db.insert(keys).values({
+        const insertResult = await db.insert(keys).values({
           tenantId: userTenant[0].tenantId,
           name: keyName,
           keyHash: keyData.keyHash,
           keyPrefix: keyData.keyPrefix,
           createdBy: user[0].username,
           permissions: 'read,write',
-        })
+        }).returning()
 
+        console.log(`🔑 Inserted key into database:`, insertResult)
         apiKey = keyData.fullKey
+        console.log(`🔑 Returning API key: ${apiKey}`)
       }
 
       // Clear CLI cookie and redirect to CLI callback with API key
@@ -367,8 +364,10 @@ authRouter.get('/session', async c => {
   const authHeader = c.req.header('Authorization')
   if (authHeader?.startsWith('Bearer ')) {
     const apiKey = authHeader.substring(7)
+    console.log(`🔐 Validating API key: ${apiKey.substring(0, 12)}...`)
     const { validateApiKey } = await import('./keys')
     const validation = await validateApiKey(db, apiKey)
+    console.log(`🔐 Validation result:`, { valid: validation.valid, tenantId: validation.tenantId })
 
     if (validation.valid && validation.tenantId) {
       // Get user info from tenant membership
@@ -517,37 +516,33 @@ authRouter.get('/cli', async c => {
 
       let apiKey: string
       if (existingKey.length > 0) {
-        // Use existing key - but we can't return the actual key from DB since it's hashed
-        // So we need to generate a new one
-        const { generateApiKey } = await import('../utils/keys')
-        const keyData = generateApiKey()
+        // Return the existing key since we now store it in plaintext
+        apiKey = existingKey[0].keyHash
 
-        // Update the existing key with new hash
+        // Update last used timestamp
         await db
           .update(keys)
-          .set({
-            keyHash: keyData.keyHash,
-            keyPrefix: keyData.keyPrefix,
-            lastUsedAt: new Date(),
-          })
+          .set({ lastUsedAt: new Date() })
           .where(eq(keys.id, existingKey[0].id))
-
-        apiKey = keyData.fullKey
       } else {
         // Create new API key
+        console.log(`🔑 Creating new API key for CLI user ${user.username}`)
         const { generateApiKey } = await import('../utils/keys')
         const keyData = generateApiKey()
+        console.log(`🔑 Generated CLI key data:`, { fullKey: keyData.fullKey, keyHash: keyData.keyHash, keyPrefix: keyData.keyPrefix })
 
-        await db.insert(keys).values({
+        const insertResult = await db.insert(keys).values({
           tenantId: userTenant[0].tenantId,
           name: keyName,
           keyHash: keyData.keyHash,
           keyPrefix: keyData.keyPrefix,
           createdBy: user.username,
           permissions: 'read,write',
-        })
+        }).returning()
 
+        console.log(`🔑 Inserted CLI key into database:`, insertResult)
         apiKey = keyData.fullKey
+        console.log(`🔑 Returning CLI API key: ${apiKey}`)
       }
 
       // Redirect to CLI callback with API key

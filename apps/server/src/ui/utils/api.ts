@@ -1,10 +1,13 @@
 // API utility functions for UI components
 import type {
+  ApiKey,
   ClientInteraction,
   Contract,
+  CreateKeyRequest,
   DeploymentState,
   Fixture,
   OpenAPISpec,
+  RevokeKeyRequest,
   Service,
   ServiceDependency,
   VerificationResults,
@@ -303,5 +306,54 @@ export const contractApi = {
     fetchApi<Contract>(`/contracts/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
+    }),
+}
+
+// Keys API functions
+export const keysApi = {
+  getAll: (includeRevoked?: boolean) => {
+    const params = includeRevoked ? '?includeRevoked=true' : ''
+    return fetchApi<ApiKey[]>(`/keys${params}`)
+  },
+  getById: (id: string) => fetchApi<ApiKey>(`/keys/${id}`),
+  create: (data: CreateKeyRequest) =>
+    fetchApi<ApiKey>('/keys', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  rotate: (id: string) =>
+    fetchApi<ApiKey>(`/keys/${id}/rotate`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+  revoke: (id: string, revokedBy: string) =>
+    fetchApi<{ success: boolean }>(`/keys/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ revokedBy }),
+    }),
+}
+
+// Generic API object for convenience
+export const api = {
+  get: <T>(url: string) => fetchApi<T>(url),
+  post: <T>(url: string, data?: unknown) =>
+    fetchApi<T>(url, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+  put: <T>(url: string, data?: unknown) =>
+    fetchApi<T>(url, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+  patch: <T>(url: string, data?: unknown) =>
+    fetchApi<T>(url, {
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+  delete: <T>(url: string, data?: unknown) =>
+    fetchApi<T>(url, {
+      method: 'DELETE',
+      body: data ? JSON.stringify(data) : undefined,
     }),
 }

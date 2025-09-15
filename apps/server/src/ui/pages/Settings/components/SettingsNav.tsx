@@ -15,6 +15,12 @@ const navItems: NavItem[] = [
     description: 'Data retention and cleanup settings',
   },
   {
+    path: '/settings/keys',
+    label: 'API Keys',
+    icon: 'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z',
+    description: 'Manage API keys for programmatic access',
+  },
+  {
     path: '/settings/team',
     label: 'Team',
     icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a.5.5 0 01.5.5v.5m0 0v.5a.5.5 0 01-.5.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z',

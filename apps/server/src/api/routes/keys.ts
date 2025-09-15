@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import type { ApiKey, CreateKeyRequest, RevokeKeyRequest } from '@entente/types'
 import { and, desc, eq, isNull } from 'drizzle-orm'
 import { Hono } from 'hono'
@@ -120,6 +119,55 @@ keysRouter.get('/:id', async c => {
   return c.json(response)
 })
 
+// Rotate API key
+keysRouter.post('/:id/rotate', async c => {
+  const db = c.get('db')
+  const keyId = c.req.param('id')
+  const { tenantId } = c.get('session')
+
+  // Check if key exists and belongs to tenant
+  const existingKey = await db.query.keys.findFirst({
+    where: and(eq(keys.tenantId, tenantId), eq(keys.id, keyId), isNull(keys.revokedAt)),
+  })
+
+  if (!existingKey) {
+    return c.json({ error: 'API key not found or already revoked' }, 404)
+  }
+
+  // Generate new key data
+  const { fullKey, keyHash, keyPrefix } = generateApiKey()
+
+  // Update the existing key with new hash and prefix
+  const [rotatedKey] = await db
+    .update(keys)
+    .set({
+      keyHash,
+      keyPrefix,
+      lastUsedAt: new Date(),
+    })
+    .where(eq(keys.id, keyId))
+    .returning()
+
+  const response: ApiKey = {
+    id: rotatedKey.id,
+    name: rotatedKey.name,
+    keyPrefix: rotatedKey.keyPrefix,
+    fullKey, // Only returned on rotation
+    createdBy: rotatedKey.createdBy,
+    expiresAt: rotatedKey.expiresAt?.toISOString() || null,
+    lastUsedAt: rotatedKey.lastUsedAt?.toISOString() || null,
+    isActive: rotatedKey.isActive,
+    permissions: rotatedKey.permissions,
+    createdAt: rotatedKey.createdAt.toISOString(),
+    revokedAt: rotatedKey.revokedAt?.toISOString() || null,
+    revokedBy: rotatedKey.revokedBy || null,
+  }
+
+  console.log(`🔄 Rotated API key "${rotatedKey.name}"`)
+
+  return c.json(response)
+})
+
 // Revoke API key
 keysRouter.delete('/:id', async c => {
   const db = c.get('db')
@@ -163,8 +211,16 @@ keysRouter.delete('/:id', async c => {
 })
 
 // Update key usage (internal function for middleware)
-export async function updateKeyUsage(db: DbConnection, keyHash: string): Promise<void> {
-  await db.update(keys).set({ lastUsedAt: new Date() }).where(eq(keys.keyHash, keyHash))
+export async function updateKeyUsage(db: DbConnection, apiKey: string): Promise<void> {
+  // First try plaintext match (new format)
+  let result = await db.update(keys).set({ lastUsedAt: new Date() }).where(eq(keys.keyHash, apiKey)).returning({ id: keys.id })
+
+  // If no match, try hashed format (legacy support)
+  if (result.length === 0) {
+    const { createHash } = await import('node:crypto')
+    const keyHash = createHash('sha256').update(apiKey).digest('hex')
+    await db.update(keys).set({ lastUsedAt: new Date() }).where(eq(keys.keyHash, keyHash))
+  }
 }
 
 // Validate API key (internal function for middleware)
@@ -172,14 +228,9 @@ export async function validateApiKey(
   db: DbConnection,
   apiKey: string
 ): Promise<{ valid: boolean; tenantId?: string; permissions?: string[] }> {
-  if (!apiKey.startsWith('ent_')) {
-    return { valid: false }
-  }
-
-  const keyHash = createHash('sha256').update(apiKey).digest('hex')
-
+  // Try to find the key directly (handles both old and new format)
   const key = await db.query.keys.findFirst({
-    where: and(eq(keys.keyHash, keyHash), eq(keys.isActive, true), isNull(keys.revokedAt)),
+    where: and(eq(keys.keyHash, apiKey), eq(keys.isActive, true), isNull(keys.revokedAt)),
   })
 
   if (!key) {

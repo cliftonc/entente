@@ -1,6 +1,7 @@
 import { Route, Routes, Navigate } from 'react-router-dom'
 import SettingsNav from './components/SettingsNav'
 import GeneralSettings from './GeneralSettings'
+import KeySettings from './KeySettings'
 import TeamSettings from './TeamSettings'
 import GitHubSettings from './GitHubSettings'
 
@@ -23,6 +24,7 @@ function Settings() {
           <Routes>
             <Route path="/" element={<Navigate to="general" replace />} />
             <Route path="/general" element={<GeneralSettings />} />
+            <Route path="/keys" element={<KeySettings />} />
             <Route path="/team" element={<TeamSettings />} />
             <Route path="/github" element={<GitHubSettings />} />
           </Routes>
