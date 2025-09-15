@@ -1,0 +1,53 @@
+name = "castle-client"
+main = "src/worker.ts"
+compatibility_date = "2024-09-15"
+compatibility_flags = ["nodejs_compat"]
+
+[dev]
+port = 4002
+
+# Default production environment
+[env.production]
+name = "castle-client"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+CASTLE_SERVICE_URL = "https://castle-service.clifton-cunningham.workers.dev"
+
+[[env.production.services]]
+binding = "CASTLE_SERVICE"
+service = "castle-service"
+
+# Staging environment
+[env.staging]
+name = "castle-client-staging"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+CASTLE_SERVICE_URL = "https://castle-service-staging.clifton-cunningham.workers.dev"
+
+[[env.staging.services]]
+binding = "CASTLE_SERVICE"
+service = "castle-service-staging"
+
+# Development environment
+[env.development]
+name = "castle-client-dev"
+
+[env.development.vars]
+ENVIRONMENT = "development"
+CASTLE_SERVICE_URL = "https://castle-service-dev.clifton-cunningham.workers.dev"
+
+[[env.development.services]]
+binding = "CASTLE_SERVICE"
+service = "castle-service-dev"
+
+
+# KV storage (if needed for caching)
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "your-kv-namespace-id"
+# preview_id = "your-preview-kv-namespace-id"
+
+# Secrets (set via wrangler secret put)
+# ENTENTE_API_KEY

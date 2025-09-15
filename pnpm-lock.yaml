@@ -138,6 +138,9 @@ importers:
       '@hono/node-server':
         specifier: ^1.13.5
         version: 1.19.2(hono@4.9.7)
+      '@hono/swagger-ui':
+        specifier: ^0.4.1
+        version: 0.4.1(hono@4.9.7)
       dotenv:
         specifier: ^17.2.2
         version: 17.2.2
@@ -145,9 +148,15 @@ importers:
         specifier: ^4.6.7
         version: 4.9.7
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20250913.0
+        version: 4.20250913.0
       '@types/node':
         specifier: ^24.0.0
         version: 24.3.3
+      swagger-ui-dist:
+        specifier: ^5.17.14
+        version: 5.29.0
       tsx:
         specifier: ^4.19.2
         version: 4.20.5
@@ -157,6 +166,9 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@24.3.3)
+      wrangler:
+        specifier: latest
+        version: 4.37.0(@cloudflare/workers-types@4.20250913.0)
 
   examples/castle-service:
     dependencies:

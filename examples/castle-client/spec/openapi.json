@@ -1,0 +1,575 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Castle Client API",
+    "version": "1.0.0",
+    "description": "A heritage tourism API that provides curated information about French castles - demonstrating Entente contract testing"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4002",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/french-heritage": {
+      "get": {
+        "operationId": "getFrenchHeritage",
+        "summary": "Get comprehensive French castle heritage information",
+        "responses": {
+          "200": {
+            "description": "French heritage data including statistics and castle summaries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeritageResponse"
+                },
+                "example": {
+                  "totalCastles": 5,
+                  "regions": ["Île-de-France", "Centre-Val de Loire", "Nouvelle-Aquitaine"],
+                  "oldestCastle": {
+                    "id": "550e8400-e29b-41d4-a716-446655440001",
+                    "name": "Château de Fontainebleau",
+                    "region": "Île-de-France",
+                    "age": 887
+                  },
+                  "averageAge": 542,
+                  "castles": [
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "name": "Château de Versailles",
+                      "region": "Île-de-France",
+                      "age": 401
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Service error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/heritage/regions/{region}": {
+      "get": {
+        "operationId": "getCastlesByRegion",
+        "summary": "Get castles in a specific region",
+        "parameters": [
+          {
+            "name": "region",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Île-de-France"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Castles in the specified region",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionCastlesResponse"
+                },
+                "example": {
+                  "region": "Île-de-France",
+                  "count": 2,
+                  "castles": [
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "name": "Château de Versailles",
+                      "region": "Île-de-France",
+                      "yearBuilt": 1623,
+                      "age": 401
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Service error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/heritage/oldest": {
+      "get": {
+        "operationId": "getOldestCastles",
+        "summary": "Get the oldest castles",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 5
+            },
+            "example": 10
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of oldest castles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OldestCastlesResponse"
+                },
+                "example": {
+                  "limit": 5,
+                  "castles": [
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440001",
+                      "name": "Château de Fontainebleau",
+                      "region": "Île-de-France",
+                      "yearBuilt": 1137,
+                      "age": 887
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid limit parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Service error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/heritage/recommend": {
+      "post": {
+        "operationId": "recommendCastles",
+        "summary": "Get personalized castle recommendations",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationRequest"
+              },
+              "example": {
+                "region": "Île-de-France",
+                "maxAge": 500,
+                "minAge": 200
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Personalized castle recommendations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationResponse"
+                },
+                "example": {
+                  "filters": {
+                    "region": "Île-de-France",
+                    "maxAge": 500,
+                    "minAge": 200
+                  },
+                  "recommendations": [
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "name": "Château de Versailles",
+                      "region": "Île-de-France",
+                      "yearBuilt": 1623,
+                      "age": 401,
+                      "reason": "matches your preferred region (Île-de-France), perfect age (401 years old)"
+                    }
+                  ],
+                  "totalMatching": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Service error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/heritage/castle/{id}": {
+      "get": {
+        "operationId": "getCastleDetails",
+        "summary": "Get detailed information about a specific castle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detailed castle information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CastleDetailsResponse"
+                },
+                "example": {
+                  "id": "550e8400-e29b-41d4-a716-446655440000",
+                  "name": "Château de Versailles",
+                  "region": "Île-de-France",
+                  "yearBuilt": 1623,
+                  "description": "The magnificent Château de Versailles was built in 1623 in the Île-de-France region.",
+                  "age": 401,
+                  "visitRecommendation": "Great example of medieval French architecture and history."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Service error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Health check endpoint",
+        "responses": {
+          "200": {
+            "description": "Service health status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "status": "ok",
+                  "service": "castle-client",
+                  "castleServiceUrl": "http://localhost:4001"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CastleSummary": {
+        "type": "object",
+        "required": ["id", "name", "region", "age"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the castle"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the castle"
+          },
+          "region": {
+            "type": "string",
+            "description": "French region where the castle is located"
+          },
+          "age": {
+            "type": "integer",
+            "description": "Age of the castle in years"
+          }
+        }
+      },
+      "CastleWithYear": {
+        "type": "object",
+        "required": ["id", "name", "region", "yearBuilt", "age"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the castle"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the castle"
+          },
+          "region": {
+            "type": "string",
+            "description": "French region where the castle is located"
+          },
+          "yearBuilt": {
+            "type": "integer",
+            "description": "Year when the castle was built"
+          },
+          "age": {
+            "type": "integer",
+            "description": "Age of the castle in years"
+          }
+        }
+      },
+      "HeritageResponse": {
+        "type": "object",
+        "required": ["totalCastles", "regions", "oldestCastle", "averageAge", "castles"],
+        "properties": {
+          "totalCastles": {
+            "type": "integer",
+            "description": "Total number of castles in the database"
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of all regions with castles"
+          },
+          "oldestCastle": {
+            "$ref": "#/components/schemas/CastleSummary",
+            "description": "Information about the oldest castle"
+          },
+          "averageAge": {
+            "type": "integer",
+            "description": "Average age of all castles in years"
+          },
+          "castles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CastleSummary"
+            },
+            "description": "List of all castles with basic information"
+          }
+        }
+      },
+      "RegionCastlesResponse": {
+        "type": "object",
+        "required": ["region", "count", "castles"],
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "Name of the region"
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of castles in the region"
+          },
+          "castles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CastleWithYear"
+            }
+          }
+        }
+      },
+      "OldestCastlesResponse": {
+        "type": "object",
+        "required": ["limit", "castles"],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "description": "Number of castles requested"
+          },
+          "castles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CastleWithYear"
+            }
+          }
+        }
+      },
+      "RecommendationRequest": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "description": "Preferred region for castle recommendations"
+          },
+          "maxAge": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Maximum age of castles in years"
+          },
+          "minAge": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Minimum age of castles in years"
+          }
+        }
+      },
+      "CastleRecommendation": {
+        "type": "object",
+        "required": ["id", "name", "region", "yearBuilt", "age", "reason"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the castle"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the castle"
+          },
+          "region": {
+            "type": "string",
+            "description": "French region where the castle is located"
+          },
+          "yearBuilt": {
+            "type": "integer",
+            "description": "Year when the castle was built"
+          },
+          "age": {
+            "type": "integer",
+            "description": "Age of the castle in years"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason why this castle is recommended"
+          }
+        }
+      },
+      "RecommendationResponse": {
+        "type": "object",
+        "required": ["filters", "recommendations", "totalMatching"],
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/RecommendationRequest"
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CastleRecommendation"
+            }
+          },
+          "totalMatching": {
+            "type": "integer",
+            "description": "Total number of castles matching the filters"
+          }
+        }
+      },
+      "CastleDetailsResponse": {
+        "type": "object",
+        "required": ["id", "name", "region", "yearBuilt", "description", "age", "visitRecommendation"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the castle"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the castle"
+          },
+          "region": {
+            "type": "string",
+            "description": "French region where the castle is located"
+          },
+          "yearBuilt": {
+            "type": "integer",
+            "description": "Year when the castle was built"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the castle"
+          },
+          "age": {
+            "type": "integer",
+            "description": "Age of the castle in years"
+          },
+          "visitRecommendation": {
+            "type": "string",
+            "description": "Personalized visit recommendation"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": ["status", "service", "castleServiceUrl"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ok"],
+            "description": "Service status"
+          },
+          "service": {
+            "type": "string",
+            "description": "Service name"
+          },
+          "castleServiceUrl": {
+            "type": "string",
+            "description": "URL of the castle service dependency"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error", "message"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error type"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message"
+          }
+        }
+      }
+    }
+  }
+}

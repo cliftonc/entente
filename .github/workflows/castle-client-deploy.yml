@@ -1,16 +1,16 @@
-name: Deploy Castle Service
+name: Deploy Castle Client
 
 on:
   push:
     branches: [main]
     paths:
-      - 'examples/castle-service/**'
-      - '.github/workflows/castle-service-deploy.yml'
+      - 'examples/castle-client/**'
+      - '.github/workflows/castle-client-deploy.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'examples/castle-service/**'
-      - '.github/workflows/castle-service-deploy.yml'
+      - 'examples/castle-client/**'
+      - '.github/workflows/castle-client-deploy.yml'
   workflow_dispatch:
     inputs:
       environment:
@@ -27,7 +27,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     outputs:
-      should-deploy: ${{ steps.changes.outputs.castle-service }}
+      should-deploy: ${{ steps.changes.outputs.castle-client }}
       version: ${{ steps.version.outputs.version }}
 
     steps:
@@ -42,12 +42,12 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install published Entente packages in castle-service
-        working-directory: examples/castle-service
-        run: pnpm add @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
+      - name: Install published Entente packages in castle-client
+        working-directory: examples/castle-client
+        run: pnpm add @entente/types@^0.1.2 @entente/consumer@^0.1.2 @entente/fixtures@^0.1.2
 
-      - name: Install castle-service dependencies
-        working-directory: examples/castle-service
+      - name: Install castle-client dependencies
+        working-directory: examples/castle-client
         run: pnpm install
 
       - name: Install Entente CLI globally
@@ -56,7 +56,7 @@ jobs:
       - name: Get version from package.json
         id: version
         run: |
-          cd examples/castle-service
+          cd examples/castle-client
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Using package.json version: $VERSION"
@@ -66,36 +66,34 @@ jobs:
         id: changes
         with:
           filters: |
-            castle-service:
-              - 'examples/castle-service/**'
-              - '.github/workflows/castle-service-deploy.yml'
+            castle-client:
+              - 'examples/castle-client/**'
+              - '.github/workflows/castle-client-deploy.yml'
 
-      - name: Build castle-service
-        if: steps.changes.outputs.castle-service == 'true'
+      - name: Build castle-client
+        if: steps.changes.outputs.castle-client == 'true'
         env:
           ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
-        run: pnpm --filter @entente/example-castle-service build
+        run: pnpm --filter @entente/example-castle-client build
 
       - name: Register service with Entente
-        if: steps.changes.outputs.castle-service == 'true'
+        if: steps.changes.outputs.castle-client == 'true'
         env:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
-          cd examples/castle-service
+          cd examples/castle-client
           entente register-service \
-            --type provider \
-            --name castle-service \
-            --spec spec/openapi.json \
-            --spec-version ${{ steps.version.outputs.version }} \
+            --type consumer \
+            --name castle-client \
             --environment development
 
-      - name: Run castle-service tests
-        if: steps.changes.outputs.castle-service == 'true'
+      - name: Run castle-client tests
+        if: steps.changes.outputs.castle-client == 'true'
         env:
           ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
-        run: pnpm --filter @entente/example-castle-service test
+        run: pnpm --filter @entente/example-castle-client test
 
   deploy-development:
     if: needs.build-and-test.outputs.should-deploy == 'true' && (github.event_name == 'push' || github.event_name == 'pull_request' || github.event.inputs.environment == 'development')
@@ -115,31 +113,31 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install published Entente packages in castle-service
-        working-directory: examples/castle-service
-        run: pnpm add @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
+      - name: Install published Entente packages in castle-client
+        working-directory: examples/castle-client
+        run: pnpm add @entente/types@^0.1.2 @entente/consumer@^0.1.2 @entente/fixtures@^0.1.2
 
-      - name: Install castle-service dependencies
-        working-directory: examples/castle-service
+      - name: Install castle-client dependencies
+        working-directory: examples/castle-client
         run: pnpm install
 
       - name: Install Entente CLI globally
         run: npm install -g @entente/cli@latest
 
-      - name: Build castle-service
+      - name: Build castle-client
         env:
           ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
-        run: pnpm --filter @entente/example-castle-service build
+        run: pnpm --filter @entente/example-castle-client build
 
       - name: Check deployment readiness
         env:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
-          cd examples/castle-service
+          cd examples/castle-client
           entente can-i-deploy \
-            --type provider \
-            --service castle-service \
+            --type consumer \
+            --service castle-client \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment development
 
@@ -148,8 +146,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: examples/castle-service
-          command: deploy --name castle-service-dev --env development
+          workingDirectory: examples/castle-client
+          command: deploy --name castle-client-dev --env development
         env:
           ENVIRONMENT: development
 
@@ -157,17 +155,17 @@ jobs:
         env:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
-          cd examples/castle-service
+          cd examples/castle-client
           entente deploy-service \
-            --name castle-service \
+            --name castle-client \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment development \
-            --type provider
+            --type consumer
 
       - name: Run smoke tests
         run: |
           sleep 10
-          curl -f https://castle-service-dev.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1
+          curl -f https://castle-client-dev.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1
 
   deploy-staging:
     if: needs.build-and-test.outputs.should-deploy == 'true' && (github.event_name == 'push' || github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'production')
@@ -187,31 +185,31 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install published Entente packages in castle-service
-        working-directory: examples/castle-service
-        run: pnpm add @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
+      - name: Install published Entente packages in castle-client
+        working-directory: examples/castle-client
+        run: pnpm add @entente/types@^0.1.2 @entente/consumer@^0.1.2 @entente/fixtures@^0.1.2
 
-      - name: Install castle-service dependencies
-        working-directory: examples/castle-service
+      - name: Install castle-client dependencies
+        working-directory: examples/castle-client
         run: pnpm install
 
       - name: Install Entente CLI globally
         run: npm install -g @entente/cli@latest
 
-      - name: Build castle-service
+      - name: Build castle-client
         env:
           ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
-        run: pnpm --filter @entente/example-castle-service build
+        run: pnpm --filter @entente/example-castle-client build
 
       - name: Check deployment readiness
         env:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
-          cd examples/castle-service
+          cd examples/castle-client
           entente can-i-deploy \
-            --type provider \
-            --service castle-service \
+            --type consumer \
+            --service castle-client \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment staging
 
@@ -220,8 +218,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: examples/castle-service
-          command: deploy --name castle-service-staging --env staging
+          workingDirectory: examples/castle-client
+          command: deploy --name castle-client-staging --env staging
         env:
           ENVIRONMENT: staging
 
@@ -229,17 +227,17 @@ jobs:
         env:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
-          cd examples/castle-service
+          cd examples/castle-client
           entente deploy-service \
-            --name castle-service \
+            --name castle-client \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment staging \
-            --type provider
+            --type consumer
 
       - name: Run smoke tests
         run: |
           sleep 10
-          curl -f https://castle-service-staging.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1
+          curl -f https://castle-client-staging.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1
 
   deploy-production:
     if: needs.build-and-test.outputs.should-deploy == 'true' && (github.event_name == 'push' || github.event.inputs.environment == 'production')
@@ -259,31 +257,31 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install published Entente packages in castle-service
-        working-directory: examples/castle-service
-        run: pnpm add @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
+      - name: Install published Entente packages in castle-client
+        working-directory: examples/castle-client
+        run: pnpm add @entente/types@^0.1.2 @entente/consumer@^0.1.2 @entente/fixtures@^0.1.2
 
-      - name: Install castle-service dependencies
-        working-directory: examples/castle-service
+      - name: Install castle-client dependencies
+        working-directory: examples/castle-client
         run: pnpm install
 
       - name: Install Entente CLI globally
         run: npm install -g @entente/cli@latest
 
-      - name: Build castle-service
+      - name: Build castle-client
         env:
           ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
-        run: pnpm --filter @entente/example-castle-service build
+        run: pnpm --filter @entente/example-castle-client build
 
       - name: Check deployment readiness
         env:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
-          cd examples/castle-service
+          cd examples/castle-client
           entente can-i-deploy \
-            --type provider \
-            --service castle-service \
+            --type consumer \
+            --service castle-client \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment production
 
@@ -292,8 +290,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: examples/castle-service
-          command: deploy --name castle-service --env production
+          workingDirectory: examples/castle-client
+          command: deploy --name castle-client --env production
         env:
           ENVIRONMENT: production
 
@@ -301,14 +299,14 @@ jobs:
         env:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
-          cd examples/castle-service
+          cd examples/castle-client
           entente deploy-service \
-            --name castle-service \
+            --name castle-client \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment production \
-            --type provider
+            --type consumer
 
       - name: Run smoke tests
         run: |
           sleep 10
-          curl -f https://castle-service.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1
+          curl -f https://castle-client.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1
