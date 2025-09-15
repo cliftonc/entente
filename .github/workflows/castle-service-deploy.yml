@@ -1,16 +1,11 @@
-name: Deploy Castle Service
+name: Castle Service - Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Castle Service - Build & Test"]
+    types:
+      - completed
     branches: [main]
-    paths:
-      - 'examples/castle-service/**'
-      - '.github/workflows/castle-service-deploy.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'examples/castle-service/**'
-      - '.github/workflows/castle-service-deploy.yml'
   workflow_dispatch:
     inputs:
       environment:
@@ -22,83 +17,19 @@ on:
           - development
           - staging
           - production
+      skip_build_test:
+        description: 'Skip build and test (use latest successful run)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
-    outputs:
-      should-deploy: ${{ steps.changes.outputs.castle-service }}
-      version: ${{ steps.version.outputs.version }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Install published Entente packages in castle-service
-        working-directory: examples/castle-service
-        run: pnpm add @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
-
-      - name: Install castle-service dependencies
-        working-directory: examples/castle-service
-        run: pnpm install
-
-      - name: Install Entente CLI globally
-        run: npm install -g @entente/cli@latest
-
-      - name: Get version from package.json
-        id: version
-        run: |
-          cd examples/castle-service
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Using package.json version: $VERSION"
-
-      - name: Check path changes
-        uses: dorny/paths-filter@v3
-        id: changes
-        with:
-          filters: |
-            castle-service:
-              - 'examples/castle-service/**'
-              - '.github/workflows/castle-service-deploy.yml'
-
-      - name: Build castle-service
-        if: steps.changes.outputs.castle-service == 'true'
-        env:
-          ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
-          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
-        run: pnpm --filter @entente/example-castle-service build
-
-      - name: Register service with Entente
-        if: steps.changes.outputs.castle-service == 'true'
-        env:
-          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
-        run: |
-          cd examples/castle-service
-          entente register-service \
-            --type provider \
-            --name castle-service \
-            --spec spec/openapi.json \
-            --spec-version ${{ steps.version.outputs.version }} \
-            --environment development
-
-      - name: Run castle-service tests
-        if: steps.changes.outputs.castle-service == 'true'
-        env:
-          ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
-          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
-        run: pnpm --filter @entente/example-castle-service test
+    if: github.event.inputs.skip_build_test != 'true'
+    uses: ./.github/workflows/castle-service-build-test.yml
 
   deploy-development:
-    if: needs.build-and-test.outputs.should-deploy == 'true' && (github.event_name == 'push' || github.event_name == 'pull_request' || github.event.inputs.environment == 'development')
+    if: always() && ((needs.build-and-test.outputs.should-deploy == 'true' && needs.build-and-test.result == 'success') || github.event.inputs.skip_build_test == 'true') && (github.event_name == 'workflow_run' || github.event.inputs.environment == 'development')
     needs: build-and-test
     runs-on: ubuntu-latest
     environment: development
@@ -137,10 +68,11 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
+          VERSION=$(node -p "require('./package.json').version")
           entente can-i-deploy \
             --type provider \
             --service castle-service \
-            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --service-version $VERSION \
             --environment development
 
       - name: Deploy to Cloudflare Workers (Development)
@@ -158,9 +90,10 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
+          VERSION=$(node -p "require('./package.json').version")
           entente deploy-service \
             --name castle-service \
-            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --service-version $VERSION \
             --environment development \
             --type provider
 
@@ -170,7 +103,7 @@ jobs:
           curl -f https://castle-service-dev.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1
 
   deploy-staging:
-    if: needs.build-and-test.outputs.should-deploy == 'true' && (github.event_name == 'push' || github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'production')
+    if: always() && ((needs.build-and-test.outputs.should-deploy == 'true' && needs.build-and-test.result == 'success') || github.event.inputs.skip_build_test == 'true') && (github.event_name == 'workflow_run' || github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'production')
     needs: [build-and-test, deploy-development]
     runs-on: ubuntu-latest
     environment: staging
@@ -209,10 +142,11 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
+          VERSION=$(node -p "require('./package.json').version")
           entente can-i-deploy \
             --type provider \
             --service castle-service \
-            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --service-version $VERSION \
             --environment staging
 
       - name: Deploy to Cloudflare Workers (Staging)
@@ -230,9 +164,10 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
+          VERSION=$(node -p "require('./package.json').version")
           entente deploy-service \
             --name castle-service \
-            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --service-version $VERSION \
             --environment staging \
             --type provider
 
@@ -242,7 +177,7 @@ jobs:
           curl -f https://castle-service-staging.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1
 
   deploy-production:
-    if: needs.build-and-test.outputs.should-deploy == 'true' && (github.event_name == 'push' || github.event.inputs.environment == 'production')
+    if: always() && ((needs.build-and-test.outputs.should-deploy == 'true' && needs.build-and-test.result == 'success') || github.event.inputs.skip_build_test == 'true') && (github.event_name == 'workflow_run' || github.event.inputs.environment == 'production')
     needs: [build-and-test, deploy-staging]
     runs-on: ubuntu-latest
     environment: production
@@ -281,10 +216,11 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
+          VERSION=$(node -p "require('./package.json').version")
           entente can-i-deploy \
             --type provider \
             --service castle-service \
-            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --service-version $VERSION \
             --environment production
 
       - name: Deploy to Cloudflare Workers (Production)
@@ -302,9 +238,10 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
+          VERSION=$(node -p "require('./package.json').version")
           entente deploy-service \
             --name castle-service \
-            --service-version ${{ needs.build-and-test.outputs.version }} \
+            --service-version $VERSION \
             --environment production \
             --type provider
 
