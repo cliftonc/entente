@@ -11,15 +11,24 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-base-200 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100 flex items-center justify-center">
       <div className="card w-96 bg-base-100 shadow-xl">
         <div className="card-body">
-          <h1 className="card-title text-2xl font-bold text-center justify-center mb-6">
-            Welcome to Entente
-          </h1>
+          {/* Header */}
+          <div className="flex items-center gap-1 justify-center mb-6">
+            <div className="avatar">
+              <div className="w-8 rounded bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white">
+                <div className="flex items-center justify-center w-full h-full">
+                  <span className="text-lg font-bold">E</span>
+                </div>
+              </div>
+            </div>
+            <span className="text-2xl font-bold">ntente</span>
+          </div>
+
 
           <p className="text-center text-base-content/70 mb-8">
-            Schema-first contract testing platform
+            Automated contract testing platform that combines OpenAPI specifications with real interaction recording to ensure your services work together seamlessly.
           </p>
 
           {error && (
@@ -70,9 +79,6 @@ export default function Login() {
             )}
           </button>
 
-          <div className="text-center mt-6 text-sm text-base-content/50">
-            <p>Secure authentication powered by GitHub</p>
-          </div>
         </div>
       </div>
     </div>

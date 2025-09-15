@@ -38,14 +38,14 @@ function Services() {
             Manage OpenAPI specifications and service contracts
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map(i => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
             <div key={i} className="card bg-base-100 shadow-xl">
-              <div className="card-body">
-                <div className="skeleton h-6 w-32 mb-4" />
-                <div className="skeleton h-4 w-16 mb-4" />
-                <div className="skeleton h-16 w-full mb-4" />
-                <div className="skeleton h-4 w-24" />
+              <div className="card-body p-4">
+                <div className="skeleton h-5 w-32 mb-2" />
+                <div className="skeleton h-3 w-16 mb-3" />
+                <div className="skeleton h-12 w-full mb-3" />
+                <div className="skeleton h-3 w-20 ml-auto" />
               </div>
             </div>
           ))}
@@ -81,19 +81,11 @@ function Services() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-base-content">Services</h1>
-          <p className="text-base-content/70 mt-1">
-            Manage OpenAPI specifications and service contracts
-          </p>
-        </div>
-        <button className="btn btn-primary">
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Upload Spec
-        </button>
+      <div>
+        <h1 className="text-3xl font-bold text-base-content">Services</h1>
+        <p className="text-base-content/70 mt-1">
+          Manage OpenAPI specifications and service contracts
+        </p>
       </div>
 
       {/* Filters */}
@@ -127,7 +119,7 @@ function Services() {
       </div>
 
       {/* Services Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {filteredServices.length === 0 ? (
           <div className="col-span-full text-center text-base-content/70 py-12">
             {searchTerm || typeFilter !== 'all'
@@ -137,11 +129,11 @@ function Services() {
         ) : (
           filteredServices.map(service => (
             <Link key={service.name} to={`/services/${service.type}/${service.name}`} className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer">
-              <div className="card-body">
-                <div className="flex items-start justify-between">
-                  <h2 className="card-title text-lg">{service.name}</h2>
+              <div className="card-body p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <h2 className="card-title text-base">{service.name}</h2>
                   <div
-                    className={`badge ${
+                    className={`badge badge-sm ${
                       service.type === 'consumer' ? 'badge-primary' : 'badge-secondary'
                     }`}
                   >
@@ -149,20 +141,19 @@ function Services() {
                   </div>
                 </div>
 
-                <div className="text-sm text-base-content/70 mb-4">
-                  Last updated: <TimestampDisplay timestamp={service.updatedAt} />
-                </div>
-
-                <p className="text-base-content/80">
+                <p className="text-sm text-base-content/80 mb-3 flex-grow">
                   {service.description || 'No description available'}
                 </p>
+
+                <div className="text-xs text-base-content/70 text-right">
+                  <TimestampDisplay timestamp={service.updatedAt} />
+                </div>
               </div>
             </Link>
           ))
         )}
       </div>
 
-      {/* Upload Modal would go here */}
     </div>
   )
 }

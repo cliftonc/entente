@@ -57,19 +57,26 @@ function SideNav() {
     await logout()
   }
 
+  const handleNavClick = () => {
+    const drawerToggle = document.getElementById('drawer-toggle') as HTMLInputElement
+    if (drawerToggle && window.innerWidth < 1024) {
+      drawerToggle.checked = false
+    }
+  }
+
   return (
     <aside className="min-h-full w-80 bg-base-100 text-base-content">
       {/* Brand */}
-      <div className="flex items-center gap-2 px-4 py-6">
+      <Link to="/" className="flex items-center gap-1 px-4 py-6 hover:bg-base-200 transition-colors">
         <div className="avatar">
-          <div className="w-8 rounded bg-primary text-primary-content">
+          <div className="w-8 rounded bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white">
             <div className="flex items-center justify-center w-full h-full">
               <span className="text-lg font-bold">E</span>
             </div>
           </div>
         </div>
-        <span className="text-xl font-bold">Entente</span>
-      </div>
+        <span className="text-xl font-bold">ntente</span>
+      </Link>
 
       {/* Tenant Selector */}
       {user && (
@@ -89,8 +96,11 @@ function SideNav() {
             <li key={item.path}>
               <Link
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive ? 'bg-primary text-primary-content' : 'hover:bg-base-200'
+                onClick={handleNavClick}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  isActive
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm hover:from-blue-700 hover:to-indigo-700 focus:from-blue-700 focus:to-indigo-700 active:from-blue-700 active:to-indigo-700 hover:text-white focus:text-white active:text-white'
+                    : 'text-base-content hover:bg-base-200 hover:text-base-content focus:bg-base-200 focus:text-base-content active:bg-base-300 active:text-base-content'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

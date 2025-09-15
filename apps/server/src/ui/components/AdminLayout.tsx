@@ -19,7 +19,7 @@ function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         {/* Main Panel */}
-        <main className="flex-1 p-6 min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <main className="flex-1 p-6 min-h-screen bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>

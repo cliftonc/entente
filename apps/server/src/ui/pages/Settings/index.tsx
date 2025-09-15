@@ -7,10 +7,10 @@ import GitHubSettings from './GitHubSettings'
 
 function Settings() {
   return (
-    <div className="container mx-auto px-6 py-8">
-      <div className="mb-8">
+    <div className="space-y-6">
+      <div>
         <h1 className="text-3xl font-bold text-base-content">Settings</h1>
-        <p className="text-base-content/70 mt-2">
+        <p className="text-base-content/70 mt-1">
           Manage your team, integrations, and general preferences
         </p>
       </div>
