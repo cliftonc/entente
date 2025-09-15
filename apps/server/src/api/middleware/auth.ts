@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import type { Context, Next } from 'hono'
 import { getCookie } from 'hono/cookie'
@@ -49,8 +48,7 @@ export async function authMiddleware(c: Context, next: Next) {
 
     if (validation.valid && validation.tenantId && validation.permissions) {
       // Update key usage asynchronously
-      const keyHash = createHash('sha256').update(apiKey).digest('hex')
-      updateKeyUsage(db, keyHash).catch(err => {
+      updateKeyUsage(db, apiKey).catch(err => {
         console.error('Failed to update key usage:', err)
       })
 

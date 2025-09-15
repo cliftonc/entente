@@ -166,6 +166,7 @@ authRouter.get('/github', async c => {
   }
 })
 
+
 // Handle GitHub App callback (both login and installation)
 authRouter.get('/github/callback', async c => {
   const code = c.req.query('code')
@@ -296,36 +297,33 @@ authRouter.get('/github/callback', async c => {
         )
         .limit(1)
 
-      let apiKey: string
-      if (existingKey.length > 0) {
-        // Return the existing key since we now store it in plaintext
-        apiKey = existingKey[0].keyHash
+      // Always create a new API key with proper format
+      const { generateApiKey } = await import('../utils/keys')
+      const keyData = generateApiKey()
 
-        // Update last used timestamp
+      if (existingKey.length > 0) {
+        // Update existing key with new key data
         await db
           .update(keys)
-          .set({ lastUsedAt: new Date() })
+          .set({
+            keyHash: keyData.keyHash,
+            keyPrefix: keyData.keyPrefix,
+            lastUsedAt: new Date(),
+          })
           .where(eq(keys.id, existingKey[0].id))
       } else {
         // Create new API key
-        console.log(`🔑 Creating new API key for user ${user[0].username}`)
-        const { generateApiKey } = await import('../utils/keys')
-        const keyData = generateApiKey()
-        console.log(`🔑 Generated key data:`, { fullKey: keyData.fullKey, keyHash: keyData.keyHash, keyPrefix: keyData.keyPrefix })
-
-        const insertResult = await db.insert(keys).values({
+        await db.insert(keys).values({
           tenantId: userTenant[0].tenantId,
           name: keyName,
           keyHash: keyData.keyHash,
           keyPrefix: keyData.keyPrefix,
           createdBy: user[0].username,
           permissions: 'read,write',
-        }).returning()
-
-        console.log(`🔑 Inserted key into database:`, insertResult)
-        apiKey = keyData.fullKey
-        console.log(`🔑 Returning API key: ${apiKey}`)
+        })
       }
+
+      const apiKey = keyData.fullKey
 
       // Clear CLI cookie and redirect to CLI callback with API key
       c.header(
@@ -364,10 +362,8 @@ authRouter.get('/session', async c => {
   const authHeader = c.req.header('Authorization')
   if (authHeader?.startsWith('Bearer ')) {
     const apiKey = authHeader.substring(7)
-    console.log(`🔐 Validating API key: ${apiKey.substring(0, 12)}...`)
     const { validateApiKey } = await import('./keys')
     const validation = await validateApiKey(db, apiKey)
-    console.log(`🔐 Validation result:`, { valid: validation.valid, tenantId: validation.tenantId })
 
     if (validation.valid && validation.tenantId) {
       // Get user info from tenant membership
@@ -526,23 +522,19 @@ authRouter.get('/cli', async c => {
           .where(eq(keys.id, existingKey[0].id))
       } else {
         // Create new API key
-        console.log(`🔑 Creating new API key for CLI user ${user.username}`)
         const { generateApiKey } = await import('../utils/keys')
         const keyData = generateApiKey()
-        console.log(`🔑 Generated CLI key data:`, { fullKey: keyData.fullKey, keyHash: keyData.keyHash, keyPrefix: keyData.keyPrefix })
 
-        const insertResult = await db.insert(keys).values({
+        await db.insert(keys).values({
           tenantId: userTenant[0].tenantId,
           name: keyName,
           keyHash: keyData.keyHash,
           keyPrefix: keyData.keyPrefix,
           createdBy: user.username,
           permissions: 'read,write',
-        }).returning()
+        })
 
-        console.log(`🔑 Inserted CLI key into database:`, insertResult)
         apiKey = keyData.fullKey
-        console.log(`🔑 Returning CLI API key: ${apiKey}`)
       }
 
       // Redirect to CLI callback with API key

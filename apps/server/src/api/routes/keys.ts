@@ -212,15 +212,7 @@ keysRouter.delete('/:id', async c => {
 
 // Update key usage (internal function for middleware)
 export async function updateKeyUsage(db: DbConnection, apiKey: string): Promise<void> {
-  // First try plaintext match (new format)
-  let result = await db.update(keys).set({ lastUsedAt: new Date() }).where(eq(keys.keyHash, apiKey)).returning({ id: keys.id })
-
-  // If no match, try hashed format (legacy support)
-  if (result.length === 0) {
-    const { createHash } = await import('node:crypto')
-    const keyHash = createHash('sha256').update(apiKey).digest('hex')
-    await db.update(keys).set({ lastUsedAt: new Date() }).where(eq(keys.keyHash, keyHash))
-  }
+  await db.update(keys).set({ lastUsedAt: new Date() }).where(eq(keys.keyHash, apiKey))
 }
 
 // Validate API key (internal function for middleware)
@@ -228,7 +220,6 @@ export async function validateApiKey(
   db: DbConnection,
   apiKey: string
 ): Promise<{ valid: boolean; tenantId?: string; permissions?: string[] }> {
-  // Try to find the key directly (handles both old and new format)
   const key = await db.query.keys.findFirst({
     where: and(eq(keys.keyHash, apiKey), eq(keys.isActive, true), isNull(keys.revokedAt)),
   })

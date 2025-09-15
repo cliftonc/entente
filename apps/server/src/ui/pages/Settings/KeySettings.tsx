@@ -15,11 +15,11 @@ function KeySettings() {
 
   const { data: keys = [], isLoading } = useQuery({
     queryKey: ['keys'],
-    queryFn: () => api.get('/api/keys') as Promise<ApiKey[]>,
+    queryFn: () => api.get('/keys') as Promise<ApiKey[]>,
   })
 
   const createKeyMutation = useMutation({
-    mutationFn: (data: CreateKeyRequest) => api.post('/api/keys', data) as Promise<ApiKey>,
+    mutationFn: (data: CreateKeyRequest) => api.post('/keys', data) as Promise<ApiKey>,
     onSuccess: (newKey) => {
       queryClient.invalidateQueries({ queryKey: ['keys'] })
       setShowCreateModal(false)
@@ -31,7 +31,7 @@ function KeySettings() {
   })
 
   const rotateKeyMutation = useMutation({
-    mutationFn: (keyId: string) => api.post(`/api/keys/${keyId}/rotate`, {}) as Promise<ApiKey>,
+    mutationFn: (keyId: string) => api.post(`/keys/${keyId}/rotate`, {}) as Promise<ApiKey>,
     onSuccess: (rotatedKey) => {
       queryClient.invalidateQueries({ queryKey: ['keys'] })
       if (rotatedKey.fullKey) {
@@ -41,7 +41,7 @@ function KeySettings() {
   })
 
   const revokeKeyMutation = useMutation({
-    mutationFn: (keyId: string) => api.delete(`/api/keys/${keyId}`, { revokedBy: 'user' }),
+    mutationFn: (keyId: string) => api.delete(`/keys/${keyId}`, { revokedBy: 'user' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['keys'] })
     },

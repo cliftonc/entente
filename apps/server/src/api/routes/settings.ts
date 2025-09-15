@@ -26,13 +26,14 @@ const settings = new Hono<Env>()
 
 // Get tenant settings
 settings.get('/', async c => {
-  const { user, tenant } = c.var
-  const db = c.var.db
+  const { tenantId } = c.get('session')
+  const { user } = c.get('auth')
+  const db = c.get('db')
 
   const result = await db
     .select()
     .from(tenantSettings)
-    .where(eq(tenantSettings.tenantId, tenant.id))
+    .where(eq(tenantSettings.tenantId, tenantId))
     .limit(1)
 
   const settingsData = result[0]
@@ -41,7 +42,7 @@ settings.get('/', async c => {
   if (!settingsData) {
     return c.json<TenantSettings>({
       id: '',
-      tenantId: tenant.id,
+      tenantId: tenantId,
       autoCleanupEnabled: false,
       autoCleanupDays: 30,
       dataRetentionDays: 90,
@@ -72,15 +73,16 @@ const updateSettingsSchema = z.object({
 })
 
 settings.patch('/', zValidator('json', updateSettingsSchema), async c => {
-  const { user, tenant } = c.var
-  const db = c.var.db
+  const { tenantId } = c.get('session')
+  const { user } = c.get('auth')
+  const db = c.get('db')
   const updates = c.req.valid('json') as TenantSettingsUpdate
 
   // Check if settings exist
   const existingSettings = await db
     .select()
     .from(tenantSettings)
-    .where(eq(tenantSettings.tenantId, tenant.id))
+    .where(eq(tenantSettings.tenantId, tenantId))
     .limit(1)
 
   if (existingSettings.length === 0) {
@@ -88,7 +90,7 @@ settings.patch('/', zValidator('json', updateSettingsSchema), async c => {
     const newSettings = await db
       .insert(tenantSettings)
       .values({
-        tenantId: tenant.id,
+        tenantId: tenantId,
         autoCleanupEnabled: updates.autoCleanupEnabled ?? false,
         autoCleanupDays: updates.autoCleanupDays ?? 30,
         dataRetentionDays: updates.dataRetentionDays ?? 90,
@@ -117,7 +119,7 @@ settings.patch('/', zValidator('json', updateSettingsSchema), async c => {
         updatedBy: user.id,
         updatedAt: new Date(),
       })
-      .where(eq(tenantSettings.tenantId, tenant.id))
+      .where(eq(tenantSettings.tenantId, tenantId))
       .returning()
 
     return c.json<TenantSettings>({
@@ -135,8 +137,8 @@ settings.patch('/', zValidator('json', updateSettingsSchema), async c => {
 
 // Get team members
 settings.get('/team', async c => {
-  const { tenant } = c.var
-  const db = c.var.db
+  const { tenantId } = c.get('session')
+  const db = c.get('db')
 
   const members = await db
     .select({
@@ -153,7 +155,7 @@ settings.get('/team', async c => {
     })
     .from(tenantUsers)
     .innerJoin(users, eq(tenantUsers.userId, users.id))
-    .where(eq(tenantUsers.tenantId, tenant.id))
+    .where(eq(tenantUsers.tenantId, tenantId))
 
   // Get pending invitations
   const invitations = await db
@@ -172,7 +174,7 @@ settings.get('/team', async c => {
     .from(teamInvitations)
     .where(
       and(
-        eq(teamInvitations.tenantId, tenant.id),
+        eq(teamInvitations.tenantId, tenantId),
         eq(teamInvitations.status, 'pending')
       )
     )
@@ -200,8 +202,9 @@ const inviteSchema = z.object({
 })
 
 settings.post('/team/invite', zValidator('json', inviteSchema), async c => {
-  const { user, tenant } = c.var
-  const db = c.var.db
+  const { tenantId } = c.get('session')
+  const { user } = c.get('auth')
+  const db = c.get('db')
   const { email, role } = c.req.valid('json') as InviteTeamMemberRequest
 
   // Check if user is already a member
@@ -209,7 +212,7 @@ settings.post('/team/invite', zValidator('json', inviteSchema), async c => {
     .select()
     .from(users)
     .innerJoin(tenantUsers, eq(users.id, tenantUsers.userId))
-    .where(and(eq(users.email, email), eq(tenantUsers.tenantId, tenant.id)))
+    .where(and(eq(users.email, email), eq(tenantUsers.tenantId, tenantId)))
     .limit(1)
 
   if (existingMember.length > 0) {
@@ -223,7 +226,7 @@ settings.post('/team/invite', zValidator('json', inviteSchema), async c => {
     .where(
       and(
         eq(teamInvitations.email, email),
-        eq(teamInvitations.tenantId, tenant.id),
+        eq(teamInvitations.tenantId, tenantId),
         eq(teamInvitations.status, 'pending')
       )
     )
@@ -240,7 +243,7 @@ settings.post('/team/invite', zValidator('json', inviteSchema), async c => {
   const invitation = await db
     .insert(teamInvitations)
     .values({
-      tenantId: tenant.id,
+      tenantId: tenantId,
       email,
       role,
       invitedBy: user.id,
@@ -272,8 +275,9 @@ settings.patch(
   '/team/:userId/role',
   zValidator('json', updateRoleSchema),
   async c => {
-    const { user, tenant } = c.var
-    const db = c.var.db
+    const { tenantId } = c.get('session')
+    const { user } = c.get('auth')
+    const db = c.get('db')
     const userId = c.req.param('userId')
     const { role } = c.req.valid('json') as UpdateTeamMemberRoleRequest
 
@@ -282,7 +286,7 @@ settings.patch(
       .select()
       .from(tenantUsers)
       .where(
-        and(eq(tenantUsers.userId, userId), eq(tenantUsers.tenantId, tenant.id))
+        and(eq(tenantUsers.userId, userId), eq(tenantUsers.tenantId, tenantId))
       )
       .limit(1)
 
@@ -300,7 +304,7 @@ settings.patch(
       .update(tenantUsers)
       .set({ role })
       .where(
-        and(eq(tenantUsers.userId, userId), eq(tenantUsers.tenantId, tenant.id))
+        and(eq(tenantUsers.userId, userId), eq(tenantUsers.tenantId, tenantId))
       )
 
     return c.json({ success: true })
@@ -309,8 +313,9 @@ settings.patch(
 
 // Remove team member
 settings.delete('/team/:userId', async c => {
-  const { user, tenant } = c.var
-  const db = c.var.db
+  const { tenantId } = c.get('session')
+  const { user } = c.get('auth')
+  const db = c.get('db')
   const userId = c.req.param('userId')
 
   // Check if user is member of tenant
