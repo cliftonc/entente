@@ -192,6 +192,7 @@ export const verificationApi = {
   getByConsumer: (consumer: string) =>
     fetchApi<VerificationResults[]>(`/verification/consumer/${consumer}/history`),
   getTasks: (provider: string) => fetchApi<VerificationTask[]>(`/verification/${provider}`),
+  getPendingTasks: () => fetchApi<VerificationTask[]>('/verification/pending'),
   getStats: (provider: string) =>
     fetchApi<{
       totalTasks: number

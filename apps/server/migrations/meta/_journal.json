@@ -120,6 +120,13 @@
       "when": 1757830273441,
       "tag": "0016_jazzy_james_howlett",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1757862191952,
+      "tag": "0017_parched_dagger",
+      "breakpoints": true
     }
   ]
 }

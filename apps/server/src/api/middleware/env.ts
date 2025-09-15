@@ -6,6 +6,10 @@ interface Env {
   DATABASE_URL?: string
   GITHUB_CLIENT_ID?: string
   GITHUB_CLIENT_SECRET?: string
+  GITHUB_APP_NAME?: string
+  GITHUB_APP_ID?: string
+  GITHUB_APP_PRIVATE_KEY?: string
+  GITHUB_APP_WEBHOOK_SECRET?: string
   APP_URL?: string
   NODE_ENV?: string
   // Add more environment variables as needed
@@ -28,6 +32,10 @@ export async function envMiddleware(c: Context<{ Bindings: Env }>, next: Next) {
     DATABASE_URL: c.env?.DATABASE_URL || process.env.DATABASE_URL,
     GITHUB_CLIENT_ID: c.env?.GITHUB_CLIENT_ID || process.env.GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET: c.env?.GITHUB_CLIENT_SECRET || process.env.GITHUB_CLIENT_SECRET,
+    GITHUB_APP_NAME: c.env?.GITHUB_APP_NAME || process.env.GITHUB_APP_NAME,
+    GITHUB_APP_ID: c.env?.GITHUB_APP_ID || process.env.GITHUB_APP_ID,
+    GITHUB_APP_PRIVATE_KEY: c.env?.GITHUB_APP_PRIVATE_KEY || process.env.GITHUB_APP_PRIVATE_KEY,
+    GITHUB_APP_WEBHOOK_SECRET: c.env?.GITHUB_APP_WEBHOOK_SECRET || process.env.GITHUB_APP_WEBHOOK_SECRET,
     APP_URL: c.env?.APP_URL || process.env.APP_URL,
     NODE_ENV: c.env?.NODE_ENV || process.env.NODE_ENV,
     // Add more environment variables as needed

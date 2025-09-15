@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
-import { tenantUsers, tenants, users } from '../../db/schema'
+import { githubAppInstallations, tenantUsers, tenants, users } from '../../db/schema'
 import {
   createStateCookie,
   deleteStateCookie,
@@ -16,9 +16,132 @@ import {
   deleteSessionCookie,
   validateSession,
 } from '../auth/sessions'
+import {
+  encodePrivateKey,
+  getInstallationInfo,
+  getInstallationRepositories,
+} from '../auth/github-app'
 import { getEnv, getRequiredEnv } from '../middleware/env'
 
 const authRouter = new Hono()
+
+// Helper function to handle GitHub App installation
+async function handleGitHubAppInstallation(c: any, installationId: string, setupAction: string) {
+  try {
+    const db = c.get('db')
+    const env = c.get('env')
+
+    // Get environment variables for GitHub App
+    const appId = getRequiredEnv(env, 'GITHUB_APP_ID')
+    const privateKeyBase64 = getRequiredEnv(env, 'GITHUB_APP_PRIVATE_KEY')
+    const webhookSecret = getEnv(env, 'GITHUB_APP_WEBHOOK_SECRET')
+
+    // Decode the private key
+    const privateKey = Buffer.from(privateKeyBase64, 'base64').toString('utf8')
+
+    // Handle different setup actions
+    if (setupAction === 'install' || setupAction === 'update') {
+      // Get installation info from GitHub
+      const installationInfo = await getInstallationInfo(
+        parseInt(installationId),
+        appId,
+        privateKey
+      )
+
+      // Get repositories if selected
+      let repositories: Array<{ id: number; name: string; full_name: string; private: boolean }> = []
+      if (installationInfo.repository_selection === 'selected') {
+        repositories = await getInstallationRepositories(
+          parseInt(installationId),
+          appId,
+          privateKey
+        )
+      }
+
+      // Encode the private key for storage
+      const encodedPrivateKey = encodePrivateKey(privateKey)
+
+      // Get current user from session to determine which tenant this belongs to
+      const sessionId = getCookie(c, 'sessionId')
+      if (!sessionId) {
+        return c.json({ error: 'Authentication required to install GitHub App' }, 401)
+      }
+
+      const { user } = await validateSession(db, sessionId)
+      if (!user) {
+        return c.json({ error: 'Invalid session' }, 401)
+      }
+
+      // Get user's primary tenant
+      const userTenant = await db
+        .select({ tenantId: tenantUsers.tenantId })
+        .from(tenantUsers)
+        .where(eq(tenantUsers.userId, user.id))
+        .limit(1)
+
+      if (userTenant.length === 0) {
+        return c.json({ error: 'User has no associated tenant' }, 500)
+      }
+
+      // Check if installation already exists (for updates)
+      const existingInstallation = await db
+        .select()
+        .from(githubAppInstallations)
+        .where(eq(githubAppInstallations.installationId, parseInt(installationId)))
+        .limit(1)
+
+      if (existingInstallation.length > 0) {
+        // Update existing installation
+        await db
+          .update(githubAppInstallations)
+          .set({
+            accountType: installationInfo.account.type.toLowerCase() as 'user' | 'organization',
+            accountLogin: installationInfo.account.login,
+            targetType: installationInfo.account.type,
+            permissions: installationInfo.permissions,
+            repositorySelection: installationInfo.repository_selection,
+            selectedRepositories: repositories.length > 0 ? repositories : null,
+            appId: parseInt(appId),
+            privateKeyEncrypted: encodedPrivateKey,
+            webhookSecret: webhookSecret || null,
+            suspendedAt: installationInfo.suspended_at ? new Date(installationInfo.suspended_at) : null,
+            updatedAt: new Date(),
+          })
+          .where(eq(githubAppInstallations.installationId, parseInt(installationId)))
+      } else {
+        // Create new installation
+        await db.insert(githubAppInstallations).values({
+          tenantId: userTenant[0].tenantId,
+          installationId: parseInt(installationId),
+          accountType: installationInfo.account.type.toLowerCase() as 'user' | 'organization',
+          accountLogin: installationInfo.account.login,
+          targetType: installationInfo.account.type,
+          permissions: installationInfo.permissions,
+          repositorySelection: installationInfo.repository_selection,
+          selectedRepositories: repositories.length > 0 ? repositories : null,
+          appId: parseInt(appId),
+          privateKeyEncrypted: encodedPrivateKey,
+          webhookSecret: webhookSecret || null,
+          suspendedAt: installationInfo.suspended_at ? new Date(installationInfo.suspended_at) : null,
+        })
+      }
+
+      // Redirect to settings/github with success message
+      return c.redirect('/settings/github')
+    }
+
+    if (setupAction === 'request') {
+      // Installation requires approval - store pending request
+      // For now, we'll just redirect with a message
+      return c.redirect('/?github-app=pending-approval')
+    }
+
+    return c.json({ error: 'Unknown setup_action' }, 400)
+  } catch (error) {
+    console.error('GitHub App installation error:', error)
+    return c.json({ error: 'Failed to process GitHub App installation' }, 500)
+  }
+}
 
 // Initiate GitHub OAuth
 authRouter.get('/github', async c => {
@@ -43,12 +166,20 @@ authRouter.get('/github', async c => {
   }
 })
 
-// Handle GitHub OAuth callback
+// Handle GitHub App callback (both login and installation)
 authRouter.get('/github/callback', async c => {
   const code = c.req.query('code')
   const state = c.req.query('state')
+  const installationId = c.req.query('installation_id')
+  const setupAction = c.req.query('setup_action')
   const storedState = getCookie(c, 'github_oauth_state')
 
+  // Handle GitHub App installation flow
+  if (installationId && setupAction) {
+    return handleGitHubAppInstallation(c, installationId, setupAction)
+  }
+
+  // Handle user login flow
   if (!code || !state || !storedState) {
     return c.json({ error: 'Invalid OAuth callback' }, 400)
   }

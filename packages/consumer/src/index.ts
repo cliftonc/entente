@@ -379,11 +379,13 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
 
     // Get operations from the OpenAPI spec and convert to PrismOperation format
     const httpOperations = await getHttpOperationsFromSpec(specWithFixtures)
-    operations = httpOperations.map((op: any): PrismOperation => ({
-      method: op.method || 'get',
-      path: op.path || '/',
-      responses: op.responses || {}
-    }))
+    operations = httpOperations.map(
+      (op: any): PrismOperation => ({
+        method: op.method || 'get',
+        path: op.path || '/',
+        responses: op.responses || {},
+      })
+    )
 
     // Create Prism instance with proper configuration for fixtures
     const prismConfig = {
@@ -453,9 +455,10 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
         let finalBody: unknown = null
 
         // Use Prism to handle the request
-        const result = prismInstance && operations
-          ? await prismInstance.request(prismRequest, operations)
-          : { output: null }
+        const result =
+          prismInstance && operations
+            ? await prismInstance.request(prismRequest, operations)
+            : { output: null }
 
         // Handle the result
         if (result.output) {
@@ -469,7 +472,7 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
             method: prismRequest.method,
             path: prismRequest.url.path,
             body: prismRequest.body,
-            headers: prismRequest.headers
+            headers: prismRequest.headers,
           }
           const fallbackResponse = await tryFallbackFixtureMatch(fallbackFixtureRequest, fixtures)
           if (fallbackResponse) {

@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useDraftFixturesCount } from '../hooks/useQueries'
+import { useAuth } from '../hooks/useAuth'
 
 interface NavItem {
   path: string
@@ -39,11 +40,21 @@ const navItems: NavItem[] = [
     label: 'Verification',
     icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
   },
+  {
+    path: '/settings',
+    label: 'Settings',
+    icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
+  },
 ]
 
 function SideNav() {
   const location = useLocation()
   const { data: draftCount = 0 } = useDraftFixturesCount()
+  const { user, logout } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+  }
 
   return (
     <aside className="min-h-full w-80 bg-base-100 text-base-content">
@@ -62,7 +73,9 @@ function SideNav() {
       {/* Navigation Menu */}
       <ul className="menu p-4 space-y-2">
         {navItems.map(item => {
-          const isActive = location.pathname === item.path
+          const isActive = item.path === '/settings'
+            ? location.pathname.startsWith('/settings')
+            : location.pathname === item.path
 
           return (
             <li key={item.path}>
@@ -93,23 +106,59 @@ function SideNav() {
         })}
       </ul>
 
-      {/* Bottom section */}
-      <div className="absolute bottom-0 left-0 right-0 p-4">
-        <div className="bg-base-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 bg-success rounded-full" />
-            <span className="text-sm font-medium">System Status</span>
-          </div>
-          <p className="text-xs text-base-content/70">All services operational</p>
-          <div className="flex items-center gap-1 mt-2">
-            <span className="text-xs">API:</span>
-            <div className="flex-1 bg-base-300 rounded-full h-1">
-              <div className="bg-success h-1 rounded-full" style={{ width: '85%' }} />
+      {/* User Settings section at bottom */}
+      {user && (
+        <div className="absolute bottom-0 left-0 right-0 p-4">
+          <div className="bg-base-200 rounded-lg p-4 space-y-3">
+            {/* User Info */}
+            <div className="flex items-center gap-3">
+              <div className="avatar">
+                <div className="w-10 rounded-full">
+                  {user.avatarUrl ? (
+                    <img alt={user.name} src={user.avatarUrl} />
+                  ) : (
+                    <div className="bg-primary text-primary-content w-full h-full flex items-center justify-center text-sm font-medium">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate">{user.name}</div>
+                <div className="text-xs text-base-content/70 truncate">@{user.username}</div>
+              </div>
             </div>
-            <span className="text-xs">85%</span>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <Link to="/settings" className="btn btn-ghost btn-sm flex-1 text-xs">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Settings
+              </Link>
+              <button onClick={handleLogout} className="btn btn-ghost btn-sm flex-1 text-xs text-error">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+                Logout
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
     </aside>
   )
 }

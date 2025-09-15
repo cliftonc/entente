@@ -6,7 +6,7 @@ import type {
 } from '@entente/types'
 import { Hono } from 'hono'
 
-import { and, count, desc, eq, gte } from 'drizzle-orm'
+import { and, count, desc, eq, gte, isNull } from 'drizzle-orm'
 import {
   interactions,
   serviceDependencies,
@@ -115,6 +115,73 @@ verificationRouter.get('/result/:id', async c => {
   }
 
   return c.json(result)
+})
+
+// Get pending verification tasks (tasks without results)
+verificationRouter.get('/pending', async c => {
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+  const limit = Number.parseInt(c.req.query('limit') || '100')
+
+  // Get all verification tasks that don't have results yet
+  const pendingTasks = await db
+    .select({
+      id: verificationTasks.id,
+      tenantId: verificationTasks.tenantId,
+      providerId: verificationTasks.providerId,
+      consumerId: verificationTasks.consumerId,
+      dependencyId: verificationTasks.dependencyId,
+      provider: verificationTasks.provider,
+      providerVersion: verificationTasks.providerVersion,
+      providerGitSha: verificationTasks.providerGitSha,
+      consumer: verificationTasks.consumer,
+      consumerVersion: verificationTasks.consumerVersion,
+      consumerGitSha: verificationTasks.consumerGitSha,
+      environment: verificationTasks.environment,
+      interactions: verificationTasks.interactions,
+      createdAt: verificationTasks.createdAt,
+      // Provider git repository URL
+      providerGitRepositoryUrl: services.gitRepositoryUrl,
+    })
+    .from(verificationTasks)
+    .leftJoin(verificationResults, eq(verificationResults.taskId, verificationTasks.id))
+    .leftJoin(
+      services,
+      and(
+        eq(services.name, verificationTasks.provider),
+        eq(services.type, 'provider'),
+        eq(services.tenantId, tenantId)
+      )
+    )
+    .where(
+      and(
+        eq(verificationTasks.tenantId, tenantId),
+        // Only tasks without results
+        isNull(verificationResults.id)
+      )
+    )
+    .orderBy(desc(verificationTasks.createdAt))
+    .limit(limit)
+
+  const tasks = pendingTasks.map(task => ({
+    id: task.id,
+    tenantId: task.tenantId,
+    providerId: task.providerId,
+    consumerId: task.consumerId,
+    dependencyId: task.dependencyId,
+    provider: task.provider,
+    providerVersion: task.providerVersion,
+    providerGitSha: task.providerGitSha,
+    providerGitRepositoryUrl: task.providerGitRepositoryUrl,
+    consumer: task.consumer,
+    consumerVersion: task.consumerVersion,
+    consumerGitSha: task.consumerGitSha,
+    environment: task.environment,
+    interactions: task.interactions,
+    createdAt: task.createdAt,
+  }))
+
+  return c.json(tasks)
 })
 
 // Get all verification results

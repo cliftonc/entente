@@ -402,3 +402,86 @@ export interface CanIDeployResult {
   message: string
   serviceType?: 'consumer' | 'provider' | 'consumer/provider' | 'unknown'
 }
+
+// Settings and team management types
+export interface TenantSettings {
+  id: string
+  tenantId: string
+  autoCleanupEnabled: boolean
+  autoCleanupDays: number
+  dataRetentionDays: number
+  notificationsEnabled: boolean
+  updatedAt: Date
+  updatedBy: string
+}
+
+export interface TenantSettingsUpdate {
+  autoCleanupEnabled?: boolean
+  autoCleanupDays?: number
+  dataRetentionDays?: number
+  notificationsEnabled?: boolean
+}
+
+export interface TeamMember {
+  id: string
+  tenantId: string
+  userId: string
+  username: string
+  name: string
+  email: string
+  avatarUrl?: string
+  role: 'owner' | 'admin' | 'member'
+  joinedAt: Date
+  status: 'active' | 'pending'
+}
+
+export interface TeamInvitation {
+  id: string
+  tenantId: string
+  email: string
+  role: 'admin' | 'member'
+  invitedBy: string
+  invitedAt: Date
+  expiresAt: Date
+  acceptedAt?: Date
+  status: 'pending' | 'accepted' | 'expired'
+}
+
+export interface InviteTeamMemberRequest {
+  email: string
+  role: 'admin' | 'member'
+}
+
+export interface UpdateTeamMemberRoleRequest {
+  role: 'admin' | 'member'
+}
+
+export interface GitHubAppInstallation {
+  id: string
+  tenantId: string
+  installationId: number
+  accountType: 'user' | 'organization'
+  accountLogin: string
+  targetType: 'User' | 'Organization'
+  permissions: Record<string, string>
+  repositorySelection: 'all' | 'selected'
+  selectedRepositories: Array<{
+    id: number
+    name: string
+    fullName: string
+    private: boolean
+  }>
+  suspendedAt?: Date
+  installedAt: Date
+  updatedAt: Date
+}
+
+export interface GitHubAppInstallationUpdate {
+  repositorySelection?: 'all' | 'selected'
+  selectedRepositories?: Array<{
+    id: number
+    name: string
+    fullName: string
+    private: boolean
+  }>
+}

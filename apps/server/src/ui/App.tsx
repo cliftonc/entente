@@ -13,6 +13,7 @@ import InteractionDetails from './pages/InteractionDetails'
 import Interactions from './pages/Interactions'
 import ProviderDetail from './pages/ProviderDetail'
 import Services from './pages/Services'
+import Settings from './pages/Settings'
 import Verification from './pages/Verification'
 import VerificationDetail from './pages/VerificationDetail'
 
@@ -46,6 +47,7 @@ function App() {
               <Route path="/deployments" element={<Deployments />} />
               <Route path="/verification" element={<Verification />} />
               <Route path="/verification/:id" element={<VerificationDetail />} />
+              <Route path="/settings/*" element={<Settings />} />
             </Routes>
           </AdminLayout>
         </ProtectedRoute>

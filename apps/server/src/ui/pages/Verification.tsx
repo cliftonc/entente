@@ -20,6 +20,7 @@ function Verification() {
     if (consumer) setConsumerFilter(consumer)
   }, [searchParams])
 
+
   const {
     data: verificationResults,
     isLoading,
@@ -27,6 +28,15 @@ function Verification() {
   } = useQuery({
     queryKey: ['verification-all'],
     queryFn: verificationApi.getAll,
+  })
+
+  const {
+    data: pendingTasks,
+    isLoading: isPendingLoading,
+    error: pendingError,
+  } = useQuery({
+    queryKey: ['verification-pending'],
+    queryFn: verificationApi.getPendingTasks,
   })
 
   // Filter results based on provider and consumer filters
@@ -39,6 +49,14 @@ function Verification() {
         // This is a placeholder for when consumer data is available in verification results
         return true
       }
+      return true
+    }) || []
+
+  // Filter pending tasks based on provider and consumer filters
+  const filteredPendingTasks =
+    pendingTasks?.filter(task => {
+      if (providerFilter && task.provider !== providerFilter) return false
+      if (consumerFilter && task.consumer !== consumerFilter) return false
       return true
     }) || []
 
@@ -82,7 +100,7 @@ function Verification() {
     setSearchParams({})
   }
 
-  if (isLoading) {
+  if (isLoading || isPendingLoading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -119,7 +137,7 @@ function Verification() {
     )
   }
 
-  if (error) {
+  if (error || pendingError) {
     return (
       <div className="space-y-6">
         <div>
@@ -189,7 +207,14 @@ function Verification() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="stats shadow">
+          <div className="stat">
+            <div className="stat-title">Pending Verifications</div>
+            <div className="stat-value text-warning">{filteredPendingTasks.length}</div>
+            <div className="stat-desc">awaiting results</div>
+          </div>
+        </div>
         <div className="stats shadow">
           <div className="stat">
             <div className="stat-title">Overall Pass Rate</div>
@@ -217,101 +242,174 @@ function Verification() {
         </div>
       </div>
 
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body">
-          <h2 className="card-title">Recent Verification Results</h2>
-          <div className="overflow-x-auto">
-            <table className="table table-zebra">
-              <thead>
-                <tr>
-                  <th>Provider</th>
-                  <th>Provider Version</th>
-                  <th>Consumer</th>
-                  <th>Consumer Version</th>
-                  <th>Results</th>
-                  <th>Status</th>
-                  <th>Last Run</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredResults.length === 0 ? (
+
+      {/* Pending Verifications Section */}
+      {filteredPendingTasks.length > 0 && (
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body">
+            <h2 className="card-title">Pending Verifications</h2>
+            <p className="text-base-content/70 mb-4">
+              Verification tasks that have been created but haven't received results yet
+            </p>
+            <div className="overflow-x-auto">
+              <table className="table table-zebra">
+                <thead>
                   <tr>
-                    <td colSpan={9} className="text-center text-base-content/70 py-8">
-                      {providerFilter
-                        ? `No verification results found for provider "${providerFilter}"`
-                        : 'No verification results available'}
-                    </td>
+                    <th>Provider</th>
+                    <th>Provider Version</th>
+                    <th>Consumer</th>
+                    <th>Consumer Version</th>
+                    <th>Interactions</th>
+                    <th>Status</th>
+                    <th>Created</th>
                   </tr>
-                ) : (
-                  filteredResults.map((result, index) => (
-                    <tr key={result.id || index}>
-                      <td>
-                        <Link
-                          to={`/services/provider/${result.providerName || result.provider}`}
-                          className="font-medium hover:underline text-primary"
-                        >
-                          {result.providerName || result.provider}
-                        </Link>
-                      </td>
-                      <td>
-                        <span className="badge badge-outline">
-                          v{result.providerVersion || result.version || '1.0.0'}
-                        </span>
-                      </td>
-                      <td>
-                        {result.consumerName || result.consumer ? (
+                </thead>
+                <tbody>
+                  {filteredPendingTasks.map((task, index) => (
+                      <tr key={task.id || index}>
+                        <td>
                           <Link
-                            to={`/services/consumer/${result.consumerName || result.consumer}`}
+                            to={`/services/provider/${task.provider}`}
                             className="font-medium hover:underline text-primary"
                           >
-                            {result.consumerName || result.consumer}
+                            {task.provider}
                           </Link>
-                        ) : (
-                          'N/A'
-                        )}
-                      </td>
-                      <td>
-                        <span className="badge badge-outline">
-                          v{result.consumerVersion || 'N/A'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="text-sm">
-                          {result.passed || 0}/{result.total || 1}
-                        </span>
-                      </td>
-                      <td>
-                        <span
-                          className={`badge ${
-                            result.status === 'passed'
-                              ? 'badge-success'
-                              : result.status === 'failed'
-                                ? 'badge-error'
-                                : 'badge-warning'
-                          }`}
-                        >
-                          {result.status}
-                        </span>
-                      </td>
-                      <td>
-                        <TimestampDisplay timestamp={result.createdAt || result.lastRun} />
-                      </td>
-                      <td>
-                        <div className="flex gap-1">
-                          <Link to={`/verification/${result.id}`} className="btn btn-ghost btn-xs">
-                            View
+                        </td>
+                        <td>
+                          <span className="badge badge-outline">v{task.providerVersion}</span>
+                        </td>
+                        <td>
+                          <Link
+                            to={`/services/consumer/${task.consumer}`}
+                            className="font-medium hover:underline text-primary"
+                          >
+                            {task.consumer}
                           </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                        </td>
+                        <td>
+                          <span className="badge badge-outline">v{task.consumerVersion}</span>
+                        </td>
+                        <td>
+                          <span className="text-sm">
+                            {Array.isArray(task.interactions) ? task.interactions.length : 0}{' '}
+                            interactions
+                          </span>
+                        </td>
+                        <td>
+                          <span className="badge badge-warning">Pending</span>
+                        </td>
+                        <td>
+                          <TimestampDisplay timestamp={task.createdAt} />
+                        </td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Recent Verification Results */}
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body">
+            <h2 className="card-title">Recent Verification Results</h2>
+            <div className="overflow-x-auto">
+              <table className="table table-zebra">
+                <thead>
+                  <tr>
+                    <th>Provider</th>
+                    <th>Provider Version</th>
+                    <th>Consumer</th>
+                    <th>Consumer Version</th>
+                    <th>Results</th>
+                    <th>Status</th>
+                    <th>Last Run</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredResults.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="text-center text-base-content/70 py-8">
+                        {providerFilter
+                          ? `No verification results found for provider "${providerFilter}"`
+                          : 'No verification results available'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredResults.map((result, index) => (
+                      <tr key={result.id || index}>
+                        <td>
+                          <Link
+                            to={`/services/provider/${result.providerName || result.provider}`}
+                            className="font-medium hover:underline text-primary"
+                          >
+                            {result.providerName || result.provider}
+                          </Link>
+                        </td>
+                        <td>
+                          <span className="badge badge-outline">
+                            v{result.providerVersion || result.version || '1.0.0'}
+                          </span>
+                        </td>
+                        <td>
+                          {result.consumerName || result.consumer ? (
+                            <Link
+                              to={`/services/consumer/${result.consumerName || result.consumer}`}
+                              className="font-medium hover:underline text-primary"
+                            >
+                              {result.consumerName || result.consumer}
+                            </Link>
+                          ) : (
+                            'N/A'
+                          )}
+                        </td>
+                        <td>
+                          <span className="badge badge-outline">
+                            v{result.consumerVersion || 'N/A'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="text-sm">
+                            {result.passed || 0}/{result.total || 1}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              result.status === 'passed'
+                                ? 'badge-success'
+                                : result.status === 'failed'
+                                  ? 'badge-error'
+                                  : 'badge-warning'
+                            }`}
+                          >
+                            {result.status}
+                          </span>
+                        </td>
+                        <td>
+                          <TimestampDisplay timestamp={result.createdAt || result.lastRun} />
+                        </td>
+                        <td>
+                          <div className="flex gap-1">
+                            <Link
+                              to={`/verification/${result.id}`}
+                              className="btn btn-ghost btn-xs"
+                            >
+                              View
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
     </div>
   )
 }

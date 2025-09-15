@@ -21,12 +21,15 @@ import { authRouter } from './routes/auth.js'
 import { dependenciesRouter } from './routes/dependencies.js'
 import { deploymentsRouter } from './routes/deployments.js'
 import { fixturesRouter } from './routes/fixtures.js'
+import { githubRoutes } from './routes/github.js'
 import { interactionsRouter } from './routes/interactions.js'
 import { keysRouter } from './routes/keys.js'
 import { servicesRouter } from './routes/services.js'
+import settingsRouter from './routes/settings.js'
 import { specsRouter } from './routes/specs.js'
 import { statsRouter } from './routes/stats.js'
 import { verificationRouter } from './routes/verification.js'
+import { getEnv } from './middleware/env.js'
 
 const app = new Hono()
 
@@ -52,6 +55,13 @@ app.get('/health', c => {
 // Auth routes (no auth required for login)
 app.route('/auth', authRouter)
 
+// Public GitHub app name endpoint (no auth required)
+app.get('/api/github/app-name', async c => {
+  const env = c.get('env')
+  const appName = getEnv(env, 'GITHUB_APP_NAME') || 'entente-dev'
+  return c.json({ appName })
+})
+
 // Protected API routes (require authentication)
 app.use('/api/keys/*', authMiddleware)
 app.use('/api/specs/*', authMiddleware)
@@ -62,6 +72,8 @@ app.use('/api/verification/*', authMiddleware)
 app.use('/api/services/*', authMiddleware)
 app.use('/api/dependencies/*', authMiddleware)
 app.use('/api/stats/*', authMiddleware)
+app.use('/api/settings/*', authMiddleware)
+app.use('/api/github/*', authMiddleware)
 
 app.route('/api/keys', keysRouter)
 app.route('/api/specs', specsRouter)
@@ -72,6 +84,8 @@ app.route('/api/verification', verificationRouter)
 app.route('/api/services', servicesRouter)
 app.route('/api/dependencies', dependenciesRouter)
 app.route('/api/stats', statsRouter)
+app.route('/api/settings', settingsRouter)
+app.route('/api/github', githubRoutes)
 
 // Can I Deploy endpoint (protected)
 app.get('/api/can-i-deploy', authMiddleware, async c => {
