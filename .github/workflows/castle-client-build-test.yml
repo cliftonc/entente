@@ -31,7 +31,7 @@ jobs:
 
       - name: Install published Entente packages in castle-client
         working-directory: examples/castle-client
-        run: pnpm add @entente/types@^0.1.2 @entente/consumer@^0.1.2 @entente/fixtures@^0.1.2
+        run: pnpm add @entente/types@latest @entente/consumer@latest @entente/fixtures@latest
 
       - name: Install castle-client dependencies
         working-directory: examples/castle-client

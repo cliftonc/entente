@@ -31,7 +31,7 @@ jobs:
 
       - name: Install published Entente packages in castle-service
         working-directory: examples/castle-service
-        run: pnpm add @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
+        run: pnpm add @entente/types@latest @entente/provider@latest @entente/fixtures@latest
 
       - name: Install castle-service dependencies
         working-directory: examples/castle-service
@@ -70,11 +70,12 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
+          VERSION=$(node -p "require('./package.json').version")
           entente register-service \
             --type provider \
             --name castle-service \
             --spec spec/openapi.json \
-            --spec-version ${{ steps.version.outputs.version }} \
+            --spec-version $VERSION \
             --environment development
 
       - name: Run castle-service tests
