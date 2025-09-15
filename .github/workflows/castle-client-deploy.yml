@@ -25,12 +25,12 @@ on:
 
 jobs:
   build-and-test:
-    if: github.event.inputs.skip_build_test != 'true'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build_test != 'true'
     uses: ./.github/workflows/castle-client-build-test.yml
 
   deploy-development:
-    if: always() && ((needs.build-and-test.outputs.should-deploy == 'true' && needs.build-and-test.result == 'success') || github.event.inputs.skip_build_test == 'true') && (github.event_name == 'workflow_run' || github.event.inputs.environment == 'development')
-    needs: build-and-test
+    if: always() && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'workflow_dispatch' && (needs.build-and-test.result == 'success' || needs.build-and-test.result == 'skipped') && (github.event.inputs.environment == 'development' || github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'production')))
+    needs: [build-and-test]
     runs-on: ubuntu-latest
     environment: development
 
@@ -103,7 +103,7 @@ jobs:
           curl -f https://castle-client-dev.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1
 
   deploy-staging:
-    if: always() && ((needs.build-and-test.outputs.should-deploy == 'true' && needs.build-and-test.result == 'success') || github.event.inputs.skip_build_test == 'true') && (github.event_name == 'workflow_run' || github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'production')
+    if: always() && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'workflow_dispatch' && (needs.build-and-test.result == 'success' || needs.build-and-test.result == 'skipped') && (github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'production'))) && needs.deploy-development.result == 'success'
     needs: [build-and-test, deploy-development]
     runs-on: ubuntu-latest
     environment: staging
@@ -177,7 +177,7 @@ jobs:
           curl -f https://castle-client-staging.${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}.workers.dev/health || exit 1
 
   deploy-production:
-    if: always() && ((needs.build-and-test.outputs.should-deploy == 'true' && needs.build-and-test.result == 'success') || github.event.inputs.skip_build_test == 'true') && (github.event_name == 'workflow_run' || github.event.inputs.environment == 'production')
+    if: always() && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'workflow_dispatch' && (needs.build-and-test.result == 'success' || needs.build-and-test.result == 'skipped') && github.event.inputs.environment == 'production')) && needs.deploy-staging.result == 'success'
     needs: [build-and-test, deploy-staging]
     runs-on: ubuntu-latest
     environment: production
