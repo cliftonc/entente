@@ -53,7 +53,7 @@ function InviteForm({ onInvite, onCancel, loading, error }: InviteFormProps) {
         <div className="flex items-center gap-2">
           <button
             type="submit"
-            className="btn btn-primary btn-sm"
+            className="btn btn-primary btn-sm text-primary-content"
             disabled={!canSubmit}
           >
             {loading ? (

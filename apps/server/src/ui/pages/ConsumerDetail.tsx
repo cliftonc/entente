@@ -47,6 +47,12 @@ function ConsumerDetail() {
     enabled: !!name,
   })
 
+  const { data: pendingTasks, isLoading: pendingTasksLoading } = useQuery({
+    queryKey: ['verification', 'pending', name],
+    queryFn: () => verificationApi.getPendingTasks(),
+    enabled: !!name,
+  })
+
   // Fetch contracts for this consumer (contracts where this service is the consumer)
   const { data: contracts, isLoading: contractsLoading } = useQuery({
     queryKey: ['contracts', 'consumer', name],
@@ -114,6 +120,8 @@ function ConsumerDetail() {
 
   const _recentVerification = verificationResults?.[0]
   const activeDeployments = deployments?.filter(d => d.active === true) || []
+  const blockedDeployments = deployments?.filter(d => d.status === 'failed') || []
+  const consumerPendingTasks = pendingTasks?.filter(task => task.consumer === name) || []
 
   return (
     <div className="space-y-6">
@@ -179,9 +187,20 @@ function ConsumerDetail() {
             </div>
           </div>
 
+          {/* Pending Verification */}
+          <VerificationPanel
+            title="Pending Verification"
+            pendingTasks={consumerPendingTasks}
+            isLoading={pendingTasksLoading}
+            serviceName={name || ''}
+            serviceType="consumer"
+            viewAllUrl="/verification"
+            isPending={true}
+          />
+
           {/* Contract Test Results */}
           <VerificationPanel
-            title="Recent Test Results"
+            title="Recent Verification Results"
             verificationResults={verificationResults}
             isLoading={verificationLoading}
             serviceName={name || ''}
@@ -276,6 +295,80 @@ function ConsumerDetail() {
                   </svg>
                   <div className="text-sm font-medium">No active deployments</div>
                   <div className="text-xs">Deploy this consumer to see deployment status</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Blocked Deployments */}
+          <div className="card bg-base-100 shadow-xl">
+            <div className="card-body">
+              <div className="flex justify-between items-center">
+                <h3 className="card-title text-lg text-error">Blocked Deployments</h3>
+                <Link to={`/deployments?service=${name}&include-failures=true`} className="btn btn-ghost btn-xs">
+                  View All
+                </Link>
+              </div>
+              {deploymentsLoading ? (
+                <div className="skeleton h-20 w-full" />
+              ) : blockedDeployments.length > 0 ? (
+                <div className="space-y-3">
+                  {blockedDeployments.slice(0, 3).map((deployment, idx) => (
+                    <div
+                      key={
+                        deployment.id || `blocked-${deployment.environment}-${deployment.version}-${idx}`
+                      }
+                      className="bg-error/10 border border-error/20 rounded-lg p-3"
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-medium text-sm">{deployment.environment}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs bg-error/20 px-2 py-1 rounded">
+                            {deployment.version}
+                          </span>
+                          <div className="badge badge-sm badge-error px-2">
+                            blocked
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-error mb-2">
+                        {deployment.failureReason || 'Deployment blocked by compatibility check'}
+                      </div>
+                      <div className="flex justify-between items-center text-xs text-base-content/70">
+                        <span>
+                          Attempted <TimestampDisplay timestamp={deployment.deployedAt} />
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {blockedDeployments.length > 3 && (
+                    <div className="text-center">
+                      <Link
+                        to={`/deployments?service=${name}&include-failures=true`}
+                        className="text-xs text-error hover:underline"
+                      >
+                        View {blockedDeployments.length - 3} more blocked deployments
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-base-content/70">
+                  <svg
+                    className="w-8 h-8 mx-auto mb-2 text-success/50"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <div className="text-sm font-medium">No blocked deployments</div>
+                  <div className="text-xs">All deployment attempts have been successful</div>
                 </div>
               )}
             </div>

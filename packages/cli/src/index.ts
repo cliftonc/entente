@@ -303,27 +303,40 @@ export const listFixtures = async (options: {
   }
 }
 
-export const getDeploymentStatus = async (environment: string): Promise<void> => {
+export const getDeploymentStatus = async (environment: string, includeFailures = false): Promise<void> => {
   const serviceUrl = await getServerUrl()
+  const queryParam = includeFailures ? '&include_inactive=true' : ''
   const response = await makeAuthenticatedRequest(
-    `${serviceUrl}/api/deployments/active?environment=${environment}`
+    `${serviceUrl}/api/deployments/active?environment=${environment}${queryParam}`
   )
 
   if (!response.ok) {
     throw new Error(`Failed to get deployment status: ${response.status} ${response.statusText}`)
   }
 
-  const activeVersions = await response.json()
+  const deployments = await response.json()
 
-  if (activeVersions.length === 0) {
-    console.log(`No active deployments found for ${environment}`)
+  if (deployments.length === 0) {
+    console.log(`No deployments found for ${environment}`)
     return
   }
 
-  console.log(`\nActive deployments in ${environment}:\n`)
+  console.log(`\nDeployments in ${environment}:\n`)
 
-  for (const version of activeVersions) {
-    console.log(`${version.service}@${version.version} (deployed ${version.deployedAt})`)
+  for (const deployment of deployments) {
+    const statusColor = deployment.status === 'successful'
+      ? chalk.green('✅')
+      : deployment.status === 'failed'
+        ? chalk.red('❌')
+        : chalk.yellow('⚠️')
+
+    const statusText = deployment.status === 'successful' ? 'deployed' : deployment.status
+
+    console.log(`${statusColor} ${deployment.service}@${deployment.version} (${statusText} ${deployment.deployedAt})`)
+
+    if (deployment.status === 'failed' && deployment.failureReason) {
+      console.log(`   ${chalk.red('Reason:')} ${deployment.failureReason}`)
+    }
   }
 }
 

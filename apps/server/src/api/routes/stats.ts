@@ -52,6 +52,8 @@ statsRouter.get('/dashboard', async c => {
         deployedAt: deployments.deployedAt,
         deployedBy: deployments.deployedBy,
         type: deployments.type,
+        status: deployments.status,
+        failureReason: deployments.failureReason,
       })
       .from(deployments)
       .where(eq(deployments.tenantId, tenantId))
@@ -168,6 +170,8 @@ statsRouter.get('/dashboard', async c => {
         deployedAt: d.deployedAt,
         deployedBy: d.deployedBy,
         type: d.type,
+        status: d.status,
+        failureReason: d.failureReason,
       })),
       serviceHealth,
     })

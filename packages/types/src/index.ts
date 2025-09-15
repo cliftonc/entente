@@ -9,6 +9,14 @@ export interface Service {
   description?: string
   packageJson: Record<string, unknown>
   gitRepositoryUrl?: string
+  // GitHub integration fields
+  githubRepositoryOwner?: string
+  githubRepositoryName?: string
+  githubVerifyWorkflowId?: string
+  githubVerifyWorkflowName?: string
+  githubVerifyWorkflowPath?: string
+  githubAutoLinked?: boolean
+  githubConfiguredAt?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -140,6 +148,9 @@ export interface ProviderDeployment {
   deployedBy?: string
   gitSha?: string
 }
+
+// Deployment status tracking
+export type DeploymentStatus = 'attempted' | 'successful' | 'failed'
 export interface SpecMetadata {
   service: string
   version: string
@@ -205,6 +216,9 @@ export interface DeploymentState {
   deployedAt: Date
   deployedBy: string
   active: boolean
+  status: DeploymentStatus
+  failureReason?: string
+  failureDetails?: any // Can store CanIDeployResult or other failure information
 }
 
 export interface ActiveVersion {
@@ -513,4 +527,47 @@ export interface GitHubAppInstallationUpdate {
     fullName: string
     private: boolean
   }>
+}
+
+// GitHub service integration types
+export interface GitHubServiceConfig {
+  repositoryOwner?: string
+  repositoryName?: string
+  verifyWorkflowId?: string
+  verifyWorkflowName?: string
+  verifyWorkflowPath?: string
+  autoLinked?: boolean
+  configuredAt?: Date
+}
+
+export interface GitHubWorkflow {
+  id: number
+  name: string
+  path: string
+  state: 'active' | 'deleted' | 'disabled_fork' | 'disabled_inactivity' | 'disabled_manually'
+  badge_url: string
+  html_url: string
+}
+
+export interface GitHubWorkflowRun {
+  id: number
+  name: string | null
+  status: 'queued' | 'in_progress' | 'completed'
+  conclusion: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required' | null
+  html_url: string
+  created_at: string
+  updated_at: string
+}
+
+export interface GitHubServiceConfigRequest {
+  repositoryOwner?: string
+  repositoryName?: string
+  verifyWorkflowId?: string
+  verifyWorkflowName?: string
+  verifyWorkflowPath?: string
+}
+
+export interface GitHubTriggerWorkflowRequest {
+  ref?: string
+  inputs?: Record<string, any>
 }

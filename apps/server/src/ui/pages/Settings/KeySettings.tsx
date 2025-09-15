@@ -2,6 +2,12 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ApiKey, CreateKeyRequest } from '@entente/types'
 import { api } from '../../utils/api'
+import {
+  KeyIcon,
+  ClipboardDocumentIcon,
+  ArrowPathIcon,
+  TrashIcon
+} from '@heroicons/react/24/outline'
 
 function KeySettings() {
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -105,7 +111,7 @@ function KeySettings() {
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary"
+          className="btn btn-primary text-primary-content"
           disabled={createKeyMutation.isPending}
         >
           Create New Key
@@ -121,14 +127,16 @@ function KeySettings() {
           </div>
         ) : keys.length === 0 ? (
           <div className="p-8 text-center">
-            <div className="text-4xl mb-4">🔑</div>
+            <div className="flex justify-center mb-4">
+              <KeyIcon className="w-16 h-16 text-base-content/30" />
+            </div>
             <h3 className="text-lg font-medium text-base-content mb-2">No API keys found</h3>
             <p className="text-base-content/70 mb-4">
               Create your first API key to start using the Entente API
             </p>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="btn btn-primary btn-sm"
+              className="btn btn-primary btn-sm text-primary-content"
             >
               Create Your First Key
             </button>
@@ -165,17 +173,17 @@ function KeySettings() {
                           className="btn btn-ghost btn-xs"
                           title="Copy key prefix"
                         >
-                          📋
+                          <ClipboardDocumentIcon className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
                     <td>
                       {key.revokedAt ? (
-                        <div className="badge badge-error">Revoked</div>
+                        <div className="badge badge-error text-error-content">Revoked</div>
                       ) : isExpired(key.expiresAt) ? (
-                        <div className="badge badge-warning">Expired</div>
+                        <div className="badge badge-warning text-warning-content">Expired</div>
                       ) : (
-                        <div className="badge badge-success">Active</div>
+                        <div className="badge badge-success text-success-content">Active</div>
                       )}
                     </td>
                     <td className="text-sm">
@@ -199,7 +207,7 @@ function KeySettings() {
                             disabled={rotateKeyMutation.isPending}
                             title="Rotate key"
                           >
-                            🔄
+                            <ArrowPathIcon className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleRevokeKey(key.id, key.name)}
@@ -207,7 +215,7 @@ function KeySettings() {
                             disabled={revokeKeyMutation.isPending}
                             title="Delete key"
                           >
-                            🗑️
+                            <TrashIcon className="w-4 h-4" />
                           </button>
                         </div>
                       )}
@@ -264,7 +272,7 @@ function KeySettings() {
               </button>
               <button
                 onClick={handleCreateKey}
-                className="btn btn-primary"
+                className="btn btn-primary text-primary-content"
                 disabled={createKeyMutation.isPending || !createForm.name.trim()}
               >
                 {createKeyMutation.isPending ? (
@@ -285,9 +293,12 @@ function KeySettings() {
       {showRotatedKey && (
         <div className="modal modal-open">
           <div className="modal-box">
-            <h3 className="font-bold text-lg mb-4">🔑 New API Key</h3>
+            <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+              <KeyIcon className="w-6 h-6" />
+              New API Key
+            </h3>
 
-            <div className="alert alert-warning mb-4">
+            <div className="alert alert-warning text-warning-content mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
@@ -310,7 +321,7 @@ function KeySettings() {
                   className="btn btn-ghost"
                   title="Copy to clipboard"
                 >
-                  📋
+                  <ClipboardDocumentIcon className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -318,7 +329,7 @@ function KeySettings() {
             <div className="modal-action">
               <button
                 onClick={() => setShowRotatedKey(null)}
-                className="btn btn-primary"
+                className="btn btn-primary text-primary-content"
               >
                 I've Saved the Key
               </button>

@@ -59,7 +59,7 @@ function TeamMemberRow({
           <div className="flex items-center gap-2">
             <span className="font-medium text-base-content">{member.name}</span>
             {isPending && (
-              <span className="badge badge-warning badge-sm">Pending</span>
+              <span className="badge badge-warning badge-sm text-warning-content">Pending</span>
             )}
           </div>
           <div className="text-sm text-base-content/60">
@@ -87,7 +87,7 @@ function TeamMemberRow({
             <option value="admin">Admin</option>
           </select>
         ) : (
-          <span className="badge badge-neutral capitalize">
+          <span className="badge badge-neutral text-neutral-content capitalize">
             {member.role}
           </span>
         )}
@@ -111,7 +111,7 @@ function TeamMemberRow({
             ) : (
               <div className="flex items-center gap-1">
                 <button
-                  className="btn btn-error btn-xs"
+                  className="btn btn-error btn-xs text-error-content"
                   onClick={handleConfirmRemove}
                   disabled={removing}
                 >

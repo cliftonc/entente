@@ -382,6 +382,8 @@ program
         if (result.serviceType) {
           console.log(chalk.gray(`Service type: ${result.serviceType}`))
         }
+        console.log('')
+        console.log(chalk.gray('📝 Failed deployment attempt has been recorded for analysis'))
         process.exit(1)
       }
     } catch (error) {
@@ -428,9 +430,10 @@ program
   .command('status')
   .description('Show deployment status for environment')
   .requiredOption('-e, --environment <environment>', 'Environment to check')
+  .option('--include-failures', 'Include failed deployment attempts', false)
   .action(async options => {
     try {
-      await getDeploymentStatus(options.environment)
+      await getDeploymentStatus(options.environment, options.includeFailures)
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
       process.exit(1)

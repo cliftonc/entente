@@ -6,6 +6,10 @@ import type {
   CreateKeyRequest,
   DeploymentState,
   Fixture,
+  GitHubServiceConfig,
+  GitHubServiceConfigRequest,
+  GitHubTriggerWorkflowRequest,
+  GitHubWorkflow,
   OpenAPISpec,
   RevokeKeyRequest,
   Service,
@@ -356,4 +360,35 @@ export const api = {
       method: 'DELETE',
       body: data ? JSON.stringify(data) : undefined,
     }),
+}
+
+// GitHub integration API functions
+export const githubApi = {
+  // Get GitHub configuration for a service
+  getServiceConfig: (serviceName: string, serviceType: 'consumer' | 'provider'): Promise<GitHubServiceConfig> =>
+    fetchApi(`/services/${serviceName}/${serviceType}/github/config`),
+
+  // Update GitHub configuration for a service
+  updateServiceConfig: (
+    serviceName: string,
+    serviceType: 'consumer' | 'provider',
+    config: GitHubServiceConfigRequest
+  ): Promise<GitHubServiceConfig> =>
+    api.put(`/services/${serviceName}/${serviceType}/github/config`, config),
+
+  // Clear GitHub configuration for a service
+  clearServiceConfig: (serviceName: string, serviceType: 'consumer' | 'provider'): Promise<{ message: string }> =>
+    api.delete(`/services/${serviceName}/${serviceType}/github/config`),
+
+  // Get available workflows for a service's GitHub repository
+  getWorkflows: (serviceName: string, serviceType: 'consumer' | 'provider'): Promise<GitHubWorkflow[]> =>
+    fetchApi(`/services/${serviceName}/${serviceType}/github/workflows`),
+
+  // Trigger verification workflow for a service
+  triggerWorkflow: (
+    serviceName: string,
+    serviceType: 'consumer' | 'provider',
+    request: GitHubTriggerWorkflowRequest
+  ): Promise<{ message: string }> =>
+    api.post(`/services/${serviceName}/${serviceType}/github/trigger-workflow`, request),
 }

@@ -238,6 +238,14 @@ export async function makeGitHubRequest<T>(
     throw new Error(`GitHub API error: ${response.status} ${response.statusText} - ${errorText}`)
   }
 
+  // Handle empty responses (like 204 No Content)
+  const contentLength = response.headers.get('content-length')
+  const contentType = response.headers.get('content-type')
+
+  if (response.status === 204 || contentLength === '0' || !contentType?.includes('application/json')) {
+    return undefined as unknown as T
+  }
+
   return response.json()
 }
 
@@ -382,7 +390,7 @@ export async function getWorkflowJobs(owner: string, repo: string, runId: number
 export async function triggerWorkflow(
   owner: string,
   repo: string,
-  workflowId: string,
+  workflowPath: string,
   ref: string,
   inputs: Record<string, any> = {},
   db: Database,
@@ -393,8 +401,14 @@ export async function triggerWorkflow(
     throw new Error('No GitHub App installation found for this tenant')
   }
 
-  await makeGitHubRequest(
-    `/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`,
+  // Extract just the filename from the path for GitHub API
+  // e.g., ".github/workflows/castle-service-build-test.yml" -> "castle-service-build-test.yml"
+  const workflowFilename = workflowPath.split('/').pop() || workflowPath
+
+  console.log(`🚀 Triggering workflow: ${workflowFilename} (from path: ${workflowPath})`)
+
+  await makeGitHubRequest<void>(
+    `/repos/${owner}/${repo}/actions/workflows/${workflowFilename}/dispatches`,
     config.installationId,
     config.appId,
     config.privateKey,
@@ -454,7 +468,7 @@ export async function createPullRequestComment(
     throw new Error('No GitHub App installation found for this tenant')
   }
 
-  await makeGitHubRequest(
+  await makeGitHubRequest<void>(
     `/repos/${owner}/${repo}/issues/${pullNumber}/comments`,
     config.installationId,
     config.appId,
@@ -621,7 +635,7 @@ export async function updateFile(
     data.branch = branch
   }
 
-  await makeGitHubRequest(
+  await makeGitHubRequest<void>(
     `/repos/${owner}/${repo}/contents/${path}`,
     config.installationId,
     config.appId,
@@ -648,7 +662,7 @@ export async function createWebhook(
     throw new Error('No GitHub App installation found for this tenant')
   }
 
-  await makeGitHubRequest(
+  await makeGitHubRequest<void>(
     `/repos/${owner}/${repo}/hooks`,
     config.installationId,
     config.appId,
@@ -695,7 +709,7 @@ export async function createCheckRun(
     data.conclusion = conclusion
   }
 
-  await makeGitHubRequest(
+  await makeGitHubRequest<void>(
     `/repos/${owner}/${repo}/check-runs`,
     config.installationId,
     config.appId,

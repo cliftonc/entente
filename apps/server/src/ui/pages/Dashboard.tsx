@@ -160,16 +160,37 @@ function Dashboard() {
                 dashboardStats?.recentDeployments?.slice(0, 5).map(deployment => (
                   <div
                     key={`${deployment.service}-${deployment.version}-${deployment.environment}`}
-                    className="flex items-center justify-between p-3 bg-base-200 rounded-lg"
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      deployment.status === 'failed'
+                        ? 'bg-error/10 border border-error/20'
+                        : 'bg-base-200'
+                    }`}
                   >
-                    <div>
-                      <Link
-                        to={`/services/${deployment.type || 'provider'}/${deployment.service}`}
-                        className="font-medium hover:text-primary transition-colors"
-                      >
-                        {deployment.service}
-                      </Link>
-                      <div className="text-sm text-base-content/70">v{deployment.version}</div>
+                    <div className="flex items-center gap-3">
+                      {/* Status indicator */}
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          deployment.status === 'failed'
+                            ? 'bg-error'
+                            : deployment.status === 'successful'
+                              ? 'bg-success'
+                              : 'bg-info'
+                        }`}
+                      />
+                      <div>
+                        <Link
+                          to={`/services/${deployment.type || 'provider'}/${deployment.service}`}
+                          className="font-medium hover:text-primary transition-colors"
+                        >
+                          {deployment.service}
+                        </Link>
+                        <div className="text-sm text-base-content/70">
+                          v{deployment.version}
+                          {deployment.status === 'failed' && (
+                            <span className="text-error ml-2">• Blocked</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <div className="text-right">
                       <div

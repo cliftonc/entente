@@ -399,6 +399,42 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
       ? `All verifications passed for ${service}@${version}`
       : errorMessages.join('; ')
 
+    // Record failed deployment attempt if can't deploy
+    if (!canDeploy) {
+      try {
+        // Find the service to get serviceId
+        const primaryService = serviceRecords.find(s => s.type === (type || (isConsumer ? 'consumer' : 'provider'))) || serviceRecords[0]
+
+        const canIDeployResult = {
+          canDeploy,
+          compatibleServices,
+          message,
+          serviceType: isConsumer && isProvider ? 'consumer/provider' : isConsumer ? 'consumer' : 'provider',
+          errorMessages,
+          allVerified,
+        }
+
+        // Record the failed deployment attempt
+        await db.insert(deployments).values({
+          tenantId,
+          type: primaryService.type,
+          serviceId: primaryService.id,
+          service,
+          version,
+          environment,
+          deployedAt: new Date(),
+          deployedBy: auth.user?.username || 'unknown',
+          active: false,
+          status: 'failed',
+          failureReason: message,
+          failureDetails: canIDeployResult,
+        })
+      } catch (deploymentError) {
+        console.error('Failed to record deployment attempt:', deploymentError)
+        // Don't fail the can-i-deploy check just because we couldn't record the attempt
+      }
+    }
+
     return c.json({
       canDeploy,
       compatibleServices,

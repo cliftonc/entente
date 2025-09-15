@@ -1,29 +1,33 @@
-import type { VerificationResult } from '@entente/types'
+import type { VerificationResults, VerificationTask } from '@entente/types'
 import { Link } from 'react-router-dom'
 import TimestampDisplay from './TimestampDisplay'
 
 interface VerificationPanelProps {
   title: string
-  verificationResults?: VerificationResult[]
+  verificationResults?: VerificationResults[]
+  pendingTasks?: VerificationTask[]
   isLoading: boolean
   serviceName: string
   serviceType: 'provider' | 'consumer'
   viewAllUrl: string
+  isPending?: boolean
 }
 
 function VerificationPanel({
   title,
   verificationResults,
+  pendingTasks,
   isLoading,
   serviceName,
   serviceType,
   viewAllUrl,
+  isPending = false,
 }: VerificationPanelProps) {
   return (
     <div className="card bg-base-100 shadow-xl">
       <div className="card-body">
         <div className="flex justify-between items-center">
-          <h2 className="card-title">{title}</h2>
+          <h2 className={`card-title ${isPending ? 'text-warning' : ''}`}>{title}</h2>
           <Link to={viewAllUrl} className="btn btn-ghost btn-sm">
             View All
             <svg
@@ -44,6 +48,38 @@ function VerificationPanel({
 
         {isLoading ? (
           <div className="skeleton h-16 w-full" />
+        ) : isPending && pendingTasks && pendingTasks.length > 0 ? (
+          <div className="space-y-3">
+            {pendingTasks.slice(0, 3).map(task => (
+              <div key={task.id} className="bg-base-200 rounded-lg p-3">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="badge badge-warning">pending</div>
+                    <span className="text-sm font-medium">
+                      {serviceType === 'consumer' ? serviceName : task.consumer} v{task.consumerVersion}
+                    </span>
+                    <span className="text-sm text-base-content/80">→</span>
+                    <span className="text-sm font-medium">
+                      {task.provider} v{task.providerVersion}
+                    </span>
+                    <span className="text-xs text-base-content/70">
+                      <TimestampDisplay timestamp={task.createdAt} />
+                    </span>
+                  </div>
+                  <span className="text-sm font-medium">
+                    {task.interactions?.length || 0} interactions
+                  </span>
+                </div>
+              </div>
+            ))}
+            {pendingTasks.length > 3 && (
+              <div className="text-center">
+                <Link to={viewAllUrl} className="text-sm text-primary hover:underline">
+                  View {pendingTasks.length - 3} more pending tasks
+                </Link>
+              </div>
+            )}
+          </div>
         ) : verificationResults && verificationResults.length > 0 ? (
           <div className="space-y-3">
             {verificationResults.slice(0, 3).map(verification => (
@@ -95,7 +131,7 @@ function VerificationPanel({
         ) : (
           <div className="text-center py-8 text-base-content/70">
             <svg
-              className="w-12 h-12 mx-auto mb-3 text-base-content/30"
+              className={`w-12 h-12 mx-auto mb-3 ${isPending ? 'text-success/50' : 'text-base-content/30'}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -108,12 +144,14 @@ function VerificationPanel({
               />
             </svg>
             <div className="font-medium">
-              {serviceType === 'provider' ? 'No verification results' : 'No test results'}
+              {isPending ? 'No pending verifications' : serviceType === 'provider' ? 'No verification results' : 'No test results'}
             </div>
             <div className="text-sm">
-              {serviceType === 'provider'
-                ? 'Run verification to see test results'
-                : 'Run contract tests to see test results'}
+              {isPending
+                ? 'All verification tasks have been completed'
+                : serviceType === 'provider'
+                  ? 'Run verification to see test results'
+                  : 'Run contract tests to see test results'}
             </div>
           </div>
         )}

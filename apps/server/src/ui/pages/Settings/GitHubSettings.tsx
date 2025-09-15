@@ -113,7 +113,7 @@ function GitHubSettings() {
               Install the Entente GitHub app to automatically sync your repositories and enable CI/CD integration.
             </p>
             <button
-              className="btn btn-primary"
+              className="btn btn-primary text-primary-content"
               onClick={handleInstall}
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -153,7 +153,7 @@ function GitHubSettings() {
                   </a>
                 )}
                 <button
-                  className="btn btn-error btn-sm"
+                  className="btn btn-error btn-sm text-error-content"
                   onClick={handleUninstall}
                   disabled={uninstallMutation.isPending}
                 >
@@ -202,7 +202,7 @@ function GitHubSettings() {
                           <span className="text-sm text-base-content">
                             {repo.fullName}
                             {repo.private && (
-                              <span className="ml-2 badge badge-neutral badge-sm px-2">private</span>
+                              <span className="ml-2 badge badge-neutral badge-sm text-neutral-content px-2">private</span>
                             )}
                           </span>
                         </div>

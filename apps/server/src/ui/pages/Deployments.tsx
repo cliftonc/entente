@@ -7,14 +7,78 @@ import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
 import { deploymentApi } from '../utils/api'
 
+// Modal component for failure details
+function FailureDetailsModal({
+  deployment,
+  isOpen,
+  onClose
+}: {
+  deployment: any
+  isOpen: boolean
+  onClose: () => void
+}) {
+  if (!isOpen || !deployment) return null
+
+  return (
+    <div className="modal modal-open">
+      <div className="modal-box max-w-4xl">
+        <h3 className="font-bold text-lg text-error">
+          Blocked Deployment Details
+        </h3>
+
+        <div className="py-4 space-y-4">
+          <div>
+            <h4 className="font-semibold">Service Information</h4>
+            <div className="bg-base-200 p-3 rounded">
+              <p><strong>Service:</strong> {deployment.service}</p>
+              <p><strong>Version:</strong> {deployment.version}</p>
+              <p><strong>Environment:</strong> {deployment.environment}</p>
+              <p><strong>Attempted by:</strong> {deployment.deployedBy}</p>
+              <p><strong>Attempted at:</strong> <TimestampDisplay timestamp={deployment.deployedAt} /></p>
+            </div>
+          </div>
+
+          {deployment.failureReason && (
+            <div>
+              <h4 className="font-semibold">Block Reason</h4>
+              <div className="bg-error/10 border-l-4 border-error p-3 rounded">
+                <p className="text-error">{deployment.failureReason}</p>
+              </div>
+            </div>
+          )}
+
+          {deployment.failureDetails && (
+            <div>
+              <h4 className="font-semibold">Technical Details</h4>
+              <div className="bg-base-200 p-3 rounded">
+                <pre className="text-xs overflow-auto max-h-64">
+                  {JSON.stringify(deployment.failureDetails, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="modal-action">
+          <button className="btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Deployments() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>('ALL')
-  const [statusFilter, setStatusFilter] = useState<string>('active')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [providerFilter, setProviderFilter] = useState(
     searchParams.get('provider') || searchParams.get('service') || ''
   )
   const [consumerFilter, setConsumerFilter] = useState(searchParams.get('consumer') || '')
+  const [selectedFailedDeployment, setSelectedFailedDeployment] = useState<any>(null)
+  const [isFailureModalOpen, setIsFailureModalOpen] = useState(false)
 
   // Update filters when URL params change
   useEffect(() => {
@@ -56,6 +120,7 @@ function Deployments() {
       return true
     }) || []
 
+
   // Use environment breakdown from summary or calculate from filtered deployments
   const deploymentsByEnv =
     summary?.environmentBreakdown?.reduce(
@@ -77,6 +142,20 @@ function Deployments() {
   // Calculate total deployments across all environments
   const totalDeployments = Object.values(deploymentsByEnv).reduce((sum, count) => sum + count, 0)
 
+  // Calculate blocked deployments by environment
+  const blockedDeploymentsByEnv = filteredDeployments?.reduce(
+    (acc, deployment) => {
+      if (deployment.status === 'failed') {
+        acc[deployment.environment] = (acc[deployment.environment] || 0) + 1
+      }
+      return acc
+    },
+    {} as Record<string, number>
+  ) || {}
+
+  // Calculate total blocked deployments
+  const totalBlockedDeployments = Object.values(blockedDeploymentsByEnv).reduce((sum, count) => sum + count, 0)
+
   // Handle filter changes
   const handleProviderFilterChange = (provider: string) => {
     setProviderFilter(provider)
@@ -96,10 +175,20 @@ function Deployments() {
   }
 
   const clearFilters = () => {
-    setStatusFilter('active')
+    setStatusFilter('all')
     setProviderFilter('')
     setConsumerFilter('')
     setSearchParams({})
+  }
+
+  const openFailureModal = (deployment: any) => {
+    setSelectedFailedDeployment(deployment)
+    setIsFailureModalOpen(true)
+  }
+
+  const closeFailureModal = () => {
+    setSelectedFailedDeployment(null)
+    setIsFailureModalOpen(false)
   }
 
   if (isLoading || activeLoading || environmentsLoading) {
@@ -201,7 +290,7 @@ function Deployments() {
             <option value="inactive">Inactive</option>
           </select>
         </div>
-        {(statusFilter !== 'active' || providerFilter || consumerFilter) && (
+        {(statusFilter !== 'all' || providerFilter || consumerFilter) && (
           <div className="form-control">
             <button className="btn btn-ghost btn-sm" onClick={clearFilters}>
               Clear Filters
@@ -237,6 +326,7 @@ function Deployments() {
           }
 
           const colorClass = getEnvironmentColor(environment)
+          const blockedCount = blockedDeploymentsByEnv[environment] || 0
 
           return (
             <div
@@ -312,7 +402,7 @@ function Deployments() {
                   </tr>
                 ) : (
                   filteredDeployments.map((deployment, index) => (
-                    <tr key={deployment.id || index}>
+                    <tr key={deployment.id || index} className={deployment.status === 'failed' ? 'bg-error/5' : ''}>
                       <td>
                         <Link
                           to={`/services/${deployment.serviceType}/${deployment.service}`}
@@ -347,20 +437,42 @@ function Deployments() {
                           {deployment.environment}
                         </span>
                       </td>
-                      <td>{deployment.deployedBy}</td>
+                      <td>{deployment.status === 'failed' ? '-' : deployment.deployedBy}</td>
                       <td>
                         <TimestampDisplay timestamp={deployment.deployedAt} />
                       </td>
                       <td>
                         <div className="flex items-center gap-2">
-                          <div
-                            className={`w-2 h-2 rounded-full ${
-                              deployment.active ? 'bg-success' : 'bg-error'
-                            }`}
-                          />
-                          <span className="text-sm">
-                            {deployment.active ? 'Active' : 'Inactive'}
-                          </span>
+                          {deployment.status === 'failed' ? (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-error" />
+                                <span className="text-sm text-error font-medium">Blocked</span>
+                              </div>
+                              <button
+                                className="btn btn-xs btn-error btn-outline"
+                                onClick={() => openFailureModal(deployment)}
+                              >
+                                Details
+                              </button>
+                            </>
+                          ) : deployment.status === 'successful' ? (
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-2 h-2 rounded-full ${
+                                  deployment.active ? 'bg-success' : 'bg-warning'
+                                }`}
+                              />
+                              <span className="text-sm">
+                                {deployment.active ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-info" />
+                              <span className="text-sm capitalize">{deployment.status || 'Unknown'}</span>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -371,6 +483,13 @@ function Deployments() {
           </div>
         </div>
       </div>
+
+      {/* Failure Details Modal */}
+      <FailureDetailsModal
+        deployment={selectedFailedDeployment}
+        isOpen={isFailureModalOpen}
+        onClose={closeFailureModal}
+      />
     </div>
   )
 }

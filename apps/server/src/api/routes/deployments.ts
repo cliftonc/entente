@@ -49,6 +49,7 @@ deploymentsRouter.post('/consumer', async c => {
       deployedAt: new Date(),
       deployedBy: consumerDeployment.deployedBy || 'unknown',
       active: true,
+      status: 'successful',
     })
     .returning()
 
@@ -123,6 +124,7 @@ deploymentsRouter.post('/provider', async c => {
       deployedAt: new Date(),
       deployedBy: providerDeployment.deployedBy || 'unknown',
       active: true,
+      status: 'successful',
     })
     .returning()
 
@@ -179,6 +181,8 @@ deploymentsRouter.get('/active', async c => {
   // Only filter by active status if not including inactive deployments
   if (!includeInactive) {
     whereConditions.push(eq(deployments.active, true))
+    // Only include successful deployments by default for active deployments
+    whereConditions.push(eq(deployments.status, 'successful'))
   }
 
   const activeDeployments = await db
@@ -192,6 +196,9 @@ deploymentsRouter.get('/active', async c => {
       deployedAt: deployments.deployedAt,
       deployedBy: deployments.deployedBy,
       active: deployments.active,
+      status: deployments.status,
+      failureReason: deployments.failureReason,
+      failureDetails: deployments.failureDetails,
       gitRepositoryUrl: services.gitRepositoryUrl,
     })
     .from(deployments)
@@ -210,6 +217,9 @@ deploymentsRouter.get('/active', async c => {
     deployedAt: d.deployedAt,
     deployedBy: d.deployedBy,
     active: d.active,
+    status: d.status,
+    failureReason: d.failureReason,
+    failureDetails: d.failureDetails,
   }))
 
   return c.json(activeVersions)
@@ -244,6 +254,9 @@ deploymentsRouter.get('/:service/history', async c => {
     deployedAt: d.deployedAt,
     deployedBy: d.deployedBy,
     active: d.active,
+    status: d.status,
+    failureReason: d.failureReason,
+    failureDetails: d.failureDetails,
   }))
 
   return c.json(deploymentStates)
@@ -274,6 +287,8 @@ deploymentsRouter.get('/summary', async c => {
       environment: true,
       deployedAt: true,
       deployedBy: true,
+      status: true,
+      failureReason: true,
     },
   })
 
@@ -298,8 +313,23 @@ deploymentsRouter.get('/summary', async c => {
     count,
   }))
 
+  // Get failed deployment attempts (last 24 hours)
+  const failedDeploymentsResult = await db
+    .select({ count: count() })
+    .from(deployments)
+    .where(
+      and(
+        eq(deployments.tenantId, tenantId),
+        eq(deployments.status, 'failed'),
+        gte(deployments.deployedAt, twentyFourHoursAgo)
+      )
+    )
+
+  const failedDeployments = failedDeploymentsResult[0]?.count || 0
+
   const summary = {
     totalActiveDeployments: Number(totalActiveDeployments),
+    failedDeployments: Number(failedDeployments),
     environmentBreakdown,
     recentDeployments,
   }
