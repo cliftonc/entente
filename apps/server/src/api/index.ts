@@ -288,7 +288,13 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
         )
 
       if (deployedDependencies.length === 0) {
-        errorMessages.push(`No dependent consumers are deployed in ${environment}`)
+        // If a provider has no dependents, it's safe to deploy
+        return c.json({
+          canDeploy: true,
+          compatibleServices: [],
+          message: `Provider ${service}@${version} has no dependents and is safe to deploy in ${environment}`,
+          serviceType: 'provider',
+        })
       }
 
       console.log(
