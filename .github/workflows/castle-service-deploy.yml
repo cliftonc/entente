@@ -39,13 +39,16 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install published Entente packages
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install published Entente packages in castle-service
         working-directory: examples/castle-service
-        run: npm install @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
+        run: pnpm add @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
 
       - name: Install castle-service dependencies
         working-directory: examples/castle-service
-        run: npm install
+        run: pnpm install
 
       - name: Install Entente CLI globally
         run: npm install -g @entente/cli@^0.1.2
@@ -93,13 +96,16 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install published Entente packages
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install published Entente packages in castle-service
         working-directory: examples/castle-service
-        run: npm install @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
+        run: pnpm add @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
 
       - name: Install castle-service dependencies
         working-directory: examples/castle-service
-        run: npm install
+        run: pnpm install
 
       - name: Install Entente CLI globally
         run: npm install -g @entente/cli@^0.1.2
@@ -181,13 +187,16 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install published Entente packages
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install published Entente packages in castle-service
         working-directory: examples/castle-service
-        run: npm install @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
+        run: pnpm add @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
 
       - name: Install castle-service dependencies
         working-directory: examples/castle-service
-        run: npm install
+        run: pnpm install
 
       - name: Install Entente CLI globally
         run: npm install -g @entente/cli@^0.1.2
@@ -269,13 +278,16 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install published Entente packages
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install published Entente packages in castle-service
         working-directory: examples/castle-service
-        run: npm install @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
+        run: pnpm add @entente/types@^0.1.2 @entente/provider@^0.1.2 @entente/fixtures@^0.1.2
 
       - name: Install castle-service dependencies
         working-directory: examples/castle-service
-        run: npm install
+        run: pnpm install
 
       - name: Install Entente CLI globally
         run: npm install -g @entente/cli@^0.1.2
