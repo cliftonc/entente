@@ -90,6 +90,65 @@ app.route('/api/stats', statsRouter)
 app.route('/api/settings', settingsRouter)
 app.route('/api/github', githubRoutes)
 
+// Serve static files (favicon, manifest, etc.)
+// Handle both Cloudflare Workers and Node.js development
+app.get('/favicon*', async c => {
+  const pathname = new URL(c.req.url).pathname
+  const assets = c.env?.ASSETS
+
+  if (assets) {
+    // Cloudflare Workers environment
+    const response = await assets.fetch(new URL(pathname, c.req.url).href)
+    if (response.ok) {
+      return response
+    }
+  }
+
+  // Fallback for Node.js development
+  return c.notFound()
+})
+
+app.get('/android-chrome*', async c => {
+  const pathname = new URL(c.req.url).pathname
+  const assets = c.env?.ASSETS
+
+  if (assets) {
+    const response = await assets.fetch(new URL(pathname, c.req.url).href)
+    if (response.ok) {
+      return response
+    }
+  }
+
+  return c.notFound()
+})
+
+app.get('/apple-touch-icon*', async c => {
+  const pathname = new URL(c.req.url).pathname
+  const assets = c.env?.ASSETS
+
+  if (assets) {
+    const response = await assets.fetch(new URL(pathname, c.req.url).href)
+    if (response.ok) {
+      return response
+    }
+  }
+
+  return c.notFound()
+})
+
+app.get('/site.webmanifest', async c => {
+  const assets = c.env?.ASSETS
+
+  if (assets) {
+    const response = await assets.fetch(new URL('/site.webmanifest', c.req.url).href)
+    if (response.ok) {
+      return response
+    }
+  }
+
+  return c.notFound()
+})
+
 // Can I Deploy endpoint (protected)
 app.get('/api/can-i-deploy', authMiddleware, async c => {
   const service = c.req.query('service') || c.req.query('consumer') // Accept both for backward compatibility

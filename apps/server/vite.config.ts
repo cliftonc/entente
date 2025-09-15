@@ -5,6 +5,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   root: 'src/ui',
+  publicDir: '../../public',
   build: {
     outDir: '../../dist/ui',
     emptyOutDir: true,
