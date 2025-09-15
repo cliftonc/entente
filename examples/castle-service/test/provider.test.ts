@@ -33,8 +33,6 @@ describe('Castle Service Provider Verification', () => {
       provider: 'castle-service',
     })
 
-    console.log(process.env)
-
     const results = await provider.verify({
       baseUrl: `http://localhost:${testPort}`,
       environment: 'test', // Verification context (where verification runs)
