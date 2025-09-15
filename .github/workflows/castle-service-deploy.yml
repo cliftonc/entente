@@ -158,9 +158,10 @@ jobs:
         run: |
           cd examples/castle-service
           entente deploy-service \
-            --service castle-service \
+            --name castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
-            --environment development
+            --environment development \
+            --type provider
 
       - name: Run smoke tests
         run: |
@@ -252,9 +253,10 @@ jobs:
         run: |
           cd examples/castle-service
           entente deploy-service \
-            --service castle-service \
+            --name castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
-            --environment staging
+            --environment staging \
+            --type provider
 
       - name: Run smoke tests
         run: |
@@ -346,9 +348,10 @@ jobs:
         run: |
           cd examples/castle-service
           entente deploy-service \
-            --service castle-service \
+            --name castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
-            --environment production
+            --environment production \
+            --type provider
 
       - name: Run smoke tests
         run: |
