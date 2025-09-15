@@ -29,7 +29,7 @@ export class CastleApiClient {
         console.log(`[CastleApiClient] Service binding response status: ${response.status} ${response.statusText}`)
 
         if (response.ok) {
-          const data = await response.json()
+          const data = await response.json() as Castle[]
           console.log(`[CastleApiClient] Service binding success: received ${Array.isArray(data) ? data.length : 'unknown'} castles`)
           return data
         }
@@ -60,7 +60,7 @@ export class CastleApiClient {
         throw new Error(`Failed to get castles: ${errorMessage}`)
       }
 
-      const data = await response.json()
+      const data = await response.json() as Castle[]
       console.log(`[CastleApiClient] HTTP success: received ${Array.isArray(data) ? data.length : 'unknown'} castles`)
       return data
     } catch (error) {
@@ -89,7 +89,7 @@ export class CastleApiClient {
       throw new Error(`Failed to get castle ${id}: ${errorMessage}`)
     }
 
-    return response.json()
+    return await response.json() as Castle
   }
 
   async createCastle(castleData: CreateCastleRequest): Promise<Castle> {
@@ -106,7 +106,7 @@ export class CastleApiClient {
       throw new Error(`Failed to create castle: ${error.message}`)
     }
 
-    return response.json()
+    return await response.json() as Castle
   }
 
   async deleteCastle(id: string): Promise<void> {
