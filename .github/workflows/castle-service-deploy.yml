@@ -42,11 +42,11 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Install castle-service dependencies
+        run: pnpm --filter @entente/example-castle-service install
 
-      - name: Build packages
-        run: pnpm build
+      - name: Install Entente CLI globally
+        run: npm install -g @entente/cli
 
       - name: Generate version
         id: version
@@ -94,11 +94,11 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Install castle-service dependencies
+        run: pnpm --filter @entente/example-castle-service install
 
-      - name: Build packages
-        run: pnpm build
+      - name: Install Entente CLI globally
+        run: npm install -g @entente/cli
 
       - name: Build castle-service
         run: pnpm --filter @entente/example-castle-service build
@@ -108,7 +108,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          node ../../packages/cli/dist/cli.js register-service \
+          entente register-service \
             --type provider \
             --name castle-service \
             --spec spec/openapi.json \
@@ -120,7 +120,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          node ../../packages/cli/dist/cli.js upload-spec \
+          entente upload-spec \
             --service castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment development \
@@ -131,7 +131,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          node ../../packages/cli/dist/cli.js can-i-deploy \
+          entente can-i-deploy \
             --type provider \
             --service castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
@@ -152,7 +152,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          node ../../packages/cli/dist/cli.js record-deployment \
+          entente record-deployment \
             --service castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment development
@@ -180,11 +180,11 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Install castle-service dependencies
+        run: pnpm --filter @entente/example-castle-service install
 
-      - name: Build packages
-        run: pnpm build
+      - name: Install Entente CLI globally
+        run: npm install -g @entente/cli
 
       - name: Build castle-service
         run: pnpm --filter @entente/example-castle-service build
@@ -194,7 +194,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          node ../../packages/cli/dist/cli.js register-service \
+          entente register-service \
             --type provider \
             --name castle-service \
             --spec spec/openapi.json \
@@ -206,7 +206,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          node ../../packages/cli/dist/cli.js upload-spec \
+          entente upload-spec \
             --service castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment staging \
@@ -217,7 +217,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          node ../../packages/cli/dist/cli.js can-i-deploy \
+          entente can-i-deploy \
             --type provider \
             --service castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
@@ -238,7 +238,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          node ../../packages/cli/dist/cli.js record-deployment \
+          entente record-deployment \
             --service castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment staging
@@ -266,11 +266,11 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Install castle-service dependencies
+        run: pnpm --filter @entente/example-castle-service install
 
-      - name: Build packages
-        run: pnpm build
+      - name: Install Entente CLI globally
+        run: npm install -g @entente/cli
 
       - name: Build castle-service
         run: pnpm --filter @entente/example-castle-service build
@@ -280,7 +280,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          node ../../packages/cli/dist/cli.js register-service \
+          entente register-service \
             --type provider \
             --name castle-service \
             --spec spec/openapi.json \
@@ -292,7 +292,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          node ../../packages/cli/dist/cli.js upload-spec \
+          entente upload-spec \
             --service castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment production \
@@ -303,7 +303,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          node ../../packages/cli/dist/cli.js can-i-deploy \
+          entente can-i-deploy \
             --type provider \
             --service castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
@@ -324,7 +324,7 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: |
           cd examples/castle-service
-          node ../../packages/cli/dist/cli.js record-deployment \
+          entente record-deployment \
             --service castle-service \
             --service-version ${{ needs.build-and-test.outputs.version }} \
             --environment production
