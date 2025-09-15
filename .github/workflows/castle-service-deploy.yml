@@ -77,6 +77,19 @@ jobs:
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: pnpm --filter @entente/example-castle-service build
 
+      - name: Register service with Entente
+        if: steps.changes.outputs.castle-service == 'true'
+        env:
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+        run: |
+          cd examples/castle-service
+          entente register-service \
+            --type provider \
+            --name castle-service \
+            --spec spec/openapi.json \
+            --spec-version ${{ steps.version.outputs.version }} \
+            --environment development
+
       - name: Run castle-service tests
         if: steps.changes.outputs.castle-service == 'true'
         env:
@@ -118,18 +131,6 @@ jobs:
           ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: pnpm --filter @entente/example-castle-service build
-
-      - name: Register service with Entente
-        env:
-          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
-        run: |
-          cd examples/castle-service
-          entente register-service \
-            --type provider \
-            --name castle-service \
-            --spec spec/openapi.json \
-            --spec-version ${{ needs.build-and-test.outputs.version }} \
-            --environment development
 
       - name: Check deployment readiness
         env:
@@ -202,18 +203,6 @@ jobs:
           ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: pnpm --filter @entente/example-castle-service build
-
-      - name: Register service with Entente
-        env:
-          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
-        run: |
-          cd examples/castle-service
-          entente register-service \
-            --type provider \
-            --name castle-service \
-            --spec spec/openapi.json \
-            --spec-version ${{ needs.build-and-test.outputs.version }} \
-            --environment staging
 
       - name: Upload OpenAPI spec
         env:
@@ -297,18 +286,6 @@ jobs:
           ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
           ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: pnpm --filter @entente/example-castle-service build
-
-      - name: Register service with Entente
-        env:
-          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
-        run: |
-          cd examples/castle-service
-          entente register-service \
-            --type provider \
-            --name castle-service \
-            --spec spec/openapi.json \
-            --spec-version ${{ needs.build-and-test.outputs.version }} \
-            --environment production
 
       - name: Upload OpenAPI spec
         env:
