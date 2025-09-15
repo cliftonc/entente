@@ -27,6 +27,10 @@ jobs:
   build-and-test:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build_test != 'true'
     uses: ./.github/workflows/castle-client-build-test.yml
+    secrets:
+      ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
+    vars:
+      ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
 
   deploy-development:
     if: always() && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'workflow_dispatch' && (needs.build-and-test.result == 'success' || needs.build-and-test.result == 'skipped') && (github.event.inputs.environment == 'development' || github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'production')))
