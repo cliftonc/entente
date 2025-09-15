@@ -150,7 +150,7 @@ export interface ProviderDeployment {
 }
 
 // Deployment status tracking
-export type DeploymentStatus = 'attempted' | 'successful' | 'failed'
+export type DeploymentStatus = 'attempted' | 'successful' | 'failed' | 'resolved'
 export interface SpecMetadata {
   service: string
   version: string
@@ -447,9 +447,23 @@ export interface CanIDeployResult {
 }
 
 // Settings and team management types
+export interface Tenant {
+  id: string
+  name: string
+  slug: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface TenantUpdate {
+  name?: string
+  slug?: string
+}
+
 export interface TenantSettings {
   id: string
   tenantId: string
+  tenantName: string
   autoCleanupEnabled: boolean
   autoCleanupDays: number
   dataRetentionDays: number
@@ -459,6 +473,7 @@ export interface TenantSettings {
 }
 
 export interface TenantSettingsUpdate {
+  tenantName?: string
   autoCleanupEnabled?: boolean
   autoCleanupDays?: number
   dataRetentionDays?: number

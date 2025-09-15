@@ -12,6 +12,8 @@ interface Env {
   GITHUB_APP_WEBHOOK_SECRET?: string
   APP_URL?: string
   NODE_ENV?: string
+  RESEND_API_KEY?: string
+  FROM_EMAIL?: string
   // Add more environment variables as needed
 }
 
@@ -38,6 +40,8 @@ export async function envMiddleware(c: Context<{ Bindings: Env }>, next: Next) {
     GITHUB_APP_WEBHOOK_SECRET: c.env?.GITHUB_APP_WEBHOOK_SECRET || process.env.GITHUB_APP_WEBHOOK_SECRET,
     APP_URL: c.env?.APP_URL || process.env.APP_URL,
     NODE_ENV: c.env?.NODE_ENV || process.env.NODE_ENV,
+    RESEND_API_KEY: c.env?.RESEND_API_KEY || process.env.RESEND_API_KEY,
+    FROM_EMAIL: c.env?.FROM_EMAIL || process.env.FROM_EMAIL,
     // Add more environment variables as needed
   }
 

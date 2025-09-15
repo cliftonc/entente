@@ -211,15 +211,17 @@ function ProviderDetail() {
           </div>
 
           {/* Pending Verification */}
-          <VerificationPanel
-            title="Pending Verification"
-            pendingTasks={providerPendingTasks}
-            isLoading={pendingTasksLoading}
-            serviceName={name || ''}
-            serviceType="provider"
-            viewAllUrl="/verification"
-            isPending={true}
-          />
+          {!pendingTasksLoading && providerPendingTasks.length > 0 && (
+            <VerificationPanel
+              title="Pending Verification"
+              pendingTasks={providerPendingTasks}
+              isLoading={pendingTasksLoading}
+              serviceName={name || ''}
+              serviceType="provider"
+              viewAllUrl="/verification"
+              isPending={true}
+            />
+          )}
 
           {/* Verification Results */}
           <VerificationPanel

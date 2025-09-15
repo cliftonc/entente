@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { Context, Next } from 'hono'
 import { getCookie } from 'hono/cookie'
 import { tenantUsers, userSessions, users } from '../../db/schema'
@@ -76,8 +76,8 @@ export async function authMiddleware(c: Context, next: Next) {
   if (sessionId) {
     const db = c.get('db')
 
-    // Combined query: validate session + get user + get tenant in one call
-    const result = await timeOperation(c, 'Session Validation Query', async () => {
+    // First, validate session and get user
+    const sessionResult = await timeOperation(c, 'Session Validation Query', async () => {
       return db
         .select({
           user: {
@@ -89,18 +89,15 @@ export async function authMiddleware(c: Context, next: Next) {
             avatarUrl: users.avatarUrl,
           },
           session: userSessions,
-          tenantId: tenantUsers.tenantId,
-          role: tenantUsers.role,
         })
         .from(userSessions)
         .innerJoin(users, eq(userSessions.userId, users.id))
-        .innerJoin(tenantUsers, eq(tenantUsers.userId, users.id))
         .where(eq(userSessions.id, sessionId))
         .limit(1)
     })
 
-    if (result.length > 0) {
-      const { user, session, tenantId, role } = result[0]
+    if (sessionResult.length > 0) {
+      const { user, session } = sessionResult[0]
 
       // Check if session is expired
       if (session.expiresAt < new Date()) {
@@ -123,11 +120,59 @@ export async function authMiddleware(c: Context, next: Next) {
             })
         }
 
+        // Determine which tenant to use
+        let selectedTenantId = session.selectedTenantId
+        let selectedRole = 'member'
+
+        if (selectedTenantId) {
+          // User has selected a specific tenant, get their role
+          const tenantMembership = await db
+            .select({ role: tenantUsers.role })
+            .from(tenantUsers)
+            .where(and(
+              eq(tenantUsers.userId, user.id),
+              eq(tenantUsers.tenantId, selectedTenantId)
+            ))
+            .limit(1)
+
+          if (tenantMembership.length > 0) {
+            selectedRole = tenantMembership[0].role
+          } else {
+            // User no longer has access to selected tenant, clear selection
+            db.update(userSessions)
+              .set({ selectedTenantId: null })
+              .where(eq(userSessions.id, sessionId))
+              .catch(err => {
+                console.error('Failed to clear invalid tenant selection:', err)
+              })
+            selectedTenantId = null
+          }
+        }
+
+        if (!selectedTenantId) {
+          // No tenant selected or selection invalid, use first available
+          const firstTenant = await db
+            .select({ tenantId: tenantUsers.tenantId, role: tenantUsers.role })
+            .from(tenantUsers)
+            .where(eq(tenantUsers.userId, user.id))
+            .limit(1)
+
+          if (firstTenant.length > 0) {
+            selectedTenantId = firstTenant[0].tenantId
+            selectedRole = firstTenant[0].role
+          }
+        }
+
+        if (!selectedTenantId) {
+          // User has no tenant access
+          return c.json({ error: 'No tenant access' }, 403)
+        }
+
         // Map role to permissions
-        const permissions = role === 'owner' ? ['admin', 'read', 'write'] : ['read', 'write']
+        const permissions = selectedRole === 'owner' ? ['admin', 'read', 'write'] : ['read', 'write']
 
         c.set('auth', {
-          tenantId,
+          tenantId: selectedTenantId,
           permissions,
           userId: user.id,
           user,
@@ -135,7 +180,7 @@ export async function authMiddleware(c: Context, next: Next) {
 
         // Set session context for consistent access
         c.set('session', {
-          tenantId,
+          tenantId: selectedTenantId,
           userId: user.id,
           permissions,
         })

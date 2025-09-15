@@ -435,6 +435,34 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
       }
     }
 
+    // Mark failed deployment attempts as resolved if deployment can now proceed
+    if (canDeploy) {
+      try {
+        const resolvedCount = await db
+          .update(deployments)
+          .set({
+            status: 'resolved',
+            failureReason: `Resolved: ${message}` // Update reason to show resolution
+          })
+          .where(
+            and(
+              eq(deployments.tenantId, tenantId),
+              eq(deployments.service, service),
+              eq(deployments.version, version),
+              eq(deployments.status, 'failed')
+            )
+          )
+          .returning({ id: deployments.id })
+
+        if (resolvedCount.length > 0) {
+          console.log(`✅ Marked ${resolvedCount.length} failed deployment attempts as resolved for ${service}@${version}`)
+        }
+      } catch (resolveError) {
+        console.error('Failed to resolve deployment attempts:', resolveError)
+        // Don't fail the can-i-deploy check just because we couldn't resolve previous attempts
+      }
+    }
+
     return c.json({
       canDeploy,
       compatibleServices,

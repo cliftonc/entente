@@ -16,7 +16,7 @@ export const deployments = pgTable('deployments', {
   deployedAt: timestamp('deployed_at').notNull(),
   deployedBy: varchar('deployed_by', { length: 255 }).notNull(),
   active: boolean('active').default(true).notNull(),
-  status: varchar('status', { length: 20 }).default('successful').notNull(), // 'attempted' | 'successful' | 'failed'
+  status: varchar('status', { length: 20 }).default('successful').notNull(), // 'attempted' | 'successful' | 'failed' | 'resolved'
   failureReason: text('failure_reason'), // Human-readable failure reason
   failureDetails: jsonb('failure_details'), // Full details (e.g., CanIDeployResult)
 })

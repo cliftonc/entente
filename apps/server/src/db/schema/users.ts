@@ -1,4 +1,5 @@
 import { index, integer, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
+import { tenants } from './tenants'
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -18,6 +19,7 @@ export const userSessions = pgTable(
     userId: uuid('user_id')
       .references(() => users.id)
       .notNull(),
+    selectedTenantId: uuid('selected_tenant_id').references(() => tenants.id),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },

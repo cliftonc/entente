@@ -14,11 +14,13 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env } from '..'
 import { getEnv } from '../middleware/env'
+import { sendEmail, createInvitationEmailTemplate } from '../services/email'
 import {
   githubAppInstallations,
   teamInvitations,
   tenantSettings,
   tenantUsers,
+  tenants,
   users,
 } from '../../db/schema'
 
@@ -29,6 +31,15 @@ settings.get('/', async c => {
   const { tenantId } = c.get('session')
   const { user } = c.get('auth')
   const db = c.get('db')
+
+  // Get tenant name
+  const tenant = await db
+    .select({ name: tenants.name })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
+    .limit(1)
+
+  const tenantName = tenant[0]?.name || 'Unnamed Tenant'
 
   const result = await db
     .select()
@@ -43,6 +54,7 @@ settings.get('/', async c => {
     return c.json<TenantSettings>({
       id: '',
       tenantId: tenantId,
+      tenantName: tenantName,
       autoCleanupEnabled: false,
       autoCleanupDays: 30,
       dataRetentionDays: 90,
@@ -55,6 +67,7 @@ settings.get('/', async c => {
   return c.json<TenantSettings>({
     id: settingsData.id,
     tenantId: settingsData.tenantId,
+    tenantName: tenantName,
     autoCleanupEnabled: settingsData.autoCleanupEnabled,
     autoCleanupDays: settingsData.autoCleanupDays,
     dataRetentionDays: settingsData.dataRetentionDays,
@@ -66,6 +79,7 @@ settings.get('/', async c => {
 
 // Update tenant settings
 const updateSettingsSchema = z.object({
+  tenantName: z.string().min(1).max(255).optional(),
   autoCleanupEnabled: z.boolean().optional(),
   autoCleanupDays: z.number().min(1).max(365).optional(),
   dataRetentionDays: z.number().min(7).max(1095).optional(), // 3 years max
@@ -78,6 +92,26 @@ settings.patch('/', zValidator('json', updateSettingsSchema), async c => {
   const db = c.get('db')
   const updates = c.req.valid('json') as TenantSettingsUpdate
 
+  // If tenant name is being updated, update the tenant table
+  if (updates.tenantName) {
+    await db
+      .update(tenants)
+      .set({
+        name: updates.tenantName,
+        updatedAt: new Date(),
+      })
+      .where(eq(tenants.id, tenantId))
+  }
+
+  // Get current tenant name
+  const tenant = await db
+    .select({ name: tenants.name })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
+    .limit(1)
+
+  const tenantName = tenant[0]?.name || 'Unnamed Tenant'
+
   // Check if settings exist
   const existingSettings = await db
     .select()
@@ -85,16 +119,19 @@ settings.patch('/', zValidator('json', updateSettingsSchema), async c => {
     .where(eq(tenantSettings.tenantId, tenantId))
     .limit(1)
 
+  // Remove tenantName from settings updates since it's handled separately
+  const { tenantName: _, ...settingsUpdates } = updates
+
   if (existingSettings.length === 0) {
     // Create new settings record
     const newSettings = await db
       .insert(tenantSettings)
       .values({
         tenantId: tenantId,
-        autoCleanupEnabled: updates.autoCleanupEnabled ?? false,
-        autoCleanupDays: updates.autoCleanupDays ?? 30,
-        dataRetentionDays: updates.dataRetentionDays ?? 90,
-        notificationsEnabled: updates.notificationsEnabled ?? true,
+        autoCleanupEnabled: settingsUpdates.autoCleanupEnabled ?? false,
+        autoCleanupDays: settingsUpdates.autoCleanupDays ?? 30,
+        dataRetentionDays: settingsUpdates.dataRetentionDays ?? 90,
+        notificationsEnabled: settingsUpdates.notificationsEnabled ?? true,
         updatedBy: user.id,
         updatedAt: new Date(),
       })
@@ -103,6 +140,7 @@ settings.patch('/', zValidator('json', updateSettingsSchema), async c => {
     return c.json<TenantSettings>({
       id: newSettings[0].id,
       tenantId: newSettings[0].tenantId,
+      tenantName: tenantName,
       autoCleanupEnabled: newSettings[0].autoCleanupEnabled,
       autoCleanupDays: newSettings[0].autoCleanupDays,
       dataRetentionDays: newSettings[0].dataRetentionDays,
@@ -115,7 +153,7 @@ settings.patch('/', zValidator('json', updateSettingsSchema), async c => {
     const updatedSettings = await db
       .update(tenantSettings)
       .set({
-        ...updates,
+        ...settingsUpdates,
         updatedBy: user.id,
         updatedAt: new Date(),
       })
@@ -125,6 +163,7 @@ settings.patch('/', zValidator('json', updateSettingsSchema), async c => {
     return c.json<TenantSettings>({
       id: updatedSettings[0].id,
       tenantId: updatedSettings[0].tenantId,
+      tenantName: tenantName,
       autoCleanupEnabled: updatedSettings[0].autoCleanupEnabled,
       autoCleanupDays: updatedSettings[0].autoCleanupDays,
       dataRetentionDays: updatedSettings[0].dataRetentionDays,
@@ -163,8 +202,8 @@ settings.get('/team', async c => {
       id: teamInvitations.email, // Use email as temporary ID for pending
       tenantId: teamInvitations.tenantId,
       userId: teamInvitations.email, // Use email as userId for pending
-      username: teamInvitations.email,
-      name: teamInvitations.email,
+      username: sql<string>`''`, // Empty username for pending
+      name: teamInvitations.email, // Just the email as name for pending
       email: teamInvitations.email,
       avatarUrl: sql<string | null>`null`,
       role: teamInvitations.role,
@@ -251,6 +290,39 @@ settings.post('/team/invite', zValidator('json', inviteSchema), async c => {
     })
     .returning()
 
+  // Get tenant information for email
+  const tenant = await db
+    .select({ name: tenants.name })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
+    .limit(1)
+
+  // Send invitation email
+  try {
+    const env = c.get('env')
+    const appUrl = getEnv(env, 'APP_URL') || 'https://entente.dev'
+    const inviteUrl = `${appUrl}/invite/accept?token=${invitation[0].id}`
+
+    const tenantName = tenant[0]?.name || 'the team'
+    const inviterName = user.name || user.username
+
+    const emailTemplate = createInvitationEmailTemplate(
+      tenantName,
+      inviterName,
+      inviteUrl
+    )
+
+    await sendEmail(
+      env,
+      email,
+      `You've been invited to join ${tenantName} on Entente`,
+      emailTemplate
+    )
+  } catch (error) {
+    console.error('Failed to send invitation email:', error)
+    // Don't fail the invitation creation if email fails
+  }
+
   const teamInvitation: TeamInvitation = {
     id: invitation[0].id,
     tenantId: invitation[0].tenantId,
@@ -264,6 +336,66 @@ settings.post('/team/invite', zValidator('json', inviteSchema), async c => {
   }
 
   return c.json(teamInvitation, 201)
+})
+
+// Resend invitation
+settings.post('/team/resend/:email', async c => {
+  const { tenantId } = c.get('session')
+  const { user } = c.get('auth')
+  const db = c.get('db')
+  const email = c.req.param('email')
+
+  // Check if invitation exists and is pending
+  const invitation = await db
+    .select()
+    .from(teamInvitations)
+    .where(
+      and(
+        eq(teamInvitations.email, email),
+        eq(teamInvitations.tenantId, tenantId),
+        eq(teamInvitations.status, 'pending')
+      )
+    )
+    .limit(1)
+
+  if (invitation.length === 0) {
+    return c.json({ error: 'No pending invitation found for this email' }, 404)
+  }
+
+  // Get tenant information for email
+  const tenant = await db
+    .select({ name: tenants.name })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
+    .limit(1)
+
+  // Resend invitation email
+  try {
+    const env = c.get('env')
+    const appUrl = getEnv(env, 'APP_URL') || 'https://entente.dev'
+    const inviteUrl = `${appUrl}/invite/accept?token=${invitation[0].id}`
+
+    const tenantName = tenant[0]?.name || 'the team'
+    const inviterName = user.name || user.username
+
+    const emailTemplate = createInvitationEmailTemplate(
+      tenantName,
+      inviterName,
+      inviteUrl
+    )
+
+    await sendEmail(
+      env,
+      email,
+      `You've been invited to join ${tenantName} on Entente`,
+      emailTemplate
+    )
+
+    return c.json({ success: true, message: 'Invitation resent successfully' })
+  } catch (error) {
+    console.error('Failed to resend invitation email:', error)
+    return c.json({ error: 'Failed to resend invitation email' }, 500)
+  }
 })
 
 // Update team member role
@@ -312,38 +444,73 @@ settings.patch(
 )
 
 // Remove team member
-settings.delete('/team/:userId', async c => {
+settings.delete('/team/:userIdentifier', async c => {
   const { tenantId } = c.get('session')
   const { user } = c.get('auth')
   const db = c.get('db')
-  const userId = c.req.param('userId')
+  const userIdentifier = c.req.param('userIdentifier')
 
-  // Check if user is member of tenant
-  const member = await db
-    .select()
-    .from(tenantUsers)
-    .where(
-      and(eq(tenantUsers.userId, userId), eq(tenantUsers.tenantId, tenant.id))
-    )
-    .limit(1)
+  // Check if userIdentifier is an email (for pending invitations) or userId
+  const isEmail = userIdentifier.includes('@')
 
-  if (member.length === 0) {
-    return c.json({ error: 'User is not a member of this tenant' }, 404)
+  if (isEmail) {
+    // Remove pending invitation
+    const invitation = await db
+      .select()
+      .from(teamInvitations)
+      .where(
+        and(
+          eq(teamInvitations.email, userIdentifier),
+          eq(teamInvitations.tenantId, tenantId),
+          eq(teamInvitations.status, 'pending')
+        )
+      )
+      .limit(1)
+
+    if (invitation.length === 0) {
+      return c.json({ error: 'Invitation not found' }, 404)
+    }
+
+    // Delete the invitation
+    await db
+      .delete(teamInvitations)
+      .where(
+        and(
+          eq(teamInvitations.email, userIdentifier),
+          eq(teamInvitations.tenantId, tenantId),
+          eq(teamInvitations.status, 'pending')
+        )
+      )
+
+    return c.json({ success: true })
+  } else {
+    // Remove existing team member
+    const member = await db
+      .select()
+      .from(tenantUsers)
+      .where(
+        and(eq(tenantUsers.userId, userIdentifier), eq(tenantUsers.tenantId, tenantId))
+      )
+      .limit(1)
+
+    if (member.length === 0) {
+      return c.json({ error: 'User is not a member of this tenant' }, 404)
+    }
+
+    // Cannot remove owner
+    if (member[0].role === 'owner') {
+      return c.json({ error: 'Cannot remove tenant owner' }, 400)
+    }
+
+    // Remove from tenant
+    await db
+      .delete(tenantUsers)
+      .where(
+        and(eq(tenantUsers.userId, userIdentifier), eq(tenantUsers.tenantId, tenantId))
+      )
+
+    return c.json({ success: true })
   }
-
-  // Cannot remove owner
-  if (member[0].role === 'owner') {
-    return c.json({ error: 'Cannot remove tenant owner' }, 400)
-  }
-
-  // Remove from tenant
-  await db
-    .delete(tenantUsers)
-    .where(
-      and(eq(tenantUsers.userId, userId), eq(tenantUsers.tenantId, tenant.id))
-    )
-
-  return c.json({ success: true })
 })
 
 // Get GitHub app name for frontend (public endpoint)

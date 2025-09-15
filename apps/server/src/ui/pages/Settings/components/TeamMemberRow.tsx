@@ -5,8 +5,10 @@ interface TeamMemberRowProps {
   member: TeamMember
   onUpdateRole: (role: 'admin' | 'member') => void
   onRemove: () => void
+  onResendInvite?: () => void
   updating: boolean
   removing: boolean
+  resending?: boolean
   isPending?: boolean
 }
 
@@ -14,8 +16,10 @@ function TeamMemberRow({
   member,
   onUpdateRole,
   onRemove,
+  onResendInvite,
   updating,
   removing,
+  resending = false,
   isPending = false
 }: TeamMemberRowProps) {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
@@ -57,14 +61,18 @@ function TeamMemberRow({
 
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-medium text-base-content">{member.name}</span>
+            <span className="font-medium text-base-content">
+              {isPending ? member.email : member.name}
+            </span>
             {isPending && (
               <span className="badge badge-warning badge-sm text-warning-content">Pending</span>
             )}
           </div>
-          <div className="text-sm text-base-content/60">
-            {member.email} • @{member.username}
-          </div>
+          {!isPending && (
+            <div className="text-sm text-base-content/60">
+              {member.email} • @{member.username}
+            </div>
+          )}
           <div className="text-xs text-base-content/50">
             {isPending ? 'Invited' : 'Joined'} {new Date(member.joinedAt).toLocaleDateString()}
           </div>
@@ -72,7 +80,7 @@ function TeamMemberRow({
       </div>
 
       <div className="flex items-center gap-3">
-        {updating && (
+        {(updating || resending) && (
           <div className="loading loading-spinner loading-sm"></div>
         )}
 
@@ -92,13 +100,32 @@ function TeamMemberRow({
           </span>
         )}
 
+        {/* Resend invite button for pending members */}
+        {isPending && onResendInvite && (
+          <button
+            className="btn btn-ghost btn-sm text-primary hover:bg-primary hover:text-primary-content"
+            onClick={onResendInvite}
+            disabled={resending || removing}
+            title="Resend invitation email"
+          >
+            {resending ? (
+              <div className="loading loading-spinner loading-xs"></div>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            )}
+          </button>
+        )}
+
         {canModify && (
           <div className="flex items-center gap-2">
             {!showRemoveConfirm ? (
               <button
                 className="btn btn-ghost btn-sm text-error hover:bg-error hover:text-error-content"
                 onClick={handleRemoveClick}
-                disabled={updating || removing}
+                disabled={updating || removing || resending}
+                title={isPending ? "Cancel invitation" : "Remove member"}
               >
                 {removing ? (
                   <div className="loading loading-spinner loading-sm"></div>
@@ -115,7 +142,7 @@ function TeamMemberRow({
                   onClick={handleConfirmRemove}
                   disabled={removing}
                 >
-                  Remove
+                  {isPending ? 'Cancel' : 'Remove'}
                 </button>
                 <button
                   className="btn btn-ghost btn-xs"

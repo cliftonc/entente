@@ -188,15 +188,17 @@ function ConsumerDetail() {
           </div>
 
           {/* Pending Verification */}
-          <VerificationPanel
-            title="Pending Verification"
-            pendingTasks={consumerPendingTasks}
-            isLoading={pendingTasksLoading}
-            serviceName={name || ''}
-            serviceType="consumer"
-            viewAllUrl="/verification"
-            isPending={true}
-          />
+          {!pendingTasksLoading && consumerPendingTasks.length > 0 && (
+            <VerificationPanel
+              title="Pending Verification"
+              pendingTasks={consumerPendingTasks}
+              isLoading={pendingTasksLoading}
+              serviceName={name || ''}
+              serviceType="consumer"
+              viewAllUrl="/verification"
+              isPending={true}
+            />
+          )}
 
           {/* Contract Test Results */}
           <VerificationPanel

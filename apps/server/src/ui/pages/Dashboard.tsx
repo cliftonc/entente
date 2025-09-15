@@ -1,9 +1,16 @@
-import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import TimestampDisplay from '../components/TimestampDisplay'
 import { statsApi } from '../utils/api'
+import { useAuth } from '../hooks/useAuth'
 
 function Dashboard() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { tenants, currentTenantId, selectTenant, refresh } = useAuth()
+
   const {
     data: dashboardStats,
     isLoading,
@@ -12,6 +19,41 @@ function Dashboard() {
     queryKey: ['dashboard-stats'],
     queryFn: statsApi.getDashboard,
   })
+
+  // Handle invitation acceptance
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    if (searchParams.get('invitation-accepted') === 'true') {
+      // Remove the parameter from URL
+      searchParams.delete('invitation-accepted')
+      const newUrl = location.pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '')
+      navigate(newUrl, { replace: true })
+
+      // Clear all query cache since we switched to a new tenant
+      queryClient.clear()
+
+      // Refresh auth state to get updated tenant information
+      refresh()
+
+      // Show success notification using DaisyUI toast
+      const toast = document.createElement('div')
+      toast.className = 'toast toast-end'
+      toast.innerHTML = `
+        <div class="alert alert-success">
+          <svg class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span>Successfully joined the team! Switched to the new team context.</span>
+        </div>
+      `
+      document.body.appendChild(toast)
+
+      // Remove toast after 5 seconds
+      setTimeout(() => {
+        document.body.removeChild(toast)
+      }, 5000)
+    }
+  }, [location.search, navigate, queryClient, refresh])
 
   if (isLoading) {
     return (

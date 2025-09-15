@@ -18,7 +18,7 @@
     "deploy:prod": "wrangler deploy --env production",
     "register:consumer": "node ../../packages/cli/dist/cli.js register-service --type consumer --name castle-client --spec spec/openapi.json --spec-version 0.1.0 --environment test",
     "upload:spec": "node ../../packages/cli/dist/cli.js upload-spec --service castle-client --service-version 0.1.0 --environment test --spec spec/openapi.json",
-    "deploy:consumer": "node ../../packages/cli/dist/cli.js deploy-service --type consumer --name castle-client --service-version 0.1.0 --environment test",
+    "deploy:consumer": "node ../../packages/cli/dist/cli.js deploy-service --type consumer --name castle-client --service-version 0.1.3 --environment test",
     "record:deployment": "node ../../packages/cli/dist/cli.js record-deployment --service castle-client --service-version 0.1.0 --environment test",
     "can-i-deploy": "node ../../packages/cli/dist/cli.js can-i-deploy --type consumer --service castle-client --environment test",
     "clean": "rm -rf dist"

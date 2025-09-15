@@ -2,10 +2,74 @@ import { useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { TenantSettings, TenantSettingsUpdate } from '@entente/types'
 import SettingToggle from './components/SettingToggle'
-import SettingInput from './components/SettingInput'
+
+// Custom input component that doesn't auto-save
+interface LocalSettingInputProps {
+  label: string
+  description: string
+  type?: 'text' | 'number' | 'email'
+  value: string | number
+  onChange: (value: string | number) => void
+  disabled?: boolean
+  min?: number
+  max?: number
+  suffix?: string
+  placeholder?: string
+}
+
+function LocalSettingInput({
+  label,
+  description,
+  type = 'text',
+  value,
+  onChange,
+  disabled = false,
+  min,
+  max,
+  suffix,
+  placeholder
+}: LocalSettingInputProps) {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = type === 'number' ? Number(e.target.value) : e.target.value
+    onChange(newValue)
+  }
+
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex-1">
+        <label className="text-base font-medium text-base-content">
+          {label}
+        </label>
+        <p className="text-sm text-base-content/60 mt-1">
+          {description}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2">
+          <input
+            type={type}
+            className="input input-sm w-20 text-right"
+            value={String(value)}
+            onChange={handleChange}
+            disabled={disabled}
+            min={min}
+            max={max}
+            placeholder={placeholder}
+          />
+          {suffix && (
+            <span className="text-sm text-base-content/60">{suffix}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function GeneralSettings() {
   const queryClient = useQueryClient()
+  const [localSettings, setLocalSettings] = useState<TenantSettings | null>(null)
+  const [hasChanges, setHasChanges] = useState(false)
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -17,6 +81,14 @@ function GeneralSettings() {
       return response.json()
     },
   })
+
+  // Initialize local settings when data loads
+  useEffect(() => {
+    if (settings && !localSettings) {
+      setLocalSettings(settings)
+      setHasChanges(false)
+    }
+  }, [settings, localSettings])
 
   const updateMutation = useMutation({
     mutationFn: async (updates: TenantSettingsUpdate) => {
@@ -34,11 +106,51 @@ function GeneralSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] })
+      setHasChanges(false)
     },
   })
 
-  const handleUpdate = (updates: TenantSettingsUpdate) => {
-    updateMutation.mutate(updates)
+  const handleLocalUpdate = (field: keyof TenantSettingsUpdate, value: any) => {
+    if (!localSettings) return
+
+    setLocalSettings(prev => ({
+      ...prev!,
+      [field]: value
+    }))
+    setHasChanges(true)
+  }
+
+  const handleSave = () => {
+    if (!localSettings || !settings) return
+
+    const updates: TenantSettingsUpdate = {}
+
+    if (localSettings.tenantName !== settings.tenantName) {
+      updates.tenantName = localSettings.tenantName
+    }
+    if (localSettings.autoCleanupEnabled !== settings.autoCleanupEnabled) {
+      updates.autoCleanupEnabled = localSettings.autoCleanupEnabled
+    }
+    if (localSettings.autoCleanupDays !== settings.autoCleanupDays) {
+      updates.autoCleanupDays = localSettings.autoCleanupDays
+    }
+    if (localSettings.dataRetentionDays !== settings.dataRetentionDays) {
+      updates.dataRetentionDays = localSettings.dataRetentionDays
+    }
+    if (localSettings.notificationsEnabled !== settings.notificationsEnabled) {
+      updates.notificationsEnabled = localSettings.notificationsEnabled
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updateMutation.mutate(updates)
+    }
+  }
+
+  const handleReset = () => {
+    if (settings) {
+      setLocalSettings(settings)
+      setHasChanges(false)
+    }
   }
 
   if (isLoading) {
@@ -56,7 +168,7 @@ function GeneralSettings() {
     )
   }
 
-  if (!settings) {
+  if (!settings || !localSettings) {
     return (
       <div className="bg-base-100 rounded-lg border border-base-300 p-6">
         <div className="text-center text-base-content/60">
@@ -69,40 +181,63 @@ function GeneralSettings() {
   return (
     <div className="space-y-6">
       <div className="bg-base-100 rounded-lg border border-base-300 p-6">
+        <h2 className="text-xl font-semibold text-base-content mb-6">Tenant Information</h2>
+
+        <div className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <label className="text-base font-medium text-base-content">
+                Tenant name
+              </label>
+              <p className="text-sm text-base-content/60 mt-1">
+                The display name for your organization or workspace
+              </p>
+            </div>
+            <div className="flex-1 max-w-md">
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                value={localSettings.tenantName}
+                onChange={(e) => handleLocalUpdate('tenantName', e.target.value)}
+                placeholder="Enter tenant name"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-base-100 rounded-lg border border-base-300 p-6">
         <h2 className="text-xl font-semibold text-base-content mb-6">Data Management</h2>
 
         <div className="space-y-6">
           <SettingToggle
             label="Auto-cleanup"
             description="Automatically clean up old interactions and data"
-            checked={settings.autoCleanupEnabled}
-            onChange={(checked) => handleUpdate({ autoCleanupEnabled: checked })}
-            loading={updateMutation.isPending}
+            checked={localSettings.autoCleanupEnabled}
+            onChange={(checked) => handleLocalUpdate('autoCleanupEnabled', checked)}
           />
 
-          <SettingInput
+          <LocalSettingInput
             label="Auto-cleanup interval"
             description="Number of days to keep data before automatic cleanup"
             type="number"
-            value={settings.autoCleanupDays}
+            value={localSettings.autoCleanupDays}
             min={1}
             max={365}
             suffix="days"
-            disabled={!settings.autoCleanupEnabled}
-            onChange={(value) => handleUpdate({ autoCleanupDays: Number(value) })}
-            loading={updateMutation.isPending}
+            disabled={!localSettings.autoCleanupEnabled}
+            onChange={(value) => handleLocalUpdate('autoCleanupDays', value)}
           />
 
-          <SettingInput
+          <LocalSettingInput
             label="Data retention period"
             description="Maximum number of days to retain data regardless of cleanup settings"
             type="number"
-            value={settings.dataRetentionDays}
+            value={localSettings.dataRetentionDays}
             min={7}
             max={1095}
             suffix="days"
-            onChange={(value) => handleUpdate({ dataRetentionDays: Number(value) })}
-            loading={updateMutation.isPending}
+            onChange={(value) => handleLocalUpdate('dataRetentionDays', value)}
           />
         </div>
       </div>
@@ -114,9 +249,8 @@ function GeneralSettings() {
           <SettingToggle
             label="Email notifications"
             description="Receive email notifications for important events"
-            checked={settings.notificationsEnabled}
-            onChange={(checked) => handleUpdate({ notificationsEnabled: checked })}
-            loading={updateMutation.isPending}
+            checked={localSettings.notificationsEnabled}
+            onChange={(checked) => handleLocalUpdate('notificationsEnabled', checked)}
           />
         </div>
       </div>
@@ -130,9 +264,46 @@ function GeneralSettings() {
         </div>
       )}
 
-      <div className="text-sm text-base-content/60">
-        <p>Settings are automatically saved when changed.</p>
-        <p>Last updated: {new Date(settings.updatedAt).toLocaleString()}</p>
+      {updateMutation.isSuccess && (
+        <div className="alert alert-success">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Settings saved successfully!</span>
+        </div>
+      )}
+
+      <div className="bg-base-100 rounded-lg border border-base-300 p-6">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-base-content/60">
+            <p>
+              {hasChanges ? 'You have unsaved changes.' : 'All changes saved.'}
+            </p>
+            <p>Last updated: {new Date(settings.updatedAt).toLocaleString()}</p>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={handleReset}
+              disabled={!hasChanges || updateMutation.isPending}
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleSave}
+              disabled={!hasChanges || updateMutation.isPending}
+            >
+              {updateMutation.isPending && (
+                <div className="loading loading-spinner loading-sm"></div>
+              )}
+              Save Settings
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

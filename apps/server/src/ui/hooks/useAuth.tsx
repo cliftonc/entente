@@ -26,6 +26,7 @@ interface AuthState {
   authenticated: boolean
   user: User | null
   tenants: Tenant[]
+  currentTenantId: string | null
   loading: boolean
   error: string | null
 }
@@ -34,6 +35,7 @@ interface AuthContextType extends AuthState {
   login: () => void
   logout: () => Promise<void>
   refresh: () => Promise<void>
+  selectTenant: (tenantId: string) => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -52,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authenticated: false,
     user: null,
     tenants: [],
+    currentTenantId: null,
     loading: true,
     error: null,
   })
@@ -68,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           authenticated: true,
           user: data.user,
           tenants: data.tenants,
+          currentTenantId: data.currentTenantId,
           loading: false,
           error: null,
         })
@@ -76,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           authenticated: false,
           user: null,
           tenants: [],
+          currentTenantId: null,
           loading: false,
           error: null,
         })
@@ -85,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         authenticated: false,
         user: null,
         tenants: [],
+        currentTenantId: null,
         loading: false,
         error: 'Failed to check authentication',
       })
@@ -105,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         authenticated: false,
         user: null,
         tenants: [],
+        currentTenantId: null,
         loading: false,
         error: null,
       })
@@ -118,6 +125,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refresh = async () => {
     setAuthState(prev => ({ ...prev, loading: true }))
     await checkSession()
+  }
+
+  const selectTenant = async (tenantId: string): Promise<boolean> => {
+    try {
+      const response = await fetch('/auth/select-tenant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ tenantId }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+
+        // Store in localStorage as backup for better UX
+        localStorage.setItem('selectedTenantId', tenantId)
+
+        // Hard refresh to dashboard to ensure completely clean state
+        window.location.href = '/'
+
+        return true
+      } else {
+        console.error('Failed to select tenant')
+        return false
+      }
+    } catch (error) {
+      console.error('Error selecting tenant:', error)
+      return false
+    }
   }
 
   useEffect(() => {
@@ -141,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             authenticated: true,
             user: data.user,
             tenants: data.tenants,
+            currentTenantId: data.currentTenantId,
             loading: false,
             error: null,
           })
@@ -149,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             authenticated: false,
             user: null,
             tenants: [],
+            currentTenantId: null,
             loading: false,
             error: null,
           })
@@ -159,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           authenticated: false,
           user: null,
           tenants: [],
+          currentTenantId: null,
           loading: false,
           error: null,
         })
@@ -173,6 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     refresh,
+    selectTenant,
   }
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>

@@ -72,7 +72,7 @@ function FailureDetailsModal({
 function Deployments() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>('ALL')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('active-or-blocked')
   const [providerFilter, setProviderFilter] = useState(
     searchParams.get('provider') || searchParams.get('service') || ''
   )
@@ -117,6 +117,7 @@ function Deployments() {
       if (consumerFilter && deployment.consumer !== consumerFilter) return false
       if (statusFilter === 'active' && !deployment.active) return false
       if (statusFilter === 'inactive' && deployment.active) return false
+      if (statusFilter === 'active-or-blocked' && !(deployment.active || deployment.status === 'failed')) return false
       return true
     }) || []
 
@@ -175,7 +176,7 @@ function Deployments() {
   }
 
   const clearFilters = () => {
-    setStatusFilter('all')
+    setStatusFilter('active-or-blocked')
     setProviderFilter('')
     setConsumerFilter('')
     setSearchParams({})
@@ -250,10 +251,10 @@ function Deployments() {
       <div>
         <h1 className="text-3xl font-bold text-base-content">
           Deployments
-          {statusFilter !== 'all' && (
+          {statusFilter !== 'active-or-blocked' && (
             <span className="text-lg font-normal text-base-content/70">
               {' '}
-              • Status: {statusFilter}
+              • Status: {statusFilter === 'active-or-blocked' ? 'Active or Blocked' : statusFilter}
             </span>
           )}
           {providerFilter && (
@@ -285,12 +286,13 @@ function Deployments() {
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
           >
+            <option value="active-or-blocked">Active or Blocked</option>
             <option value="all">All</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
         </div>
-        {(statusFilter !== 'all' || providerFilter || consumerFilter) && (
+        {(statusFilter !== 'active-or-blocked' || providerFilter || consumerFilter) && (
           <div className="form-control">
             <button className="btn btn-ghost btn-sm" onClick={clearFilters}>
               Clear Filters

@@ -13,7 +13,8 @@ export function generateSessionId(): string {
 
 export async function createSession(
   db: ReturnType<typeof createDatabase>,
-  userId: string
+  userId: string,
+  selectedTenantId?: string
 ): Promise<string> {
   const sessionId = generateSessionId()
   const expiresAt = new Date(Date.now() + SESSION_EXPIRES_IN)
@@ -21,6 +22,7 @@ export async function createSession(
   await db.insert(userSessions).values({
     id: sessionId,
     userId,
+    selectedTenantId,
     expiresAt,
   })
 
@@ -77,6 +79,17 @@ export async function extendSession(
     .where(eq(userSessions.id, sessionId))
 }
 
+export async function updateSelectedTenant(
+  db: ReturnType<typeof createDatabase>,
+  sessionId: string,
+  selectedTenantId: string | null
+): Promise<void> {
+  await db
+    .update(userSessions)
+    .set({ selectedTenantId })
+    .where(eq(userSessions.id, sessionId))
+}
+
 export async function deleteUserSessions(
   db: ReturnType<typeof createDatabase>,
   userId: string
@@ -86,9 +99,17 @@ export async function deleteUserSessions(
 
 export function createSessionCookie(sessionId: string): string {
   const expires = new Date(Date.now() + SESSION_EXPIRES_IN)
-  return `sessionId=${sessionId}; HttpOnly; SameSite=Lax; Path=/; Expires=${expires.toUTCString()}; Secure`
+  const isProduction = process.env.NODE_ENV === 'production'
+  const secure = isProduction ? '; Secure' : ''
+
+  // No domain attribute - let the browser handle it naturally
+  const cookieString = `sessionId=${sessionId}; HttpOnly; SameSite=Lax; Path=/; Expires=${expires.toUTCString()}${secure}`
+  console.log('🍪 Creating session cookie:', { isProduction, secure, cookieString: cookieString.substring(0, 100) + '...' })
+  return cookieString
 }
 
 export function deleteSessionCookie(): string {
-  return 'sessionId=; HttpOnly; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure'
+  const isProduction = process.env.NODE_ENV === 'production'
+  const secure = isProduction ? '; Secure' : ''
+  return `sessionId=; HttpOnly; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT${secure}`
 }

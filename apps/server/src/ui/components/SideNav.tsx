@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useDraftFixturesCount } from '../hooks/useQueries'
 import { useAuth } from '../hooks/useAuth'
+import TenantSelector from './TenantSelector'
 
 interface NavItem {
   path: string
@@ -128,6 +129,9 @@ function SideNav() {
                 <div className="text-xs text-base-content/70 truncate">@{user.username}</div>
               </div>
             </div>
+
+            {/* Tenant Selector */}
+            <TenantSelector />
 
             {/* Action Buttons */}
             <div className="flex gap-2">

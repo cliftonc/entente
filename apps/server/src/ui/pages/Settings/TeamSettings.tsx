@@ -74,6 +74,23 @@ function TeamSettings() {
     },
   })
 
+  const resendInviteMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await fetch(`/api/settings/team/resend/${encodeURIComponent(email)}`, {
+        method: 'POST',
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to resend invitation')
+      }
+      return response.json()
+    },
+    onSuccess: () => {
+      // Optionally show a success message
+      console.log('Invitation resent successfully')
+    },
+  })
+
   const activeMembers = members.filter(m => m.status === 'active')
   const pendingInvitations = members.filter(m => m.status === 'pending')
 
@@ -162,8 +179,10 @@ function TeamSettings() {
                     member={invitation}
                     onUpdateRole={() => {}} // No role updates for pending
                     onRemove={() => removeMemberMutation.mutate(invitation.userId)}
+                    onResendInvite={() => resendInviteMutation.mutate(invitation.email)}
                     updating={false}
                     removing={removeMemberMutation.isPending}
+                    resending={resendInviteMutation.isPending}
                     isPending
                   />
                 ))}
@@ -183,14 +202,23 @@ function TeamSettings() {
         )}
       </div>
 
-      {(updateRoleMutation.isError || removeMemberMutation.isError) && (
+      {(updateRoleMutation.isError || removeMemberMutation.isError || resendInviteMutation.isError) && (
         <div className="alert alert-error">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>
-            {updateRoleMutation.error?.message || removeMemberMutation.error?.message}
+            {updateRoleMutation.error?.message || removeMemberMutation.error?.message || resendInviteMutation.error?.message}
           </span>
+        </div>
+      )}
+
+      {resendInviteMutation.isSuccess && (
+        <div className="alert alert-success">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Invitation resent successfully!</span>
         </div>
       )}
     </div>

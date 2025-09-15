@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { githubAppInstallations, tenantUsers, tenants, users } from '../../db/schema'
@@ -13,7 +13,7 @@ import {
   createSession,
   createSessionCookie,
   deleteSession,
-  deleteSessionCookie,
+  updateSelectedTenant,
   validateSession,
 } from '../auth/sessions'
 import {
@@ -24,6 +24,13 @@ import {
 import { getEnv, getRequiredEnv } from '../middleware/env'
 
 const authRouter = new Hono()
+
+const isProduction = process.env.NODE_ENV === 'production'
+
+// Unified helper to clear a cookie
+function clearCookieHeader(name: string) {
+  return `${name}=; HttpOnly; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT${isProduction ? '; Secure' : ''}`
+}
 
 // Helper function to handle GitHub App installation
 async function handleGitHubAppInstallation(c: any, installationId: string, setupAction: string) {
@@ -49,7 +56,8 @@ async function handleGitHubAppInstallation(c: any, installationId: string, setup
       )
 
       // Get repositories if selected
-      let repositories: Array<{ id: number; name: string; full_name: string; private: boolean }> = []
+      let repositories: Array<{ id: number; name: string; full_name: string; private: boolean }> =
+        []
       if (installationInfo.repository_selection === 'selected') {
         repositories = await getInstallationRepositories(
           parseInt(installationId),
@@ -104,7 +112,9 @@ async function handleGitHubAppInstallation(c: any, installationId: string, setup
             appId: parseInt(appId),
             privateKeyEncrypted: encodedPrivateKey,
             webhookSecret: webhookSecret || null,
-            suspendedAt: installationInfo.suspended_at ? new Date(installationInfo.suspended_at) : null,
+            suspendedAt: installationInfo.suspended_at
+              ? new Date(installationInfo.suspended_at)
+              : null,
             updatedAt: new Date(),
           })
           .where(eq(githubAppInstallations.installationId, parseInt(installationId)))
@@ -122,7 +132,9 @@ async function handleGitHubAppInstallation(c: any, installationId: string, setup
           appId: parseInt(appId),
           privateKeyEncrypted: encodedPrivateKey,
           webhookSecret: webhookSecret || null,
-          suspendedAt: installationInfo.suspended_at ? new Date(installationInfo.suspended_at) : null,
+          suspendedAt: installationInfo.suspended_at
+            ? new Date(installationInfo.suspended_at)
+            : null,
         })
       }
 
@@ -166,7 +178,6 @@ authRouter.get('/github', async c => {
   }
 })
 
-
 // Handle GitHub App callback (both login and installation)
 authRouter.get('/github/callback', async c => {
   const code = c.req.query('code')
@@ -203,6 +214,56 @@ authRouter.get('/github/callback', async c => {
     const github = getGitHubOAuth(clientId, clientSecret, appUrl)
     const tokens = await github.validateAuthorizationCode(code)
     const githubUser = await fetchGitHubUser(tokens.accessToken())
+
+    // If no email from primary endpoint, try the emails endpoint
+    if (!githubUser.email) {
+      try {
+        const emailResponse = await fetch('https://api.github.com/user/emails', {
+          headers: {
+            Authorization: `Bearer ${tokens.accessToken()}`,
+            'User-Agent': 'Entente-Server',
+          },
+        })
+
+        if (emailResponse.ok) {
+          const emails = (await emailResponse.json()) as Array<{
+            email: string
+            primary: boolean
+            verified: boolean
+          }>
+          console.log('📧 Emails from GitHub:', emails)
+          const primaryEmail = emails.find(e => e.primary && e.verified)
+          const fallbackEmail = emails.find(e => e.verified)
+
+          if (primaryEmail) {
+            console.log('✅ Found primary email:', primaryEmail.email)
+            githubUser.email = primaryEmail.email
+          } else if (fallbackEmail) {
+            console.log('✅ Found fallback email:', fallbackEmail.email)
+            githubUser.email = fallbackEmail.email
+          } else {
+            console.log('❌ No verified emails found')
+          }
+        } else {
+          console.log('❌ Failed to fetch emails, status:', emailResponse.status)
+        }
+      } catch (error) {
+        console.error('Failed to fetch GitHub user emails:', error)
+      }
+    }
+
+    // If still no email, redirect to error page explaining they need to add email to GitHub
+    if (!githubUser.email) {
+      console.log('🚨 Still no email after fallback, redirecting to error page')
+      const errorUrl = `/github-email-required`
+
+      // Clear state cookie
+      c.header('Set-Cookie', deleteStateCookie(), { append: true })
+
+      return c.redirect(errorUrl, 302)
+    }
+
+    console.log('✅ Final email check passed:', githubUser.email)
 
     // Check if user exists
     let user = await db.select().from(users).where(eq(users.githubId, githubUser.id)).limit(1)
@@ -253,10 +314,15 @@ authRouter.get('/github/callback', async c => {
 
     // Create session
     const sessionId = await createSession(db, user[0].id)
+    console.log('🔐 Session created with ID:', sessionId)
 
     // Clear state cookie and set session cookie
-    c.header('Set-Cookie', deleteStateCookie())
-    c.header('Set-Cookie', createSessionCookie(sessionId))
+    c.header('Set-Cookie', deleteStateCookie(), { append: true })
+
+    // Set session cookie (no Domain attribute so browser assigns current host; allows dev on different ports via proxy)
+    const sessionCookieString = createSessionCookie(sessionId)
+    c.header('Set-Cookie', sessionCookieString, { append: true })
+    console.log('🍪 Session cookie set using helper:', sessionCookieString)
 
     // Handle CLI flow
     if (cliRedirectUri) {
@@ -269,10 +335,7 @@ authRouter.get('/github/callback', async c => {
 
       if (userTenant.length === 0) {
         // Clear CLI cookie
-        c.header(
-          'Set-Cookie',
-          'cli_redirect_uri=; HttpOnly; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure'
-        )
+        c.header('Set-Cookie', clearCookieHeader('cli_redirect_uri'), { append: true })
         return c.redirect(
           `${cliRedirectUri}?error=${encodeURIComponent('User has no associated tenant')}`
         )
@@ -326,25 +389,67 @@ authRouter.get('/github/callback', async c => {
       const apiKey = keyData.fullKey
 
       // Clear CLI cookie and redirect to CLI callback with API key
-      c.header(
-        'Set-Cookie',
-        'cli_redirect_uri=; HttpOnly; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure'
-      )
+      c.header('Set-Cookie', clearCookieHeader('cli_redirect_uri'), { append: true })
       return c.redirect(`${cliRedirectUri}?key=${encodeURIComponent(apiKey)}`)
+    }
+
+    // Check for pending invitation
+    const pendingInvitation = getCookie(c, 'pending_invitation')
+    console.log(
+      '🔍 Checking for pending invitation cookie:',
+      pendingInvitation ? 'Found' : 'Not found'
+    )
+    if (pendingInvitation) {
+      try {
+        const { teamInvitations, tenants } = await import('../../db/schema')
+
+        // Get invitation details
+        const invitation = await db
+          .select({
+            id: teamInvitations.id,
+            tenantId: teamInvitations.tenantId,
+            email: teamInvitations.email,
+            role: teamInvitations.role,
+            expiresAt: teamInvitations.expiresAt,
+            status: teamInvitations.status,
+          })
+          .from(teamInvitations)
+          .where(eq(teamInvitations.id, pendingInvitation))
+          .limit(1)
+
+        // Don't process the invitation here - just redirect back to the invitation page
+        // Let the frontend handle invitation acceptance after the user is properly authenticated
+        if (
+          invitation.length > 0 &&
+          invitation[0].status === 'pending' &&
+          new Date() <= new Date(invitation[0].expiresAt) &&
+          invitation[0].email === user[0].email
+        ) {
+          console.log('✅ Valid pending invitation found, will redirect back to invitation page')
+          // Clear the pending invitation cookie since we'll let frontend handle acceptance
+          c.header('Set-Cookie', clearCookieHeader('pending_invitation'), { append: true })
+
+          // Redirect back to invitation page where the frontend can auto-accept
+          return c.redirect(`/invite/accept?token=${pendingInvitation}`)
+        }
+      } catch (error) {
+        console.error('Error processing pending invitation:', error)
+        // Don't fail login if invitation processing fails
+      }
+
+      // Clear invalid invitation cookie
+      c.header('Set-Cookie', clearCookieHeader('pending_invitation'), { append: true })
     }
 
     // Regular web flow - redirect to dashboard
     return c.redirect('/')
   } catch (error) {
     console.error('GitHub OAuth callback error:', error)
-    c.header('Set-Cookie', deleteStateCookie())
+    c.header('Set-Cookie', deleteStateCookie(), { append: true })
 
     // Handle CLI error redirect
     if (cliRedirectUri) {
-      c.header(
-        'Set-Cookie',
-        'cli_redirect_uri=; HttpOnly; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure'
-      )
+      c.header('Set-Cookie', clearCookieHeader('cli_redirect_uri'), { append: true })
       return c.redirect(
         `${cliRedirectUri}?error=${encodeURIComponent('OAuth authentication failed')}`
       )
@@ -410,15 +515,32 @@ authRouter.get('/session', async c => {
 
   // Fall back to session-based authentication
   const sessionId = getCookie(c, 'sessionId')
+  console.log('🍪 Session cookie check:', {
+    sessionId: sessionId ? 'FOUND' : 'NOT_FOUND',
+    actualValue: sessionId,
+  })
 
   if (!sessionId) {
+    console.log('❌ No session cookie found - returning unauthenticated')
     return c.json({ authenticated: false })
   }
 
+  console.log('🔍 Validating session:', sessionId)
   const { user, session } = await validateSession(db, sessionId)
+  console.log('📊 Session validation result:', {
+    user: user ? { id: user.id, email: user.email } : null,
+    session: session ? { id: session.id, expiresAt: session.expiresAt } : null,
+  })
 
   if (!user || !session) {
-    c.header('Set-Cookie', deleteSessionCookie())
+    console.log('❌ Session validation failed - deleting cookie and returning unauthenticated')
+    setCookie(c, 'sessionId', '', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'Lax',
+      expires: new Date(0),
+      path: '/',
+    })
     return c.json({ authenticated: false })
   }
 
@@ -433,6 +555,12 @@ authRouter.get('/session', async c => {
     .innerJoin(tenants, eq(tenantUsers.tenantId, tenants.id))
     .where(eq(tenantUsers.userId, user.id))
 
+  // Determine current tenant ID (from session or fallback to first tenant)
+  let currentTenantId = session.selectedTenantId
+  if (!currentTenantId && userTenants.length > 0) {
+    currentTenantId = userTenants[0].tenant.id
+  }
+
   return c.json({
     authenticated: true,
     user: {
@@ -444,6 +572,7 @@ authRouter.get('/session', async c => {
       avatarUrl: user.avatarUrl,
     },
     tenants: userTenants,
+    currentTenantId,
     session: {
       id: session.id,
       expiresAt: session.expiresAt,
@@ -460,8 +589,64 @@ authRouter.post('/logout', async c => {
     await deleteSession(db, sessionId)
   }
 
-  c.header('Set-Cookie', deleteSessionCookie())
+  // Use deleteCookie utility instead of manual cookie string
+  setCookie(c, 'sessionId', '', {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'Lax',
+    expires: new Date(0),
+    path: '/',
+  })
   return c.json({ success: true })
+})
+
+// Select tenant for current session
+authRouter.post('/select-tenant', async c => {
+  const sessionId = getCookie(c, 'sessionId')
+
+  if (!sessionId) {
+    return c.json({ error: 'Authentication required' }, 401)
+  }
+
+  const db = c.get('db')
+  const { user, session } = await validateSession(db, sessionId)
+
+  if (!user || !session) {
+    setCookie(c, 'sessionId', '', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'Lax',
+      expires: new Date(0),
+      path: '/',
+    })
+    return c.json({ error: 'Invalid session' }, 401)
+  }
+
+  const body = await c.req.json()
+  const { tenantId } = body
+
+  if (!tenantId) {
+    return c.json({ error: 'tenantId is required' }, 400)
+  }
+
+  // Verify user has access to this tenant
+  const userTenant = await db
+    .select()
+    .from(tenantUsers)
+    .where(and(eq(tenantUsers.userId, user.id), eq(tenantUsers.tenantId, tenantId)))
+    .limit(1)
+
+  if (userTenant.length === 0) {
+    return c.json({ error: 'Access denied to this tenant' }, 403)
+  }
+
+  // Update session with selected tenant
+  await updateSelectedTenant(db, sessionId, tenantId)
+
+  return c.json({
+    success: true,
+    currentTenantId: tenantId,
+  })
 })
 
 // CLI Authentication endpoints
@@ -516,10 +701,7 @@ authRouter.get('/cli', async c => {
         apiKey = existingKey[0].keyHash
 
         // Update last used timestamp
-        await db
-          .update(keys)
-          .set({ lastUsedAt: new Date() })
-          .where(eq(keys.id, existingKey[0].id))
+        await db.update(keys).set({ lastUsedAt: new Date() }).where(eq(keys.id, existingKey[0].id))
       } else {
         // Create new API key
         const { generateApiKey } = await import('../utils/keys')
@@ -547,7 +729,7 @@ authRouter.get('/cli', async c => {
   const expires = new Date(Date.now() + 1000 * 60 * 10) // 10 minutes
   c.header(
     'Set-Cookie',
-    `cli_redirect_uri=${encodeURIComponent(redirectUri)}; HttpOnly; SameSite=Lax; Path=/; Expires=${expires.toUTCString()}; Secure`
+    `cli_redirect_uri=${encodeURIComponent(redirectUri)}; HttpOnly; SameSite=Lax; Path=/; Expires=${expires.toUTCString()}${isProduction ? '; Secure' : ''}`
   )
 
   const html = `
@@ -631,6 +813,289 @@ authRouter.get('/cli', async c => {
   `
 
   return c.html(html)
+})
+
+// Get invitation details (for frontend)
+authRouter.get('/invite/details', async c => {
+  const token = c.req.query('token')
+
+  if (!token) {
+    return c.json({ error: 'Invitation token is required' }, 400)
+  }
+
+  const db = c.get('db')
+
+  // Get invitation details
+  const { teamInvitations, tenants } = await import('../../db/schema')
+  const invitation = await db
+    .select({
+      id: teamInvitations.id,
+      tenantId: teamInvitations.tenantId,
+      email: teamInvitations.email,
+      role: teamInvitations.role,
+      expiresAt: teamInvitations.expiresAt,
+      status: teamInvitations.status,
+      tenantName: tenants.name,
+    })
+    .from(teamInvitations)
+    .innerJoin(tenants, eq(teamInvitations.tenantId, tenants.id))
+    .where(eq(teamInvitations.id, token))
+    .limit(1)
+
+  if (invitation.length === 0) {
+    return c.json({ error: 'Invalid invitation token' }, 404)
+  }
+
+  return c.json(invitation[0])
+})
+
+// Accept team invitation (API endpoint)
+authRouter.post('/invite/accept', async c => {
+  const body = await c.req.json()
+  const { token } = body
+
+  if (!token) {
+    return c.json({ error: 'Invitation token is required' }, 400)
+  }
+
+  const db = c.get('db')
+
+  // Get invitation details
+  const { teamInvitations, tenants } = await import('../../db/schema')
+  const invitation = await db
+    .select({
+      id: teamInvitations.id,
+      tenantId: teamInvitations.tenantId,
+      email: teamInvitations.email,
+      role: teamInvitations.role,
+      expiresAt: teamInvitations.expiresAt,
+      status: teamInvitations.status,
+      tenantName: tenants.name,
+    })
+    .from(teamInvitations)
+    .innerJoin(tenants, eq(teamInvitations.tenantId, tenants.id))
+    .where(eq(teamInvitations.id, token))
+    .limit(1)
+
+  if (invitation.length === 0) {
+    return c.json({ error: 'Invalid invitation token' }, 404)
+  }
+
+  const invite = invitation[0]
+
+  // Check if invitation is expired or not pending
+  if (invite.status !== 'pending' || new Date() > new Date(invite.expiresAt)) {
+    return c.json({ error: 'Invitation has expired or is no longer valid' }, 400)
+  }
+
+  // Check if user is already authenticated
+  const sessionId = getCookie(c, 'sessionId')
+  if (sessionId) {
+    const { user, session } = await validateSession(db, sessionId)
+
+    if (user && session) {
+      // User is authenticated, check if invitation email matches
+      if (user.email !== invite.email) {
+        return c.json(
+          {
+            error: `This invitation is for ${invite.email}, but you are logged in as ${user.email}. Please logout and login with the correct account.`,
+          },
+          400
+        )
+      }
+
+      // Accept the invitation
+      await db
+        .update(teamInvitations)
+        .set({
+          status: 'accepted',
+          acceptedAt: new Date(),
+        })
+        .where(eq(teamInvitations.id, token))
+
+      // Add user to tenant
+      await db.insert(tenantUsers).values({
+        tenantId: invite.tenantId,
+        userId: user.id,
+        role: invite.role as 'admin' | 'member',
+      })
+
+      // Automatically switch the user's session to the newly joined tenant
+      const sessionId = getCookie(c, 'sessionId')
+      if (sessionId) {
+        await updateSelectedTenant(db, sessionId, invite.tenantId)
+      }
+
+      return c.json({
+        success: true,
+        message: `Successfully joined ${invite.tenantName}`,
+        redirectUrl: '/?invitation-accepted=true',
+      })
+    }
+  }
+
+  // User not authenticated - they need to login first
+  // Store the invitation token in a cookie so it can be processed after login
+  setCookie(c, 'pending_invitation', token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'Lax',
+    maxAge: 600, // 10 minutes
+  })
+
+  return c.json({
+    success: false,
+    requiresAuth: true,
+    message: 'Please login with GitHub to accept this invitation',
+    loginUrl: '/auth/github',
+  })
+})
+
+// Accept team invitation (HTML page - deprecated, keeping for compatibility)
+authRouter.get('/invite/accept', async c => {
+  const token = c.req.query('token')
+
+  if (!token) {
+    return c.json({ error: 'Invitation token is required' }, 400)
+  }
+
+  const db = c.get('db')
+
+  // Get invitation details
+  const { teamInvitations, tenants } = await import('../../db/schema')
+  const invitation = await db
+    .select({
+      id: teamInvitations.id,
+      tenantId: teamInvitations.tenantId,
+      email: teamInvitations.email,
+      role: teamInvitations.role,
+      expiresAt: teamInvitations.expiresAt,
+      status: teamInvitations.status,
+      tenantName: tenants.name,
+    })
+    .from(teamInvitations)
+    .innerJoin(tenants, eq(teamInvitations.tenantId, tenants.id))
+    .where(eq(teamInvitations.id, token))
+    .limit(1)
+
+  if (invitation.length === 0) {
+    return c.json({ error: 'Invalid invitation token' }, 404)
+  }
+
+  const invite = invitation[0]
+
+  // Check if invitation is expired
+  if (invite.status !== 'pending' || new Date() > new Date(invite.expiresAt)) {
+    return c.json({ error: 'Invitation has expired' }, 400)
+  }
+
+  // Check if user is already authenticated
+  const sessionId = getCookie(c, 'sessionId')
+  if (sessionId) {
+    const { user, session } = await validateSession(db, sessionId)
+
+    if (user && session) {
+      // User is authenticated, check if invitation email matches
+      if (user.email !== invite.email) {
+        // Store invitation token and redirect to login with different account message
+        setCookie(c, 'pending_invitation', token, {
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: 'Lax',
+          maxAge: 600, // 10 minutes
+        })
+
+        return c.html(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Entente - Email Mismatch</title>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 40px 20px; background: #f8fafc; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+                .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); text-align: center; max-width: 500px; width: 100%; }
+                h1 { color: #1f2937; margin-bottom: 16px; font-size: 24px; font-weight: 600; }
+                p { color: #6b7280; margin-bottom: 24px; line-height: 1.5; }
+                .btn { background: #1f2937; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-block; margin: 8px; transition: background-color 0.2s; }
+                .btn:hover { background: #374151; }
+                .btn-secondary { background: #6b7280; }
+                .btn-secondary:hover { background: #4b5563; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h1>Email Address Mismatch</h1>
+                <p>This invitation was sent to <strong>${invite.email}</strong>, but you're currently logged in as <strong>${user.email}</strong>.</p>
+                <p>To accept this invitation to <strong>${invite.tenantName}</strong>, you need to:</p>
+                <a href="/auth/logout" class="btn">Logout & Login with ${invite.email}</a>
+                <a href="/" class="btn btn-secondary">Continue as ${user.email}</a>
+              </div>
+            </body>
+          </html>
+        `)
+      }
+
+      // Accept the invitation
+      await db
+        .update(teamInvitations)
+        .set({
+          status: 'accepted',
+          acceptedAt: new Date(),
+        })
+        .where(eq(teamInvitations.id, token))
+
+      // Add user to tenant
+      await db.insert(tenantUsers).values({
+        tenantId: invite.tenantId,
+        userId: user.id,
+        role: invite.role as 'admin' | 'member',
+      })
+
+      // Redirect to success page or dashboard
+      return c.redirect('/?invitation-accepted=true')
+    }
+  }
+
+  // User not authenticated, show login page with invitation context
+  setCookie(c, 'pending_invitation', token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'Lax',
+    maxAge: 600, // 10 minutes
+  })
+
+  return c.html(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Entente - Accept Invitation</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 40px 20px; background: #f8fafc; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+          .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); text-align: center; max-width: 500px; width: 100%; }
+          h1 { color: #1f2937; margin-bottom: 16px; font-size: 24px; font-weight: 600; }
+          p { color: #6b7280; margin-bottom: 24px; line-height: 1.5; }
+          .btn { background: #3b82f6; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-block; transition: background-color 0.2s; }
+          .btn:hover { background: #2563eb; }
+          .invite-info { background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 24px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>🎉 You're Invited!</h1>
+          <div class="invite-info">
+            <p><strong>Team:</strong> ${invite.tenantName}</p>
+            <p><strong>Role:</strong> ${invite.role}</p>
+            <p><strong>Email:</strong> ${invite.email}</p>
+          </div>
+            <p>To accept this invitation, please sign in with your GitHub account:</p>
+          <a href="/auth/github" class="btn">Sign in with GitHub</a>
+        </div>
+      </body>
+    </html>
+  `)
 })
 
 export { authRouter }

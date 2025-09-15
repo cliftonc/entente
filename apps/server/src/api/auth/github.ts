@@ -3,7 +3,7 @@ import { GitHub } from 'arctic'
 interface GitHubUser {
   id: number
   login: string
-  email: string
+  email: string | null
   name: string
   avatar_url: string
 }
