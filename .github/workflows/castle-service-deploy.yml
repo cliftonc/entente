@@ -82,6 +82,9 @@ jobs:
 
       - name: Run castle-service tests
         if: steps.changes.outputs.castle-service == 'true'
+        env:
+          ENTENTE_SERVICE_URL: ${{ vars.ENTENTE_SERVICE_URL }}
+          ENTENTE_API_KEY: ${{ secrets.ENTENTE_API_KEY }}
         run: pnpm --filter @entente/example-castle-service test
 
   deploy-development:
