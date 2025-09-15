@@ -12,21 +12,10 @@ on:
       - 'examples/castle-service/**'
       - '.github/workflows/castle-service-build-test.yml'
   workflow_dispatch:
-  workflow_call:
-    outputs:
-      should-deploy:
-        description: 'Whether deployment should proceed'
-        value: ${{ jobs.build-and-test.outputs.should-deploy }}
-      version:
-        description: 'Version from package.json'
-        value: ${{ jobs.build-and-test.outputs.version }}
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    outputs:
-      should-deploy: ${{ steps.changes.outputs.castle-service }}
-      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout
