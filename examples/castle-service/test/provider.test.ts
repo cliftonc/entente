@@ -28,8 +28,8 @@ describe('Castle Service Provider Verification', () => {
 
   it('should verify provider against recorded consumer interactions', async () => {
     const provider = createProvider({
-      serviceUrl: process.env.ENTENTE_SERVICE_URL || 'http://localhost:3000',
-      apiKey: process.env.ENTENTE_API_KEY || 'test-key',
+      serviceUrl: process.env.ENTENTE_SERVICE_URL,
+      apiKey: process.env.ENTENTE_API_KEY,
       provider: 'castle-service',
     })
 
