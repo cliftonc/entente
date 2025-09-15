@@ -112,7 +112,7 @@ describe('@entente/consumer', () => {
       await client.createMock('test-service', '1.0.0')
 
       expect(mocks.fetch.fetch).toHaveBeenCalledWith(
-        'https://test.entente.com/api/specs/test-service?version=1.0.0&branch=main',
+        'https://test.entente.com/api/specs/test-service/by-provider-version?providerVersion=1.0.0&environment=test&branch=main',
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: 'Bearer test-key',

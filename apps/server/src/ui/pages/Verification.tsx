@@ -262,6 +262,7 @@ function Verification() {
                     <th>Interactions</th>
                     <th>Status</th>
                     <th>Created</th>
+                    <th>Contract</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -301,6 +302,18 @@ function Verification() {
                         <td>
                           <TimestampDisplay timestamp={task.createdAt} />
                         </td>
+                        <td>
+                          {task.contractId ? (
+                            <Link
+                              to={`/contracts/${task.contractId}`}
+                              className="btn btn-ghost btn-xs"
+                            >
+                              View Contract
+                            </Link>
+                          ) : (
+                            <span className="text-base-content/50 text-xs">No contract</span>
+                          )}
+                        </td>
                       </tr>
                     ))
                   }
@@ -327,6 +340,7 @@ function Verification() {
                     <th>Status</th>
                     <th>Last Run</th>
                     <th>Actions</th>
+                    <th>Contract</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -401,6 +415,18 @@ function Verification() {
                               View
                             </Link>
                           </div>
+                        </td>
+                        <td>
+                          {result.contractId ? (
+                            <Link
+                              to={`/contracts/${result.contractId}`}
+                              className="btn btn-ghost btn-xs"
+                            >
+                              View Contract
+                            </Link>
+                          ) : (
+                            <span className="text-base-content/50 text-xs">No contract</span>
+                          )}
                         </td>
                       </tr>
                     ))

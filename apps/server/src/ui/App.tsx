@@ -5,12 +5,13 @@ import AdminLayout from './components/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './hooks/useAuth'
 import ConsumerDetail from './pages/ConsumerDetail'
+import ContractDetail from './pages/ContractDetail'
+import Contracts from './pages/Contracts'
 import Dashboard from './pages/Dashboard'
 import Deployments from './pages/Deployments'
 import FixtureDetails from './pages/FixtureDetails'
 import Fixtures from './pages/Fixtures'
 import InteractionDetails from './pages/InteractionDetails'
-import Interactions from './pages/Interactions'
 import ProviderDetail from './pages/ProviderDetail'
 import Services from './pages/Services'
 import Settings from './pages/Settings'
@@ -40,7 +41,8 @@ function App() {
               <Route path="/services" element={<Services />} />
               <Route path="/services/provider/:name" element={<ProviderDetail />} />
               <Route path="/services/consumer/:name" element={<ConsumerDetail />} />
-              <Route path="/interactions" element={<Interactions />} />
+              <Route path="/contracts" element={<Contracts />} />
+              <Route path="/contracts/:id" element={<ContractDetail />} />
               <Route path="/interactions/:id" element={<InteractionDetails />} />
               <Route path="/fixtures" element={<Fixtures />} />
               <Route path="/fixtures/:id" element={<FixtureDetails />} />

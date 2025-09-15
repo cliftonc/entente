@@ -1,7 +1,7 @@
 import type { OpenAPISpec, SpecMetadata } from '@entente/types'
 import { and, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { services, specs } from '../../db/schema'
+import { deployments, services, specs } from '../../db/schema'
 import type { DbSpec } from '../../db/types'
 
 export const specsRouter = new Hono()
@@ -149,4 +149,128 @@ specsRouter.get('/:service/versions', async c => {
   })
 
   return c.json(versions)
+})
+
+// Get OpenAPI specification by provider deployment version
+specsRouter.get('/:service/by-provider-version', async c => {
+  const service = c.req.param('service')
+  const providerVersion = c.req.query('providerVersion')
+  const environment = c.req.query('environment') || 'production'
+  const branch = c.req.query('branch') || 'main'
+
+  if (!providerVersion) {
+    return c.json({ error: 'providerVersion parameter is required' }, 400)
+  }
+
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+
+  let deployment
+  let actualProviderVersion = providerVersion
+
+  if (providerVersion === 'latest') {
+    // Find the most recently deployed version
+    deployment = await db.query.deployments.findFirst({
+      where: and(
+        eq(deployments.tenantId, tenantId),
+        eq(deployments.service, service),
+        eq(deployments.type, 'provider'),
+        eq(deployments.environment, environment),
+        eq(deployments.active, true)
+      ),
+      orderBy: desc(deployments.deployedAt),
+    })
+
+    if (deployment) {
+      actualProviderVersion = deployment.version
+    }
+  } else {
+    // Look for specific version
+    deployment = await db.query.deployments.findFirst({
+      where: and(
+        eq(deployments.tenantId, tenantId),
+        eq(deployments.service, service),
+        eq(deployments.type, 'provider'),
+        eq(deployments.version, providerVersion),
+        eq(deployments.environment, environment),
+        eq(deployments.active, true)
+      ),
+    })
+  }
+
+  // If no deployment found, we'll still try to find a spec
+  // This allows testing against specs even if not deployed
+  if (!deployment && providerVersion === 'latest') {
+    // For 'latest' without deployment, we can't resolve to a specific version
+    // So provide helpful error with available deployed versions
+    const availableDeployments = await db.query.deployments.findMany({
+      where: and(
+        eq(deployments.tenantId, tenantId),
+        eq(deployments.service, service),
+        eq(deployments.type, 'provider'),
+        eq(deployments.environment, environment),
+        eq(deployments.active, true)
+      ),
+      columns: { version: true },
+      orderBy: desc(deployments.deployedAt),
+    })
+
+    const availableVersions = availableDeployments.map(d => d.version)
+
+    return c.json({
+      error: 'No deployed versions found for latest',
+      message: `No deployed versions found for provider '${service}' in environment '${environment}'.`,
+      availableVersions,
+      suggestion: availableVersions.length > 0
+        ? `Try using a specific version like: ${availableVersions.join(', ')}`
+        : `No deployed versions found for '${service}' in '${environment}'. Upload a spec or deploy the provider first.`
+    }, 404)
+  }
+
+  // Now find the spec that corresponds to this provider deployment version
+  // We'll look for a spec with the same version, but if not found, we'll look for specs
+  // from the same environment and branch (allowing for spec versioning independence)
+  let spec = await db.query.specs.findFirst({
+    where: and(
+      eq(specs.tenantId, tenantId),
+      eq(specs.service, service),
+      eq(specs.version, actualProviderVersion), // Try exact version match first
+      eq(specs.environment, environment),
+      eq(specs.branch, branch)
+    ),
+  })
+
+  if (!spec) {
+    // If no exact version match, find the most recent spec for this service/environment/branch
+    spec = await db.query.specs.findFirst({
+      where: and(
+        eq(specs.tenantId, tenantId),
+        eq(specs.service, service),
+        eq(specs.environment, environment),
+        eq(specs.branch, branch)
+      ),
+      orderBy: desc(specs.uploadedAt),
+    })
+  }
+
+  if (!spec) {
+    return c.json({
+      error: 'No OpenAPI spec found',
+      message: `No OpenAPI specification found for provider '${service}' in environment '${environment}' on branch '${branch}'.`,
+      suggestion: `Please upload an OpenAPI spec for this provider using 'entente upload-spec'.`
+    }, 404)
+  }
+
+  return c.json({
+    spec: spec.spec,
+    metadata: {
+      providerVersion: actualProviderVersion, // Return the resolved version (important for 'latest')
+      specVersion: spec.version,
+      environment,
+      branch,
+      uploadedAt: spec.uploadedAt,
+      resolvedFromLatest: providerVersion === 'latest',
+      isDeployed: !!deployment // Indicates if this version is actually deployed
+    }
+  })
 })

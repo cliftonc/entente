@@ -1,6 +1,7 @@
 // API utility functions for UI components
 import type {
   ClientInteraction,
+  Contract,
   DeploymentState,
   Fixture,
   OpenAPISpec,
@@ -135,7 +136,8 @@ export const fixtureApi = {
     Promise.all([
       fetchApi<Fixture[]>(`/fixtures/service/${service}?status=approved`),
       fetchApi<Fixture[]>(`/fixtures/service/${service}?status=draft`),
-    ]).then(([approved, draft]) => [...approved, ...draft]),
+      fetchApi<Fixture[]>(`/fixtures/service/${service}?status=rejected`),
+    ]).then(([approved, draft, rejected]) => [...approved, ...draft, ...rejected]),
   getByOperation: (operation: string, service: string, version: string) =>
     fetchApi<Fixture[]>(`/fixtures/${operation}?service=${service}&version=${version}`),
   getById: (id: string) => fetchApi<Fixture>(`/fixtures/by-id/${id}`),
@@ -193,6 +195,25 @@ export const verificationApi = {
     fetchApi<VerificationResults[]>(`/verification/consumer/${consumer}/history`),
   getTasks: (provider: string) => fetchApi<VerificationTask[]>(`/verification/${provider}`),
   getPendingTasks: () => fetchApi<VerificationTask[]>('/verification/pending'),
+  getByContract: (contractId: string) =>
+    fetchApi<{
+      pendingTasks: VerificationTask[]
+      completedResults: Array<{
+        id: string
+        provider: string
+        providerVersion: string
+        providerGitSha?: string
+        consumer?: string
+        consumerVersion?: string
+        consumerGitSha?: string
+        taskId: string
+        submittedAt: Date
+        status: 'passed' | 'failed'
+        total: number
+        passed: number
+        failed: number
+      }>
+    }>(`/verification/contract/${contractId}`),
   getStats: (provider: string) =>
     fetchApi<{
       totalTasks: number
@@ -251,4 +272,36 @@ export const statsApi = {
         errorRate?: number
       }>
     }>('/stats/dashboard'),
+}
+
+// Contracts API functions
+export const contractApi = {
+  getAll: (filters?: {
+    provider?: string
+    consumer?: string
+    environment?: string
+    status?: string
+    limit?: number
+  }) => {
+    const params = new URLSearchParams()
+    if (filters?.provider) params.set('provider', filters.provider)
+    if (filters?.consumer) params.set('consumer', filters.consumer)
+    if (filters?.environment) params.set('environment', filters.environment)
+    if (filters?.status) params.set('status', filters.status)
+    if (filters?.limit) params.set('limit', filters.limit.toString())
+    const queryString = params.toString()
+    return fetchApi<Contract[]>(`/contracts${queryString ? `?${queryString}` : ''}`)
+  },
+  getById: (id: string) => fetchApi<Contract>(`/contracts/${id}`),
+  getByProvider: (provider: string) => fetchApi<Contract[]>(`/contracts?provider=${provider}`),
+  getByConsumer: (consumer: string) => fetchApi<Contract[]>(`/contracts?consumer=${consumer}`),
+  getInteractions: (id: string, limit?: number) => {
+    const params = limit ? `?limit=${limit}` : ''
+    return fetchApi<ClientInteraction[]>(`/contracts/${id}/interactions${params}`)
+  },
+  updateStatus: (id: string, status: 'active' | 'archived' | 'deprecated') =>
+    fetchApi<Contract>(`/contracts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
 }

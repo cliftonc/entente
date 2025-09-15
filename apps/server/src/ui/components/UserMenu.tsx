@@ -37,7 +37,7 @@ export default function UserMenu() {
           <li key={tenantUser.tenant.id}>
             <a className="text-sm">
               <span>{tenantUser.tenant.name}</span>
-              <div className="badge badge-xs badge-ghost">{tenantUser.role}</div>
+              <div className="badge badge-sm px-2 badge-ghost">{tenantUser.role}</div>
             </a>
           </li>
         ))}

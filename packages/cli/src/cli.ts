@@ -95,7 +95,8 @@ program
       // If spec provided and it's a provider, upload it
       if (options.spec) {
         if (options.type !== 'provider') {
-          throw new Error('OpenAPI specs can only be uploaded for provider services')
+          console.log(chalk.yellow('⚠️'), 'Skipping OpenAPI spec upload - specs can only be uploaded for provider services')
+          return
         }
         if (!options.specVersion) {
           throw new Error('--spec-version is required when --spec is provided')

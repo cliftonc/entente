@@ -2,8 +2,9 @@ import { generateInteractionHash } from '@entente/fixtures'
 import type { ClientInfo, ClientInteraction, HTTPRequest, HTTPResponse } from '@entente/types'
 import { and, avg, count, desc, eq, gte } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { interactions, serviceDependencies, services, verificationTasks } from '../../db/schema'
+import { contracts, interactions, serviceDependencies, services, verificationTasks } from '../../db/schema'
 import type { DbConnection } from '../../db/types'
+import { createOrUpdateContract } from './contracts'
 
 export const interactionsRouter = new Hono()
 
@@ -16,7 +17,8 @@ async function createVerificationTaskFromInteraction(
   providerName: string,
   consumerName: string,
   consumerVersion: string,
-  environment: string
+  environment: string,
+  contractId?: string | null
 ) {
   // Only create task if we have both provider and consumer IDs
   if (!providerId || !consumerId) {
@@ -49,15 +51,19 @@ async function createVerificationTaskFromInteraction(
       limit: 100, // Reasonable limit
     })
 
+    // Get the most recent provider version from the interactions
+    const providerVersion = allInteractions[0]?.providerVersion || 'latest'
+
     await db
       .update(verificationTasks)
       .set({
         interactions: allInteractions,
+        providerVersion, // Update provider version to the real version from interactions
       })
       .where(eq(verificationTasks.id, existingTask.id))
 
     console.log(
-      `✅ Updated verification task with ${allInteractions.length} interactions for ${consumerName}@${consumerVersion} -> ${providerName}`
+      `✅ Updated verification task with ${allInteractions.length} interactions for ${consumerName}@${consumerVersion} -> ${providerName}@${providerVersion}`
     )
   } else {
     // Create new verification task
@@ -72,13 +78,17 @@ async function createVerificationTaskFromInteraction(
       limit: 100, // Reasonable limit
     })
 
+    // Get the provider version from the most recent interaction
+    const providerVersion = allInteractions[0]?.providerVersion || 'latest'
+
     try {
       await db.insert(verificationTasks).values({
         tenantId,
+        contractId,
         providerId,
         consumerId,
         provider: providerName,
-        providerVersion: 'latest', // Will be set by provider when verifying
+        providerVersion, // Use real provider version from interactions
         consumer: consumerName,
         consumerVersion,
         environment,
@@ -86,7 +96,7 @@ async function createVerificationTaskFromInteraction(
       })
 
       console.log(
-        `✅ Created verification task with ${allInteractions.length} interactions for ${consumerName}@${consumerVersion} -> ${providerName}`
+        `✅ Created verification task with ${allInteractions.length} interactions for ${consumerName}@${consumerVersion} -> ${providerName}@${providerVersion}`
       )
     } catch (error: unknown) {
       // Handle unique constraint violation (race condition)
@@ -109,7 +119,8 @@ async function createDependencyFromInteraction(
   consumerId: string | null,
   providerName: string,
   consumerName: string,
-  consumerVersion: string
+  consumerVersion: string,
+  providerVersion: string
 ) {
   // Only create task if we have both provider and consumer IDs
   if (!providerId || !consumerId) {
@@ -137,13 +148,13 @@ async function createDependencyFromInteraction(
         providerId,
         consumerId,
         provider: providerName,
-        providerVersion: 'latest', // Will be set by provider when verifying
+        providerVersion, // Use real provider version from interactions
         consumer: consumerName,
         consumerVersion,
       })
 
       console.log(
-        `✅ Created dependendcy for ${consumerName}@${consumerVersion} -> ${providerName}`
+        `✅ Created dependency for ${consumerName}@${consumerVersion} -> ${providerName}@${providerVersion}`
       )
     } catch (error: unknown) {
       // Handle unique constraint violation (race condition)
@@ -183,6 +194,7 @@ interactionsRouter.get('/', async c => {
       consumer: interactions.consumer,
       consumerVersion: interactions.consumerVersion,
       consumerGitSha: interactions.consumerGitSha,
+      providerVersion: interactions.providerVersion,
       environment: interactions.environment,
       operation: interactions.operation,
       request: interactions.request,
@@ -207,6 +219,7 @@ interactionsRouter.get('/', async c => {
     consumer: interaction.consumer,
     consumerVersion: interaction.consumerVersion,
     consumerGitSha: interaction.consumerGitSha,
+    providerVersion: interaction.providerVersion,
     consumerGitRepositoryUrl: interaction.consumerGitRepositoryUrl,
     environment: interaction.environment,
     operation: interaction.operation,
@@ -244,6 +257,8 @@ interactionsRouter.get('/by-id/:id', async c => {
     service: interaction.service,
     consumer: interaction.consumer,
     consumerVersion: interaction.consumerVersion,
+    consumerGitSha: interaction.consumerGitSha,
+    providerVersion: interaction.providerVersion,
     environment: interaction.environment,
     operation: interaction.operation,
     request: interaction.request as HTTPRequest,
@@ -261,8 +276,8 @@ interactionsRouter.post('/', async c => {
   const interaction: ClientInteraction = await c.req.json()
 
   // Validate interaction data
-  if (!interaction.service || !interaction.consumer || !interaction.operation) {
-    return c.json({ error: 'Missing required interaction fields' }, 400)
+  if (!interaction.service || !interaction.consumer || !interaction.operation || !interaction.providerVersion) {
+    return c.json({ error: 'Missing required interaction fields (service, consumer, operation, providerVersion)' }, 400)
   }
 
   const db = c.get('db')
@@ -321,6 +336,8 @@ interactionsRouter.post('/', async c => {
       service: existingInteraction.service,
       consumer: existingInteraction.consumer,
       consumerVersion: existingInteraction.consumerVersion,
+      consumerGitSha: existingInteraction.consumerGitSha,
+      providerVersion: existingInteraction.providerVersion,
       environment: existingInteraction.environment,
       operation: existingInteraction.operation,
       request: existingInteraction.request as HTTPRequest,
@@ -335,16 +352,35 @@ interactionsRouter.post('/', async c => {
 
   // Create new interaction if no duplicate found
   try {
+    // Create or update contract if we have both provider and consumer IDs
+    let contractId: string | null = null
+    if (provider?.id && consumer?.id) {
+      contractId = await createOrUpdateContract(
+        db,
+        tenantId,
+        provider.id,
+        interaction.service,
+        consumer.id,
+        interaction.consumer,
+        interaction.consumerVersion,
+        interaction.consumerGitSha || null,
+        interaction.providerVersion,
+        interaction.environment
+      )
+    }
+
     const [newInteraction] = await db
       .insert(interactions)
       .values({
         tenantId,
+        contractId,
         providerId: provider?.id || null,
         consumerId: consumer?.id || null,
         service: interaction.service,
         consumer: interaction.consumer,
         consumerVersion: interaction.consumerVersion,
         consumerGitSha: interaction.consumerGitSha || null,
+        providerVersion: interaction.providerVersion,
         environment: interaction.environment,
         operation: interaction.operation,
         request: interaction.request,
@@ -582,6 +618,7 @@ interactionsRouter.post('/batch', async c => {
 
   const recordedInteractions: ClientInteraction[] = []
   const consumerProviderPairs = new Set<string>()
+  const affectedContractIds = new Set<string>()
 
   for (const interaction of incomingInteractions) {
     if (!interaction.service || !interaction.consumer || !interaction.operation) {
@@ -636,17 +673,36 @@ interactionsRouter.post('/batch', async c => {
         continue
       }
 
+      // Create or update contract if we have both provider and consumer IDs
+      let contractId: string | null = null
+      if (provider?.id && consumer?.id) {
+        contractId = await createOrUpdateContract(
+          db,
+          tenantId,
+          provider.id,
+          interaction.service,
+          consumer.id,
+          interaction.consumer,
+          interaction.consumerVersion,
+          interaction.consumerGitSha || null,
+          interaction.providerVersion,
+          interaction.environment
+        )
+      }
+
       // Record new interaction
       const [newInteraction] = await db
         .insert(interactions)
         .values({
           tenantId,
+          contractId,
           providerId: provider?.id || null,
           consumerId: consumer?.id || null,
           service: interaction.service,
           consumer: interaction.consumer,
           consumerVersion: interaction.consumerVersion,
           consumerGitSha: interaction.consumerGitSha || null,
+          providerVersion: interaction.providerVersion,
           environment: interaction.environment,
           operation: interaction.operation,
           request: interaction.request,
@@ -662,6 +718,11 @@ interactionsRouter.post('/batch', async c => {
         ...interaction,
         id: newInteraction.id,
       })
+
+      // Track contract for batch count update
+      if (contractId) {
+        affectedContractIds.add(contractId)
+      }
 
       results.recorded++
 
@@ -707,6 +768,17 @@ interactionsRouter.post('/batch', async c => {
       })
 
       if (providerData && consumerData) {
+        // Find the contract for this consumer-provider pair
+        const contract = await db.query.contracts.findFirst({
+          where: and(
+            eq(contracts.tenantId, tenantId),
+            eq(contracts.consumerId, consumerId),
+            eq(contracts.consumerVersion, consumerVersion),
+            eq(contracts.providerId, providerId),
+            eq(contracts.environment, incomingInteractions[0].environment)
+          ),
+        })
+
         await createVerificationTaskFromInteraction(
           db,
           tenantId,
@@ -715,8 +787,15 @@ interactionsRouter.post('/batch', async c => {
           providerData.name,
           consumerData.name,
           consumerVersion,
-          incomingInteractions[0].environment // Use first interaction's environment
+          incomingInteractions[0].environment, // Use first interaction's environment
+          contract?.id || null
         )
+
+        // Get provider version from interactions for this consumer-provider pair
+        const interactionForPair = incomingInteractions.find(
+          i => i.service === providerData.name && i.consumer === consumerData.name && i.consumerVersion === consumerVersion
+        )
+        const providerVersion = interactionForPair?.providerVersion || 'latest'
 
         await createDependencyFromInteraction(
           db,
@@ -725,7 +804,8 @@ interactionsRouter.post('/batch', async c => {
           consumerId,
           providerData.name,
           consumerData.name,
-          consumerVersion
+          consumerVersion,
+          providerVersion
         )
       }
     } catch (error: unknown) {
@@ -734,6 +814,7 @@ interactionsRouter.post('/batch', async c => {
       )
     }
   }
+
 
   console.log(
     `📋 Batch processed ${incomingInteractions.length} interactions: ${results.recorded} recorded, ${results.duplicates} duplicates, ${results.errors} errors`

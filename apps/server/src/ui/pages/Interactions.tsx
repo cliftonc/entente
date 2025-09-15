@@ -99,6 +99,7 @@ function Interactions() {
                     <th>Consumer Version</th>
                     <th>Consumer Git SHA</th>
                     <th>Operation</th>
+                    <th>Method & Path</th>
                     <th>Status</th>
                     <th>Timestamp</th>
                     <th>Actions</th>
@@ -115,6 +116,9 @@ function Interactions() {
                       </td>
                       <td>
                         <div className="skeleton h-4 w-16" />
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-20" />
                       </td>
                       <td>
                         <div className="skeleton h-4 w-12" />
@@ -210,6 +214,7 @@ function Interactions() {
                   <th>Consumer Version</th>
                   <th>Consumer Git SHA</th>
                   <th>Operation</th>
+                  <th>Method & Path</th>
                   <th>Status</th>
                   <th>Timestamp</th>
                   <th>Actions</th>
@@ -218,7 +223,7 @@ function Interactions() {
               <tbody>
                 {!interactions || interactions.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center text-base-content/70 py-8">
+                    <td colSpan={9} className="text-center text-base-content/70 py-8">
                       {selectedProvider || selectedConsumer
                         ? 'No interactions found with current filters'
                         : 'No interactions recorded yet. Use filters above to search for specific interactions.'}

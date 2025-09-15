@@ -23,7 +23,7 @@ export interface DbVerificationTaskWithTypes extends Omit<DbVerificationTask, 'i
 export interface DbFixtureWithTypes
   extends Omit<DbFixture, 'data' | 'status' | 'source' | 'createdFrom'> {
   data: unknown
-  status: 'draft' | 'approved' | 'deprecated'
+  status: 'draft' | 'approved' | 'rejected'
   source: 'consumer' | 'provider' | 'manual'
   createdFrom: unknown
 }

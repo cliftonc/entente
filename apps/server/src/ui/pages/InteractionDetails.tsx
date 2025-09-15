@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
-import { interactionApi } from '../utils/api'
+import { contractApi, interactionApi } from '../utils/api'
 
 function InteractionDetails() {
   const { id } = useParams<{ id: string }>()
@@ -19,13 +19,23 @@ function InteractionDetails() {
     enabled: !!id,
   })
 
+  // Fetch contract details if interaction has contractId
+  const {
+    data: contract,
+    isLoading: contractLoading,
+  } = useQuery({
+    queryKey: ['contract', interaction?.contractId],
+    queryFn: () => contractApi.getById(interaction!.contractId!),
+    enabled: !!interaction?.contractId,
+  })
+
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="breadcrumbs text-sm">
           <ul>
             <li>
-              <Link to="/interactions">Interactions</Link>
+              <Link to="/contracts">Contracts</Link>
             </li>
             <li>Loading...</li>
           </ul>
@@ -54,7 +64,7 @@ function InteractionDetails() {
         <div className="breadcrumbs text-sm">
           <ul>
             <li>
-              <Link to="/interactions">Interactions</Link>
+              <Link to="/contracts">Contracts</Link>
             </li>
             <li>Error</li>
           </ul>
@@ -86,7 +96,7 @@ function InteractionDetails() {
         <div className="breadcrumbs text-sm">
           <ul>
             <li>
-              <Link to="/interactions">Interactions</Link>
+              <Link to="/contracts">Contracts</Link>
             </li>
             <li>Not Found</li>
           </ul>
@@ -117,11 +127,22 @@ function InteractionDetails() {
       <div className="breadcrumbs text-sm">
         <ul>
           <li>
-            <Link to="/interactions">Interactions</Link>
+            <Link to="/contracts">Contracts</Link>
           </li>
-          <li>
-            {interaction.consumer} → {interaction.service}
-          </li>
+          {contract ? (
+            <>
+              <li>
+                <Link to={`/contracts/${contract.id}`}>
+                  {contract.consumerName} → {contract.providerName}
+                </Link>
+              </li>
+              <li>Interaction</li>
+            </>
+          ) : (
+            <li>
+              {interaction.consumer} → {interaction.service}
+            </li>
+          )}
         </ul>
       </div>
 

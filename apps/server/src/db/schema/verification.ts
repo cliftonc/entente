@@ -1,5 +1,6 @@
 import { relations } from 'drizzle-orm'
 import { jsonb, pgTable, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core'
+import { contracts } from './contracts'
 import { serviceDependencies } from './service-dependencies'
 import { services } from './services'
 import { tenants } from './tenants'
@@ -11,6 +12,7 @@ export const verificationTasks = pgTable(
     tenantId: uuid('tenant_id')
       .references(() => tenants.id)
       .notNull(),
+    contractId: uuid('contract_id').references(() => contracts.id), // Link to contract
     providerId: uuid('provider_id')
       .references(() => services.id)
       .notNull(),

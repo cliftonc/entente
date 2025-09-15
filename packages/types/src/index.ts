@@ -34,6 +34,31 @@ export interface Consumer {
   updatedAt: Date
 }
 
+// Contract entity - represents the relationship between a consumer and provider
+export interface Contract {
+  id: string
+  tenantId: string
+  // Consumer information
+  consumerId: string
+  consumerName: string
+  consumerVersion: string
+  consumerGitSha?: string
+  // Provider information
+  providerId: string
+  providerName: string
+  providerVersion: string
+  // Environment
+  environment: string
+  // Contract metadata
+  status: 'active' | 'archived' | 'deprecated'
+  interactionCount: number // Dynamically calculated from interactions table
+  // Timestamps
+  firstSeen: Date
+  lastSeen: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
 // Service dependencies (replaces ConsumerDependency)
 export interface ServiceDependency {
   id: string
@@ -126,10 +151,13 @@ export interface SpecMetadata {
 
 export interface ClientInteraction {
   id: string
+  contractId?: string // Optional link to contract
   service: string
   consumer: string
   consumerVersion: string
   consumerGitSha?: string
+  // Provider information
+  providerVersion: string
   environment: string
 
   // Request/response data
@@ -189,6 +217,7 @@ export interface ActiveVersion {
 export interface VerificationTask {
   id: string
   tenantId: string
+  contractId?: string // Optional link to contract
   providerId: string
   consumerId: string
   dependencyId?: string
@@ -234,7 +263,7 @@ export interface Fixture {
   service: string
   serviceVersion: string
   operation: string
-  status: 'draft' | 'approved' | 'deprecated'
+  status: 'draft' | 'approved' | 'rejected'
   source: 'consumer' | 'provider' | 'manual'
   priority: number
   data: FixtureData
@@ -275,7 +304,7 @@ export interface FixtureUpdate {
   data?: FixtureData
   priority?: number
   notes?: string
-  status?: 'draft' | 'approved' | 'deprecated'
+  status?: 'draft' | 'approved' | 'rejected'
 }
 
 // Configuration types
@@ -388,7 +417,7 @@ export interface CanIDeployResult {
     service: string
     version: string
     verified: boolean
-    interactionCount: number
+    interactionCount: number // Dynamically calculated
     type: 'consumer' | 'provider'
     activelyDeployed?: boolean
   }>
@@ -397,7 +426,7 @@ export interface CanIDeployResult {
     service: string
     version: string
     verified: boolean
-    interactionCount: number
+    interactionCount: number // Dynamically calculated
   }>
   message: string
   serviceType?: 'consumer' | 'provider' | 'consumer/provider' | 'unknown'

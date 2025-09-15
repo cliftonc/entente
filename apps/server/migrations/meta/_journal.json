@@ -127,6 +127,27 @@
       "when": 1757862191952,
       "tag": "0017_parched_dagger",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1757912189946,
+      "tag": "0018_silly_black_bird",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1757914286144,
+      "tag": "0019_steady_nick_fury",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1757918930185,
+      "tag": "0020_amazing_stryfe",
+      "breakpoints": true
     }
   ]
 }

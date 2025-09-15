@@ -136,7 +136,7 @@ function Services() {
           </div>
         ) : (
           filteredServices.map(service => (
-            <div key={service.name} className="card bg-base-100 shadow-xl">
+            <Link key={service.name} to={`/services/${service.type}/${service.name}`} className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer">
               <div className="card-body">
                 <div className="flex items-start justify-between">
                   <h2 className="card-title text-lg">{service.name}</h2>
@@ -153,32 +153,11 @@ function Services() {
                   Last updated: <TimestampDisplay timestamp={service.updatedAt} />
                 </div>
 
-                <p className="text-base-content/80 mb-4">
+                <p className="text-base-content/80">
                   {service.description || 'No description available'}
                 </p>
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span>Interactions</span>
-                    <span className="font-medium">{service.interactions}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Type</span>
-                    <span className="font-medium capitalize">{service.type}</span>
-                  </div>
-                </div>
-
-                <div className="card-actions justify-end">
-                  <button className="btn btn-ghost btn-sm">View Spec</button>
-                  <Link
-                    to={`/services/${service.type}/${service.name}`}
-                    className="btn btn-primary btn-sm"
-                  >
-                    Details
-                  </Link>
-                </div>
               </div>
-            </div>
+            </Link>
           ))
         )}
       </div>

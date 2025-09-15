@@ -245,19 +245,6 @@ function Fixtures() {
         )}
       </div>
 
-      {statusFilter !== 'approved' && (
-        <div className="alert alert-info">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <span>You have {draftFixtures.length} draft fixtures awaiting approval</span>
-        </div>
-      )}
 
       <div className="card bg-base-100 shadow-xl">
         <div className="card-body">
@@ -299,7 +286,18 @@ function Fixtures() {
                 ) : (
                   displayedFixtures.map(fixture => (
                     <tr key={fixture.id}>
-                      <td>{fixture.service}</td>
+                      <td>
+                        {fixture.source === 'manual' ? (
+                          fixture.service
+                        ) : (
+                          <Link
+                            to={`/services/provider/${fixture.service}`}
+                            className="text-primary hover:underline"
+                          >
+                            {fixture.service}
+                          </Link>
+                        )}
+                      </td>
                       <td>
                         <code className="bg-base-200 px-2 py-1 rounded text-sm">
                           {fixture.operation}

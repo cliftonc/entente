@@ -42,6 +42,8 @@ verificationRouter.get('/result/:id', async c => {
       taskConsumer: verificationTasks.consumer,
       taskConsumerVersion: verificationTasks.consumerVersion,
       taskConsumerGitSha: verificationTasks.consumerGitSha,
+      // Contract ID from task
+      contractId: verificationTasks.contractId,
     })
     .from(verificationResults)
     .leftJoin(verificationTasks, eq(verificationResults.taskId, verificationTasks.id))
@@ -112,6 +114,8 @@ verificationRouter.get('/result/:id', async c => {
     consumerVersion: dbResult.consumerVersion || dbResult.taskConsumerVersion,
     consumerGitSha: dbResult.consumerGitSha || dbResult.taskConsumerGitSha,
     consumerGitRepositoryUrl: null, // TODO: Get from consumer service JOIN
+    // Contract ID from task
+    contractId: dbResult.contractId,
   }
 
   return c.json(result)
@@ -128,6 +132,7 @@ verificationRouter.get('/pending', async c => {
     .select({
       id: verificationTasks.id,
       tenantId: verificationTasks.tenantId,
+      contractId: verificationTasks.contractId,
       providerId: verificationTasks.providerId,
       consumerId: verificationTasks.consumerId,
       dependencyId: verificationTasks.dependencyId,
@@ -166,6 +171,7 @@ verificationRouter.get('/pending', async c => {
   const tasks = pendingTasks.map(task => ({
     id: task.id,
     tenantId: task.tenantId,
+    contractId: task.contractId,
     providerId: task.providerId,
     consumerId: task.consumerId,
     dependencyId: task.dependencyId,
@@ -209,6 +215,8 @@ verificationRouter.get('/', async c => {
       taskConsumer: verificationTasks.consumer,
       taskConsumerVersion: verificationTasks.consumerVersion,
       taskConsumerGitSha: verificationTasks.consumerGitSha,
+      // Contract ID from task
+      contractId: verificationTasks.contractId,
     })
     .from(verificationResults)
     .leftJoin(verificationTasks, eq(verificationResults.taskId, verificationTasks.id))
@@ -248,6 +256,8 @@ verificationRouter.get('/', async c => {
       consumerVersion: result.consumerVersion || result.taskConsumerVersion,
       consumerGitSha: result.consumerGitSha || result.taskConsumerGitSha,
       consumerGitRepositoryUrl: null, // TODO: Get from consumer service JOIN
+      // Contract ID from task
+      contractId: result.contractId,
     }
   })
 
@@ -426,8 +436,17 @@ verificationRouter.get('/:provider/history', async c => {
       submittedAt: verificationResults.submittedAt,
       results: verificationResults.results,
       providerGitRepositoryUrl: services.gitRepositoryUrl,
+      // Consumer info directly from verification results
+      consumer: verificationResults.consumer,
+      consumerVersion: verificationResults.consumerVersion,
+      consumerGitSha: verificationResults.consumerGitSha,
+      // Fallback to task info if result fields are null (backward compatibility)
+      taskConsumer: verificationTasks.consumer,
+      taskConsumerVersion: verificationTasks.consumerVersion,
+      taskConsumerGitSha: verificationTasks.consumerGitSha,
     })
     .from(verificationResults)
+    .leftJoin(verificationTasks, eq(verificationResults.taskId, verificationTasks.id))
     .leftJoin(
       services,
       and(
@@ -455,6 +474,10 @@ verificationRouter.get('/:provider/history', async c => {
       providerGitRepositoryUrl: result.providerGitRepositoryUrl,
       taskId: result.taskId,
       submittedAt: result.submittedAt,
+      // Add consumer information (from results with fallback to task)
+      consumer: result.consumer || result.taskConsumer,
+      consumerVersion: result.consumerVersion || result.taskConsumerVersion,
+      consumerGitSha: result.consumerGitSha || result.taskConsumerGitSha,
       summary: {
         total,
         passed,
@@ -533,6 +556,89 @@ verificationRouter.get('/:provider/stats', async c => {
   return c.json(stats)
 })
 
+// Get verification data for a specific contract
+verificationRouter.get('/contract/:contractId', async c => {
+  const contractId = c.req.param('contractId')
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+
+  // Get pending tasks for this contract
+  const pendingTasks = await db
+    .select({
+      id: verificationTasks.id,
+      provider: verificationTasks.provider,
+      providerVersion: verificationTasks.providerVersion,
+      providerGitSha: verificationTasks.providerGitSha,
+      consumer: verificationTasks.consumer,
+      consumerVersion: verificationTasks.consumerVersion,
+      consumerGitSha: verificationTasks.consumerGitSha,
+      environment: verificationTasks.environment,
+      createdAt: verificationTasks.createdAt,
+      interactions: verificationTasks.interactions,
+    })
+    .from(verificationTasks)
+    .leftJoin(verificationResults, eq(verificationResults.taskId, verificationTasks.id))
+    .where(
+      and(
+        eq(verificationTasks.tenantId, tenantId),
+        eq(verificationTasks.contractId, contractId),
+        isNull(verificationResults.id) // Only tasks without results
+      )
+    )
+    .orderBy(desc(verificationTasks.createdAt))
+
+  // Get completed verification results for this contract
+  const completedResults = await db
+    .select({
+      id: verificationResults.id,
+      provider: verificationResults.provider,
+      providerVersion: verificationResults.providerVersion,
+      providerGitSha: verificationResults.providerGitSha,
+      consumer: verificationResults.consumer,
+      consumerVersion: verificationResults.consumerVersion,
+      consumerGitSha: verificationResults.consumerGitSha,
+      taskId: verificationResults.taskId,
+      submittedAt: verificationResults.submittedAt,
+      results: verificationResults.results,
+    })
+    .from(verificationResults)
+    .leftJoin(verificationTasks, eq(verificationResults.taskId, verificationTasks.id))
+    .where(
+      and(
+        eq(verificationResults.tenantId, tenantId),
+        eq(verificationTasks.contractId, contractId)
+      )
+    )
+    .orderBy(desc(verificationResults.submittedAt))
+
+  const processedResults = completedResults.map(result => {
+    const resultData = result.results as VerificationResult[]
+    const total = resultData.length
+    const passed = resultData.filter(r => r.success).length
+
+    return {
+      id: result.id,
+      provider: result.provider,
+      providerVersion: result.providerVersion,
+      providerGitSha: result.providerGitSha,
+      consumer: result.consumer,
+      consumerVersion: result.consumerVersion,
+      consumerGitSha: result.consumerGitSha,
+      taskId: result.taskId,
+      submittedAt: result.submittedAt,
+      status: passed === total ? 'passed' : 'failed',
+      total,
+      passed,
+      failed: total - passed,
+    }
+  })
+
+  return c.json({
+    pendingTasks,
+    completedResults: processedResults,
+  })
+})
+
 // Get verification results where the specified service is the consumer
 verificationRouter.get('/consumer/:consumer/history', async c => {
   const consumer = c.req.param('consumer')
@@ -553,7 +659,7 @@ verificationRouter.get('/consumer/:consumer/history', async c => {
 
   const taskIds = consumerTasks.map(task => task.id)
 
-  // Get verification results for these tasks with provider git info
+  // Get verification results for these tasks with provider git info and task details
   const dbHistory = await db
     .select({
       id: verificationResults.id,
@@ -564,6 +670,9 @@ verificationRouter.get('/consumer/:consumer/history', async c => {
       submittedAt: verificationResults.submittedAt,
       results: verificationResults.results,
       providerGitRepositoryUrl: services.gitRepositoryUrl,
+      // Get consumer version from the task
+      taskConsumerVersion: verificationTasks.consumerVersion,
+      taskConsumerGitSha: verificationTasks.consumerGitSha,
     })
     .from(verificationResults)
     .leftJoin(
@@ -574,6 +683,7 @@ verificationRouter.get('/consumer/:consumer/history', async c => {
         eq(services.tenantId, tenantId)
       )
     )
+    .leftJoin(verificationTasks, eq(verificationResults.taskId, verificationTasks.id))
     .where(eq(verificationResults.tenantId, tenantId))
     .orderBy(desc(verificationResults.submittedAt))
     .limit(limit)
@@ -595,8 +705,8 @@ verificationRouter.get('/consumer/:consumer/history', async c => {
       taskId: result.taskId,
       submittedAt: result.submittedAt,
       consumer,
-      consumerVersion: 'latest', // Would need to get from task
-      consumerGitSha: null, // Would need to get from task
+      consumerVersion: result.taskConsumerVersion || 'latest',
+      consumerGitSha: result.taskConsumerGitSha,
       consumerGitRepositoryUrl: null, // Would need to get from consumer service JOIN
       summary: {
         total,

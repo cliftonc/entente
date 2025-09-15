@@ -18,6 +18,7 @@ import { envMiddleware } from './middleware/env.js'
 import { performanceMiddleware } from './middleware/performance.js'
 
 import { authRouter } from './routes/auth.js'
+import { contractsRouter } from './routes/contracts.js'
 import { dependenciesRouter } from './routes/dependencies.js'
 import { deploymentsRouter } from './routes/deployments.js'
 import { fixturesRouter } from './routes/fixtures.js'
@@ -66,6 +67,7 @@ app.get('/api/github/app-name', async c => {
 app.use('/api/keys/*', authMiddleware)
 app.use('/api/specs/*', authMiddleware)
 app.use('/api/interactions/*', authMiddleware)
+app.use('/api/contracts/*', authMiddleware)
 app.use('/api/fixtures/*', authMiddleware)
 app.use('/api/deployments/*', authMiddleware)
 app.use('/api/verification/*', authMiddleware)
@@ -78,6 +80,7 @@ app.use('/api/github/*', authMiddleware)
 app.route('/api/keys', keysRouter)
 app.route('/api/specs', specsRouter)
 app.route('/api/interactions', interactionsRouter)
+app.route('/api/contracts', contractsRouter)
 app.route('/api/fixtures', fixturesRouter)
 app.route('/api/deployments', deploymentsRouter)
 app.route('/api/verification', verificationRouter)

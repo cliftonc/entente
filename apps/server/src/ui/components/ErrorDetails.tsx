@@ -17,7 +17,7 @@ export default function ErrorDetails({ errorDetails, fallbackError }: ErrorDetai
         <div className="text-xs font-semibold mb-2 flex items-center gap-2">
           <span>Error Details:</span>
           <span
-            className={`badge badge-xs ${
+            className={`badge badge-sm px-2 ${
               errorDetails.type === 'status_mismatch'
                 ? 'badge-warning'
                 : errorDetails.type === 'structure_mismatch'

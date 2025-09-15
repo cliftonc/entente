@@ -80,7 +80,7 @@ function Dashboard() {
           </div>
         </Link>
 
-        <Link to="/interactions" className="stats shadow hover:shadow-lg transition-shadow">
+        <Link to="/contracts" className="stats shadow hover:shadow-lg transition-shadow">
           <div className="stat">
             <div className="stat-figure text-secondary">
               <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
@@ -91,11 +91,11 @@ function Dashboard() {
                 />
               </svg>
             </div>
-            <div className="stat-title">Recorded Interactions</div>
+            <div className="stat-title">Total Interactions</div>
             <div className="stat-value">
               {dashboardStats?.totalInteractions?.toLocaleString() || 0}
             </div>
-            <div className="stat-desc">All time total</div>
+            <div className="stat-desc">Recorded API interactions</div>
           </div>
         </Link>
 
@@ -241,7 +241,7 @@ function Dashboard() {
                         </Link>
                         <div className="text-sm text-base-content/70">
                           <Link
-                            to={`/interactions?service=${service.name}`}
+                            to={`/contracts?provider=${service.name}`}
                             className="hover:text-primary transition-colors"
                           >
                             {service.interactions} interactions

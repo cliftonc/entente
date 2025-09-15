@@ -23,9 +23,11 @@ export const serviceDependenciesRelations = relations(serviceDependencies, ({ on
   consumer: one(services, {
     fields: [serviceDependencies.consumerId],
     references: [services.id],
+    relationName: 'consumerService',
   }),
   provider: one(services, {
     fields: [serviceDependencies.providerId],
     references: [services.id],
+    relationName: 'providerService',
   }),
 }))

@@ -202,7 +202,7 @@ function GitHubSettings() {
                           <span className="text-sm text-base-content">
                             {repo.fullName}
                             {repo.private && (
-                              <span className="ml-2 badge badge-neutral badge-xs">private</span>
+                              <span className="ml-2 badge badge-neutral badge-sm px-2">private</span>
                             )}
                           </span>
                         </div>

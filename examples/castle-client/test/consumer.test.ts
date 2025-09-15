@@ -27,7 +27,7 @@ describe('Castle Client Consumer Contract Tests', () => {
       recordingEnabled: process.env.CI === 'true',
     })
 
-    mock = await client.createMock('castle-service', '1.0.0', {
+    mock = await client.createMock('castle-service', '0.1.0', {
       useFixtures: true,
       validateRequests: true,
       validateResponses: true,

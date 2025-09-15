@@ -1,12 +1,13 @@
-import type { ClientInteraction, ServiceDependency } from '@entente/types'
+import type { Contract } from '@entente/types'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
+import VerificationPanel from '../components/VerificationPanel'
+import ContractsPanel from '../components/ContractsPanel'
 import {
   consumerApi,
-  dependenciesApi,
+  contractApi,
   deploymentApi,
-  fixtureApi,
   interactionApi,
   verificationApi,
 } from '../utils/api'
@@ -36,14 +37,6 @@ function ConsumerDetail() {
     enabled: !!name,
   })
 
-  const { data: fixtures, isLoading: fixturesLoading } = useQuery({
-    queryKey: ['fixtures', 'all', name],
-    queryFn: () => {
-      if (!name) throw new Error('Consumer name is required')
-      return fixtureApi.getAllByService(name)
-    },
-    enabled: !!name,
-  })
 
   const { data: verificationResults, isLoading: verificationLoading } = useQuery({
     queryKey: ['verification', 'consumer', name],
@@ -54,25 +47,34 @@ function ConsumerDetail() {
     enabled: !!name,
   })
 
-  // Fetch interactions for this consumer (interactions where this service is the consumer)
-  const { data: interactions, isLoading: interactionsLoading } = useQuery({
-    queryKey: ['interactions', 'consumer', name],
+  // Fetch contracts for this consumer (contracts where this service is the consumer)
+  const { data: contracts, isLoading: contractsLoading } = useQuery({
+    queryKey: ['contracts', 'consumer', name],
     queryFn: () => {
       if (!name) throw new Error('Consumer name is required')
-      return interactionApi.getByConsumer(name, 'latest')
+      return contractApi.getAll({ consumer: name })
     },
     enabled: !!name,
   })
 
-  // Fetch dependencies for this consumer (providers this consumer depends on)
-  const { data: dependencies, isLoading: dependenciesLoading } = useQuery({
-    queryKey: ['dependencies', 'consumer', name],
+  // Fetch all interactions for this consumer to get accurate counts
+  const { data: consumerInteractions } = useQuery({
+    queryKey: ['interactions', 'consumer', name],
     queryFn: () => {
       if (!name) throw new Error('Consumer name is required')
-      return dependenciesApi.getByConsumer(name)
+      return interactionApi.getAll({ consumer: name })
     },
     enabled: !!name,
   })
+
+
+  // Interaction counts are now calculated dynamically by the API
+  const getContractInteractionCount = (contract: Contract): number => {
+    return contract.interactionCount
+  }
+
+  // Calculate total interactions count
+  const totalInteractions = consumerInteractions?.length || 0
 
   if (consumerLoading) {
     return (
@@ -112,8 +114,6 @@ function ConsumerDetail() {
 
   const _recentVerification = verificationResults?.[0]
   const activeDeployments = deployments?.filter(d => d.active === true) || []
-  const pendingFixtures = fixtures?.filter(f => f.status === 'pending') || []
-  const approvedFixtures = fixtures?.filter(f => f.status === 'approved') || []
 
   return (
     <div className="space-y-6">
@@ -180,337 +180,27 @@ function ConsumerDetail() {
           </div>
 
           {/* Contract Test Results */}
-          <div className="card bg-base-100 shadow-xl">
-            <div className="card-body">
-              <div className="flex justify-between items-center">
-                <h2 className="card-title">Recent Test Results</h2>
-                <Link to={`/verification?consumer=${name}`} className="btn btn-ghost btn-sm">
-                  View All
-                  <svg
-                    className="w-4 h-4 ml-1"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </Link>
-              </div>
+          <VerificationPanel
+            title="Recent Test Results"
+            verificationResults={verificationResults}
+            isLoading={verificationLoading}
+            serviceName={name || ''}
+            serviceType="consumer"
+            viewAllUrl={`/verification?consumer=${name}`}
+          />
 
-              {verificationLoading ? (
-                <div className="skeleton h-16 w-full" />
-              ) : verificationResults && verificationResults.length > 0 ? (
-                <div className="space-y-3">
-                  {verificationResults.slice(0, 3).map(verification => (
-                    <div key={verification.id} className="bg-base-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`badge ${
-                              verification.summary &&
-                              verification.summary.passed === verification.summary.total
-                                ? 'badge-success'
-                                : verification.summary && verification.summary.failed > 0
-                                  ? 'badge-error'
-                                  : 'badge-warning'
-                            }`}
-                          >
-                            {verification.summary &&
-                            verification.summary.passed === verification.summary.total
-                              ? 'passed'
-                              : verification.summary && verification.summary.failed > 0
-                                ? 'failed'
-                                : 'pending'}
-                          </div>
-                          <span className="text-sm text-base-content/70">
-                            <TimestampDisplay timestamp={verification.submittedAt} />
-                          </span>
-                        </div>
-                        <span className="text-sm font-medium">
-                          {verification.summary?.passed || 0}/{verification.summary?.total || 0}{' '}
-                          tests
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-base-content/80">
-                          Provider: {verification.provider || 'Unknown'}
-                        </span>
-                        <span className="text-base-content/80">
-                          Version: {verification.consumerVersion || 'latest'}
-                        </span>
-                      </div>
-                      {verification.summary && typeof verification.summary === 'string' && (
-                        <p className="text-sm text-base-content/70 mt-2">{verification.summary}</p>
-                      )}
-                    </div>
-                  ))}
-                  {verificationResults.length > 3 && (
-                    <div className="text-center">
-                      <Link
-                        to={`/verification?consumer=${name}`}
-                        className="text-sm text-primary hover:underline"
-                      >
-                        View {verificationResults.length - 3} more results
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-base-content/70">
-                  <svg
-                    className="w-12 h-12 mx-auto mb-3 text-base-content/30"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1}
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <div className="font-medium">No test results</div>
-                  <div className="text-sm">Run contract tests to see test results</div>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Provider Contracts */}
+          <ContractsPanel
+            title="Provider Contracts"
+            contracts={contracts}
+            isLoading={contractsLoading}
+            serviceName={name || ''}
+            serviceType="consumer"
+            totalInteractions={totalInteractions}
+            viewAllUrl={`/contracts?consumer=${name}`}
+            getContractInteractionCount={getContractInteractionCount}
+          />
 
-          {/* Provider Interactions Summary */}
-          <div className="card bg-base-100 shadow-xl">
-            <div className="card-body">
-              <div className="flex justify-between items-center">
-                <h2 className="card-title">Provider Interactions</h2>
-                <Link to={`/interactions?consumer=${name}`} className="btn btn-ghost btn-sm">
-                  View All
-                  <svg
-                    className="w-4 h-4 ml-1"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </Link>
-              </div>
-
-              {interactionsLoading ? (
-                <div className="space-y-3">
-                  <div className="skeleton h-16 w-full" />
-                  <div className="skeleton h-16 w-full" />
-                </div>
-              ) : interactions && interactions.length > 0 ? (
-                <div className="space-y-4">
-                  {/* Summary stats */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-primary">{interactions.length}</div>
-                      <div className="text-sm text-base-content/70">Total Calls</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-secondary">
-                        {new Set(interactions.map(i => i.provider)).size}
-                      </div>
-                      <div className="text-sm text-base-content/70">Providers</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-accent">
-                        {new Set(interactions.map(i => i.operation)).size}
-                      </div>
-                      <div className="text-sm text-base-content/70">Operations</div>
-                    </div>
-                  </div>
-
-                  {/* Recent interactions by provider */}
-                  <div className="divider">Recent Interactions by Provider</div>
-                  <div className="space-y-3">
-                    {Object.entries(
-                      interactions.slice(0, 10).reduce(
-                        (acc, interaction) => {
-                          const provider = interaction.provider || 'Unknown'
-                          if (!acc[provider]) acc[provider] = []
-                          acc[provider].push(interaction)
-                          return acc
-                        },
-                        {} as Record<string, ClientInteraction[]>
-                      )
-                    )
-                      .slice(0, 3)
-                      .map(([provider, providerInteractions]) => (
-                        <div key={provider} className="bg-base-200 rounded-lg p-3">
-                          <div className="flex justify-between items-center mb-2">
-                            <div className="font-medium text-sm">{provider}</div>
-                            <div className="flex items-center gap-2">
-                              <div className="badge badge-primary badge-xs">
-                                {providerInteractions.length} calls
-                              </div>
-                              <TimestampDisplay
-                                timestamp={providerInteractions[0]?.timestamp}
-                                className="text-xs text-base-content/70"
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            {providerInteractions.slice(0, 2).map((interaction, idx) => (
-                              <div
-                                key={interaction.id || `${interaction.operation}-${idx}`}
-                                className="flex justify-between items-center text-xs"
-                              >
-                                <span className="font-mono">
-                                  <span
-                                    className={`${
-                                      interaction.request?.method === 'GET'
-                                        ? 'text-success'
-                                        : interaction.request?.method === 'POST'
-                                          ? 'text-primary'
-                                          : interaction.request?.method === 'PUT'
-                                            ? 'text-warning'
-                                            : interaction.request?.method === 'DELETE'
-                                              ? 'text-error'
-                                              : 'text-base-content'
-                                    }`}
-                                  >
-                                    {interaction.request?.method || 'GET'}
-                                  </span>{' '}
-                                  <span className="text-base-content/70">
-                                    {interaction.operation}
-                                  </span>
-                                </span>
-                                <span
-                                  className={`badge badge-xs ${
-                                    interaction.response?.statusCode >= 200 &&
-                                    interaction.response?.statusCode < 300
-                                      ? 'badge-success'
-                                      : interaction.response?.statusCode >= 400
-                                        ? 'badge-error'
-                                        : 'badge-warning'
-                                  }`}
-                                >
-                                  {interaction.response?.statusCode || '200'}
-                                </span>
-                              </div>
-                            ))}
-                            {providerInteractions.length > 2 && (
-                              <div className="text-xs text-base-content/60 text-center">
-                                +{providerInteractions.length - 2} more
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-base-content/70">
-                  <svg
-                    className="w-12 h-12 mx-auto mb-3 text-base-content/30"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
-                  <div className="font-medium">No provider interactions</div>
-                  <div className="text-sm">This consumer hasn't called any providers yet</div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Provider Dependencies */}
-          <div className="card bg-base-100 shadow-xl">
-            <div className="card-body">
-              <h2 className="card-title">Provider Dependencies</h2>
-              {dependenciesLoading ? (
-                <div className="space-y-2">
-                  <div className="skeleton h-4 w-full" />
-                  <div className="skeleton h-4 w-3/4" />
-                  <div className="skeleton h-4 w-1/2" />
-                </div>
-              ) : dependencies && dependencies.length > 0 ? (
-                <div className="space-y-3">
-                  {dependencies.map((dep: ServiceDependency) => (
-                    <div
-                      key={dep.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <Link
-                            to={`/services/provider/${dep.provider.name}`}
-                            className="font-medium hover:underline text-primary"
-                          >
-                            {dep.provider.name}
-                          </Link>
-                          <span className="text-sm text-base-content/60">
-                            v{dep.providerVersion}
-                          </span>
-                          <span className="badge badge-xs badge-secondary">{dep.environment}</span>
-                        </div>
-                        <div className="text-sm text-base-content/70 mt-1">
-                          Consumer v{dep.consumerVersion} → Provider v{dep.providerVersion}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`badge ${
-                            dep.status === 'verified'
-                              ? 'badge-success'
-                              : dep.status === 'failed'
-                                ? 'badge-error'
-                                : 'badge-warning'
-                          } badge-sm`}
-                        >
-                          {dep.status}
-                        </div>
-                        {dep.verifiedAt && (
-                          <div className="text-xs text-base-content/50">
-                            <TimestampDisplay timestamp={dep.verifiedAt} relative />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-base-content/70">
-                  <svg
-                    className="w-12 h-12 mx-auto mb-3 text-base-content/30"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1}
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                  </svg>
-                  <div className="font-medium">No provider dependencies</div>
-                  <div className="text-sm">
-                    This consumer doesn't have any registered provider dependencies
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Sidebar */}
@@ -542,7 +232,7 @@ function ConsumerDetail() {
                             {deployment.version}
                           </span>
                           <div
-                            className={`badge badge-xs ${
+                            className={`badge badge-sm px-2 ${
                               deployment.active ? 'badge-success' : 'badge-error'
                             }`}
                           >
@@ -591,122 +281,6 @@ function ConsumerDetail() {
             </div>
           </div>
 
-          {/* Test Fixtures */}
-          <div className="card bg-base-100 shadow-xl">
-            <div className="card-body">
-              <div className="flex justify-between items-center">
-                <h3 className="card-title text-lg">Test Fixtures</h3>
-                <Link to={`/fixtures?service=${name}`} className="btn btn-ghost btn-xs">
-                  View All
-                </Link>
-              </div>
-              {fixturesLoading ? (
-                <div className="skeleton h-16 w-full" />
-              ) : pendingFixtures.length > 0 ? (
-                <div className="space-y-3">
-                  {pendingFixtures.slice(0, 3).map(fixture => (
-                    <div key={fixture.id} className="bg-base-200 rounded-lg p-3">
-                      <div className="flex justify-between items-start mb-1">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{fixture.operation}</div>
-                          <div className="text-xs text-base-content/70">
-                            {fixture.service} • v{fixture.serviceVersion || 'latest'}
-                          </div>
-                        </div>
-                        <div
-                          className={`badge badge-xs ml-2 ${
-                            fixture.status === 'pending'
-                              ? 'badge-warning'
-                              : fixture.status === 'approved'
-                                ? 'badge-success'
-                                : 'badge-info'
-                          }`}
-                        >
-                          {fixture.status}
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center text-xs text-base-content/70">
-                        <span>
-                          Created <TimestampDisplay timestamp={fixture.createdAt} />
-                        </span>
-                        {fixture.createdFrom?.provider && (
-                          <span>for {fixture.createdFrom.provider}</span>
-                        )}
-                      </div>
-                      {fixture.notes && (
-                        <div className="text-xs text-base-content/60 mt-1 truncate">
-                          {fixture.notes}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {pendingFixtures.length > 3 && (
-                    <div className="text-center">
-                      <Link
-                        to={`/fixtures?service=${name}&status=pending`}
-                        className="text-xs text-primary hover:underline"
-                      >
-                        View {pendingFixtures.length - 3} more pending fixtures
-                      </Link>
-                    </div>
-                  )}
-                  <div className="mt-3 pt-3 border-t border-base-300">
-                    <div className="flex justify-between items-center text-sm mb-2">
-                      <span>Summary</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span>Approved</span>
-                      <div className="badge badge-success badge-sm">{approvedFixtures.length}</div>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span>Pending Review</span>
-                      <div className="badge badge-warning badge-sm">{pendingFixtures.length}</div>
-                    </div>
-                    {pendingFixtures.length > 0 && (
-                      <div className="mt-2">
-                        <Link
-                          to={`/fixtures?service=${name}&status=pending`}
-                          className="btn btn-warning btn-xs w-full"
-                        >
-                          Review Pending Fixtures
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4 text-base-content/70">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center text-sm">
-                      <span>Approved</span>
-                      <div className="badge badge-success badge-sm">{approvedFixtures.length}</div>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span>Pending Review</span>
-                      <div className="badge badge-warning badge-sm">{pendingFixtures.length}</div>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <svg
-                      className="w-8 h-8 mx-auto mb-2 text-base-content/30"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                    <div className="text-sm font-medium">No pending fixtures</div>
-                    <div className="text-xs">All fixtures have been reviewed</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     </div>

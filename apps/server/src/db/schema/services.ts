@@ -1,3 +1,4 @@
+import { relations } from 'drizzle-orm'
 import { jsonb, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 import { tenants } from './tenants'
 
@@ -14,3 +15,10 @@ export const services = pgTable('services', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
+
+export const servicesRelations = relations(services, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [services.tenantId],
+    references: [tenants.id],
+  }),
+}))

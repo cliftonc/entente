@@ -105,19 +105,20 @@ export const createClient = (config: ClientConfig): EntenteClient => {
   return {
     createMock: async (
       service: string,
-      version: string,
+      providerVersion: string,
       options?: MockOptions
     ): Promise<EntenteMock> => {
       // NOTE: This creates a mock for testing but does NOT register dependencies.
       // Dependencies should be registered at deployment time using the CLI:
       // entente deploy-consumer -n my-app -v 1.0.0 -e production -D order-service:2.1.0
 
-      // Fetch OpenAPI spec from central service
-      const spec = await fetchSpec(
+      // Fetch OpenAPI spec from central service using provider deployment version
+      const { spec, providerVersion: actualProviderVersion } = await fetchSpec(
         resolvedConfig.serviceUrl,
         resolvedConfig.apiKey,
         service,
-        version,
+        providerVersion,
+        resolvedConfig.environment,
         options?.branch
       )
 
@@ -128,7 +129,7 @@ export const createClient = (config: ClientConfig): EntenteClient => {
           resolvedConfig.serviceUrl,
           resolvedConfig.apiKey,
           service,
-          version,
+          actualProviderVersion,
           options?.localFixtures
         )
       }
@@ -152,7 +153,7 @@ export const createClient = (config: ClientConfig): EntenteClient => {
 
       return createEntenteMock({
         service,
-        version,
+        providerVersion: actualProviderVersion,
         mockServer,
         recorder,
         fixtures,
@@ -208,11 +209,17 @@ const fetchSpec = async (
   serviceUrl: string,
   apiKey: string,
   service: string,
-  version: string,
+  providerVersion: string,
+  environment: string,
   branch = 'main'
-): Promise<OpenAPISpec> => {
-  const params = new URLSearchParams({ version, branch })
-  const response = await fetch(`${serviceUrl}/api/specs/${service}?${params}`, {
+): Promise<{ spec: OpenAPISpec; providerVersion: string }> => {
+  // Use the new endpoint that looks up specs by provider deployment version
+  const params = new URLSearchParams({
+    providerVersion,
+    environment,
+    branch
+  })
+  const response = await fetch(`${serviceUrl}/api/specs/${service}/by-provider-version?${params}`, {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
@@ -220,10 +227,42 @@ const fetchSpec = async (
   })
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch spec for ${service}@${version}: ${response.statusText}`)
+    const errorData = await response.json().catch(() => ({}))
+
+    if (response.status === 404) {
+      const errorMsg = errorData.message || `Provider version ${providerVersion} not found for ${service}`
+      const suggestion = errorData.suggestion || ''
+      const availableVersions = errorData.availableVersions || []
+
+      let fullErrorMsg = errorMsg
+      if (availableVersions.length > 0) {
+        fullErrorMsg += `\nAvailable versions: ${availableVersions.join(', ')}`
+      }
+      if (suggestion) {
+        fullErrorMsg += `\n${suggestion}`
+      }
+
+      throw new Error(fullErrorMsg)
+    }
+
+    throw new Error(`Failed to fetch spec for ${service}@${providerVersion}: ${response.statusText}`)
   }
 
-  return response.json()
+  const data = await response.json()
+
+  // Show helpful messages (safely check for metadata)
+  if (data.metadata?.resolvedFromLatest) {
+    console.log(`📋 Using latest provider version: ${data.metadata.providerVersion} for ${service}`)
+  }
+
+  if (data.metadata && !data.metadata.isDeployed) {
+    console.log(`ℹ️  Using spec for ${service}@${data.metadata.providerVersion} (not currently deployed in ${environment})`)
+  }
+
+  return {
+    spec: data.spec || data, // Support both new format (data.spec) and old format (data directly)
+    providerVersion: data.metadata?.providerVersion || providerVersion // Use resolved version or fallback to requested
+  }
 }
 
 const fetchFixtures = async (
@@ -354,6 +393,7 @@ interface PrismOperation {
   method: string
   path: string
   responses: Record<string, unknown>
+  operationId?: string
 }
 
 // Prism HTTP operation interface
@@ -384,6 +424,7 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
         method: op.method || 'get',
         path: op.path || '/',
         responses: op.responses || {},
+        operationId: op.iid, // Prism uses 'iid' field for operation ID
       })
     )
 
@@ -742,7 +783,7 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
 
 const createFixtureCollector = (
   service: string,
-  version: string,
+  providerVersion: string,
   fixtureManager: ReturnType<typeof createFixtureManager>
 ): FixtureCollector => {
   const collectedFixtures = new Map<
@@ -769,7 +810,7 @@ const createFixtureCollector = (
         try {
           await fixtureManager.propose({
             service,
-            serviceVersion: version,
+            serviceVersion: providerVersion,
             operation,
             source: 'consumer',
             data,
@@ -793,7 +834,7 @@ const createFixtureCollector = (
 
 const createEntenteMock = (mockConfig: {
   service: string
-  version: string
+  providerVersion: string
   mockServer: MockServer
   recorder?: InteractionRecorder
   fixtures: Fixture[]
@@ -805,7 +846,7 @@ const createEntenteMock = (mockConfig: {
   // Create fixture collector for deduplication
   const fixtureCollector = createFixtureCollector(
     mockConfig.service,
-    mockConfig.version,
+    mockConfig.providerVersion,
     mockConfig.fixtureManager
   )
 
@@ -820,6 +861,7 @@ const createEntenteMock = (mockConfig: {
         service: mockConfig.service,
         consumer: mockConfig.config.consumer,
         consumerVersion: mockConfig.config.consumerVersion,
+        providerVersion: mockConfig.providerVersion,
         environment: mockConfig.config.environment,
         operation,
         request: {
@@ -890,7 +932,7 @@ const createEntenteMock = (mockConfig: {
 
       await mockConfig.fixtureManager.propose({
         service: mockConfig.service,
-        serviceVersion: mockConfig.version,
+        serviceVersion: mockConfig.providerVersion,
         operation,
         source: 'consumer',
         data,

@@ -1,6 +1,6 @@
 {
   "name": "@entente/example-castle-client",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Example consumer service that uses castle-service - demonstrating Entente contract testing",
   "private": true,
   "type": "module",
