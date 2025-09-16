@@ -1,6 +1,6 @@
 {
   "name": "@entente/provider",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Provider verification library for Entente contract testing",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,7 +11,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -26,5 +28,10 @@
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
-  "keywords": ["contract-testing", "provider", "verification", "testing"]
+  "keywords": [
+    "contract-testing",
+    "provider",
+    "verification",
+    "testing"
+  ]
 }
