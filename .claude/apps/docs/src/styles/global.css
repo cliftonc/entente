@@ -1,0 +1,22 @@
+/* Simple Entente color overrides for Starlight */
+:root {
+  /* Use Entente's primary blue for accent colors */
+  --sl-color-accent-low: #dbeafe;
+  --sl-color-accent: #3b82f6;
+  --sl-color-accent-high: #1d4ed8;
+}
+
+/* Dark mode overrides */
+[data-theme="dark"] {
+  --sl-color-accent-low: #1e3a8a;
+  --sl-color-accent: #60a5fa;
+  --sl-color-accent-high: #93c5fd;
+}
+
+/* Walkthrough page screenshot styling */
+.walkthrough-screenshot {
+  width: 75% !important;
+  height: auto !important;
+  display: block;
+  margin: 1rem auto;
+}

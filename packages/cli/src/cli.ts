@@ -71,7 +71,6 @@ program
   .option('-p, --package <path>', 'Path to package.json', './package.json')
   .option('-d, --description <desc>', 'Service description')
   .option('--spec <file>', 'Path to OpenAPI spec file to upload (providers only)')
-  .option('-v, --version <version>', 'Provider version (required if --spec provided)')
   .option(
     '-e, --environment <environment>',
     'Environment for spec (required if --spec provided)',
@@ -101,17 +100,13 @@ program
           )
           return
         }
-        if (!options.version) {
-          throw new Error('--version is required when --spec is provided')
-        }
 
         console.log(
           chalk.blue('📤'),
-          `Uploading OpenAPI spec for ${options.name}@${options.version}...`
+          `Uploading OpenAPI spec for ${options.name}...`
         )
         await uploadSpec({
           service: options.name,
-          version: options.version,
           environment: options.environment,
           spec: options.spec,
           branch: options.branch,
@@ -241,7 +236,6 @@ program
     'Upload OpenAPI specification to central service (auto-registers provider if needed)'
   )
   .requiredOption('-s, --service <service>', 'Service name')
-  .requiredOption('-v, --service-version <version>', 'Service version')
   .requiredOption('-e, --environment <environment>', 'Target environment')
   .requiredOption('--spec <file>', 'Path to OpenAPI spec file')
   .option('-b, --branch <branch>', 'Git branch', 'main')
@@ -253,7 +247,6 @@ program
       )
       await uploadSpec({
         service: options.service,
-        version: options.serviceVersion,
         environment: options.environment,
         spec: options.spec,
         branch: options.branch,

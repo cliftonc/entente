@@ -1,0 +1,69 @@
+---
+title: Entente
+description: Contract based API testing with centralised visibility. Build reliable APIs with confidence.
+template: splash
+hero:
+  tagline: Contract based API testing. Build reliable APIs with confidence.
+  image:
+    file: ../../assets/houston.webp
+  actions:
+    - text: Get Started
+      link: /introduction/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/entente-dev/entente
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## What is Entente?
+
+Entente is a modern contract testing platform that combines OpenAPI specifications with real interaction recording to provide automated contract testing between services. It helps teams build reliable APIs with confidence.
+
+## Key Features
+
+<CardGrid>
+	<Card title="OpenAPI-First" icon="document">
+		All contracts start with OpenAPI specifications, ensuring clear API definitions from the beginning.
+	</Card>
+	<Card title="Automatic Recording" icon="laptop">
+		CI environments automatically record real interactions of a consumer against its mocks to replay against the actual provider service.
+	</Card>
+	<Card title="Smart Fixtures" icon="setting">
+		Ability to record and store fixtures from one consumer to re-use in others, with centralised management and approval.
+	</Card>
+	<Card title="Real Verification" icon="approve-check">
+		Providers verify against actual consumer usage, not just theoretical contracts.
+	</Card>
+</CardGrid>
+
+## Get Started
+
+<CardGrid>
+	<Card title="For Providers" icon="approve-check">
+		Learn how to verify your API implementations against real consumer interactions. [Provider Guide →](/providers/)
+	</Card>
+	<Card title="For Consumers" icon="laptop">
+		Learn how to test against realistic mocks and record interactions. [Consumer Guide →](/consumers/)
+	</Card>
+	<Card title="GitHub Actions" icon="rocket">
+		Integrate contract testing into your CI/CD pipelines. [GitHub Actions →](/github-actions/)
+	</Card>
+	<Card title="Fixtures" icon="setting">
+		Understand fixture management and approval workflows. [Fixtures Guide →](/fixtures/)
+	</Card>
+</CardGrid>
+
+## Architecture
+
+Entente follows a **TypeScript-first functional programming** approach with a **pnpm workspace** monorepo structure:
+
+- **@entente/consumer** - Consumer testing library
+- **@entente/provider** - Provider verification library
+- **@entente/fixtures** - Fixture management utilities
+- **@entente/cli** - Command line interface
+- **@entente/server** - Central service with Hono API + React UI
+
+You can run it yourself on **Cloudflare Workers** with **Neon PostgreSQL** for data persistence.

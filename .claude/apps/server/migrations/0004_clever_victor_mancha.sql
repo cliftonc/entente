@@ -1,0 +1,1 @@
+ALTER TABLE "verification_results" ALTER COLUMN "task_id" SET NOT NULL;

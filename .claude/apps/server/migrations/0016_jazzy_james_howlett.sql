@@ -1,0 +1,4 @@
+ALTER TABLE "verification_results" ADD COLUMN "provider_id" uuid NOT NULL;--> statement-breakpoint
+ALTER TABLE "verification_results" ADD COLUMN "consumer_id" uuid NOT NULL;--> statement-breakpoint
+ALTER TABLE "verification_results" ADD CONSTRAINT "verification_results_provider_id_services_id_fk" FOREIGN KEY ("provider_id") REFERENCES "public"."services"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "verification_results" ADD CONSTRAINT "verification_results_consumer_id_services_id_fk" FOREIGN KEY ("consumer_id") REFERENCES "public"."services"("id") ON DELETE no action ON UPDATE no action;

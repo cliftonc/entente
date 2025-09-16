@@ -49,7 +49,7 @@ async function makeAuthenticatedRequest(url: string, options: RequestInit = {}):
 }
 
 export const uploadSpec = async (options: UploadOptions): Promise<void> => {
-  const { service, version, branch = 'main', environment, spec: specPath } = options
+  const { service, version = '0.0.0', branch = 'main', environment, spec: specPath } = options
 
   // Read OpenAPI spec from file
   const fs = await import('node:fs/promises')
