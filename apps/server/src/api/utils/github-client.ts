@@ -1,5 +1,5 @@
-import type { Database } from '../db/database'
 import { createInstallationToken, getInstallationForTenant } from '../auth/github-app'
+import type { Database } from '../db/database'
 
 export interface GitHubRepository {
   id: number
@@ -101,7 +101,16 @@ export interface GitHubWorkflowRun {
   run_number: number
   event: string
   status: 'queued' | 'in_progress' | 'completed'
-  conclusion: 'action_required' | 'cancelled' | 'failure' | 'neutral' | 'skipped' | 'stale' | 'success' | 'timed_out' | null
+  conclusion:
+    | 'action_required'
+    | 'cancelled'
+    | 'failure'
+    | 'neutral'
+    | 'skipped'
+    | 'stale'
+    | 'success'
+    | 'timed_out'
+    | null
   workflow_id: number
   check_suite_id: number
   check_suite_node_id: string
@@ -150,14 +159,32 @@ export interface GitHubWorkflowJob {
   url: string
   html_url: string
   status: 'queued' | 'in_progress' | 'completed'
-  conclusion: 'action_required' | 'cancelled' | 'failure' | 'neutral' | 'skipped' | 'stale' | 'success' | 'timed_out' | null
+  conclusion:
+    | 'action_required'
+    | 'cancelled'
+    | 'failure'
+    | 'neutral'
+    | 'skipped'
+    | 'stale'
+    | 'success'
+    | 'timed_out'
+    | null
   started_at: string
   completed_at: string | null
   name: string
   steps: Array<{
     name: string
     status: 'queued' | 'in_progress' | 'completed'
-    conclusion: 'action_required' | 'cancelled' | 'failure' | 'neutral' | 'skipped' | 'stale' | 'success' | 'timed_out' | null
+    conclusion:
+      | 'action_required'
+      | 'cancelled'
+      | 'failure'
+      | 'neutral'
+      | 'skipped'
+      | 'stale'
+      | 'success'
+      | 'timed_out'
+      | null
     number: number
     started_at: string | null
     completed_at: string | null
@@ -184,7 +211,10 @@ export interface RepositoryInfo {
 }
 
 // Utility functions for GitHub API access
-export async function getInstallationConfig(db: Database, tenantId: string): Promise<{
+export async function getInstallationConfig(
+  db: Database,
+  tenantId: string
+): Promise<{
   installationId: number
   appId: string
   privateKey: string
@@ -197,20 +227,26 @@ export async function getInstallationConfig(db: Database, tenantId: string): Pro
     return null
   }
 
-  console.log(`✅ GitHub installation found - installationId: ${installation.installationId}, appId: ${installation.appId}`)
+  console.log(
+    `✅ GitHub installation found - installationId: ${installation.installationId}, appId: ${installation.appId}`
+  )
   return {
     installationId: installation.installationId,
     appId: installation.appId.toString(),
-    privateKey: installation.privateKey
+    privateKey: installation.privateKey,
   }
 }
 
-export async function createGitHubHeaders(installationId: number, appId: string, privateKey: string): Promise<Record<string, string>> {
+export async function createGitHubHeaders(
+  installationId: number,
+  appId: string,
+  privateKey: string
+): Promise<Record<string, string>> {
   const token = await createInstallationToken(installationId, appId, privateKey)
 
   return {
-    'Authorization': `Bearer ${token}`,
-    'Accept': 'application/vnd.github+json',
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
     'User-Agent': 'Entente-Server',
   }
@@ -242,7 +278,11 @@ export async function makeGitHubRequest<T>(
   const contentLength = response.headers.get('content-length')
   const contentType = response.headers.get('content-type')
 
-  if (response.status === 204 || contentLength === '0' || !contentType?.includes('application/json')) {
+  if (
+    response.status === 204 ||
+    contentLength === '0' ||
+    !contentType?.includes('application/json')
+  ) {
     return undefined as unknown as T
   }
 
@@ -281,7 +321,12 @@ export async function getRepositories(db: Database, tenantId: string): Promise<G
   return data.repositories
 }
 
-export async function getRepository(owner: string, repo: string, db: Database, tenantId: string): Promise<GitHubRepository> {
+export async function getRepository(
+  owner: string,
+  repo: string,
+  db: Database,
+  tenantId: string
+): Promise<GitHubRepository> {
   const config = await getInstallationConfig(db, tenantId)
   if (!config) {
     throw new Error('No GitHub App installation found for this tenant')
@@ -295,13 +340,24 @@ export async function getRepository(owner: string, repo: string, db: Database, t
   )
 }
 
-export async function findRepositoryByName(repoName: string, db: Database, tenantId: string): Promise<GitHubRepository | null> {
+export async function findRepositoryByName(
+  repoName: string,
+  db: Database,
+  tenantId: string
+): Promise<GitHubRepository | null> {
   const repos = await getRepositories(db, tenantId)
-  return repos.find(repo => repo.name === repoName || repo.full_name.endsWith(`/${repoName}`)) || null
+  return (
+    repos.find(repo => repo.name === repoName || repo.full_name.endsWith(`/${repoName}`)) || null
+  )
 }
 
 // GitHub Actions operations
-export async function getWorkflows(owner: string, repo: string, db: Database, tenantId: string): Promise<GitHubWorkflow[]> {
+export async function getWorkflows(
+  owner: string,
+  repo: string,
+  db: Database,
+  tenantId: string
+): Promise<GitHubWorkflow[]> {
   const config = await getInstallationConfig(db, tenantId)
   if (!config) {
     throw new Error('No GitHub App installation found for this tenant')
@@ -358,7 +414,13 @@ export async function getWorkflowRuns(
   return data.workflow_runs
 }
 
-export async function getWorkflowRun(owner: string, repo: string, runId: number, db: Database, tenantId: string): Promise<GitHubWorkflowRun> {
+export async function getWorkflowRun(
+  owner: string,
+  repo: string,
+  runId: number,
+  db: Database,
+  tenantId: string
+): Promise<GitHubWorkflowRun> {
   const config = await getInstallationConfig(db, tenantId)
   if (!config) {
     throw new Error('No GitHub App installation found for this tenant')
@@ -372,7 +434,13 @@ export async function getWorkflowRun(owner: string, repo: string, runId: number,
   )
 }
 
-export async function getWorkflowJobs(owner: string, repo: string, runId: number, db: Database, tenantId: string): Promise<GitHubWorkflowJob[]> {
+export async function getWorkflowJobs(
+  owner: string,
+  repo: string,
+  runId: number,
+  db: Database,
+  tenantId: string
+): Promise<GitHubWorkflowJob[]> {
   const config = await getInstallationConfig(db, tenantId)
   if (!config) {
     throw new Error('No GitHub App installation found for this tenant')
@@ -415,7 +483,7 @@ export async function triggerWorkflow(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ref, inputs })
+      body: JSON.stringify({ ref, inputs }),
     }
   )
 }
@@ -441,7 +509,13 @@ export async function getPullRequests(
   )
 }
 
-export async function getPullRequest(owner: string, repo: string, pullNumber: number, db: Database, tenantId: string): Promise<GitHubPullRequest> {
+export async function getPullRequest(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  db: Database,
+  tenantId: string
+): Promise<GitHubPullRequest> {
   const config = await getInstallationConfig(db, tenantId)
   if (!config) {
     throw new Error('No GitHub App installation found for this tenant')
@@ -502,7 +576,13 @@ export async function getIssues(
   )
 }
 
-export async function getIssue(owner: string, repo: string, issueNumber: number, db: Database, tenantId: string): Promise<GitHubIssue> {
+export async function getIssue(
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  db: Database,
+  tenantId: string
+): Promise<GitHubIssue> {
   const config = await getInstallationConfig(db, tenantId)
   if (!config) {
     throw new Error('No GitHub App installation found for this tenant')
@@ -544,7 +624,13 @@ export async function createIssue(
 }
 
 // Commit operations
-export async function getCommits(owner: string, repo: string, branch: string | undefined, db: Database, tenantId: string): Promise<GitHubCommit[]> {
+export async function getCommits(
+  owner: string,
+  repo: string,
+  branch: string | undefined,
+  db: Database,
+  tenantId: string
+): Promise<GitHubCommit[]> {
   const config = await getInstallationConfig(db, tenantId)
   if (!config) {
     throw new Error('No GitHub App installation found for this tenant')
@@ -562,7 +648,13 @@ export async function getCommits(owner: string, repo: string, branch: string | u
   )
 }
 
-export async function getCommit(owner: string, repo: string, sha: string, db: Database, tenantId: string): Promise<GitHubCommit> {
+export async function getCommit(
+  owner: string,
+  repo: string,
+  sha: string,
+  db: Database,
+  tenantId: string
+): Promise<GitHubCommit> {
   const config = await getInstallationConfig(db, tenantId)
   if (!config) {
     throw new Error('No GitHub App installation found for this tenant')
@@ -601,9 +693,10 @@ export async function getFileContent(
   }>(url, config.installationId, config.appId, config.privateKey)
 
   return {
-    content: response.encoding === 'base64'
-      ? Buffer.from(response.content, 'base64').toString('utf8')
-      : response.content,
+    content:
+      response.encoding === 'base64'
+        ? Buffer.from(response.content, 'base64').toString('utf8')
+        : response.content,
     encoding: response.encoding,
     sha: response.sha,
   }
@@ -690,7 +783,15 @@ export async function createCheckRun(
   headSha: string,
   name: string,
   status: 'queued' | 'in_progress' | 'completed',
-  conclusion: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required' | undefined,
+  conclusion:
+    | 'success'
+    | 'failure'
+    | 'neutral'
+    | 'cancelled'
+    | 'skipped'
+    | 'timed_out'
+    | 'action_required'
+    | undefined,
   db: Database,
   tenantId: string
 ): Promise<void> {

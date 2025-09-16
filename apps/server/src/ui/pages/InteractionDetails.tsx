@@ -20,10 +20,7 @@ function InteractionDetails() {
   })
 
   // Fetch contract details if interaction has contractId
-  const {
-    data: contract,
-    isLoading: contractLoading,
-  } = useQuery({
+  const { data: contract, isLoading: contractLoading } = useQuery({
     queryKey: ['contract', interaction?.contractId],
     queryFn: () => contractApi.getById(interaction!.contractId!),
     enabled: !!interaction?.contractId,

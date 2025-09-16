@@ -27,7 +27,12 @@ function TenantSelector() {
     // Show current tenant name with icon if user only has one tenant
     return (
       <div className="w-full flex items-center gap-2 px-3 py-2 text-sm bg-base-300/50 rounded-lg">
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-4 h-4 flex-shrink-0"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -35,9 +40,7 @@ function TenantSelector() {
             d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
           />
         </svg>
-        <span className="truncate">
-          {currentTenant ? currentTenant.tenant.name : 'Personal'}
-        </span>
+        <span className="truncate">{currentTenant ? currentTenant.tenant.name : 'Personal'}</span>
       </div>
     )
   }
@@ -51,7 +54,12 @@ function TenantSelector() {
         disabled={isLoading}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-4 h-4 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -77,10 +85,7 @@ function TenantSelector() {
       {isOpen && (
         <>
           {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setIsOpen(false)}
-          />
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
 
           {/* Menu */}
           <div className="absolute top-full left-0 right-0 mt-2 bg-base-100 border border-base-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">

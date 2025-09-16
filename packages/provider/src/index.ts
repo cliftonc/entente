@@ -5,6 +5,7 @@ import type {
   Fixture,
   HTTPRequest,
   HTTPResponse,
+  NormalizedFixtures,
   ProviderConfig,
   VerificationErrorDetails,
   VerificationResult,
@@ -82,6 +83,28 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
           providerVersion: resolvedConfig.providerVersion,
           providerGitSha: getGitSha(),
           results: [],
+        }
+      }
+
+      // Download and setup normalized fixtures if enabled
+      if (resolvedConfig.useNormalizedFixtures && resolvedConfig.dataSetupCallback) {
+        console.log('📦 Downloading normalized fixtures for provider setup...')
+        try {
+          const normalizedFixtures = await downloadNormalizedFixtures(
+            resolvedConfig.serviceUrl,
+            resolvedConfig.apiKey,
+            resolvedConfig.provider,
+            resolvedConfig.providerVersion
+          )
+
+          console.log(
+            `🔧 Setting up ${Object.keys(normalizedFixtures.entities).length} entity types from ${normalizedFixtures.metadata.totalFixtures} fixtures...`
+          )
+          await resolvedConfig.dataSetupCallback(normalizedFixtures)
+          console.log('✅ Normalized fixture data setup completed')
+        } catch (error) {
+          console.error('❌ Failed to setup normalized fixtures:', error)
+          // Continue with verification even if fixture setup fails
         }
       }
 
@@ -478,4 +501,25 @@ const validateResponseContent = (
   }
 
   return { success: true }
+}
+
+const downloadNormalizedFixtures = async (
+  serviceUrl: string,
+  apiKey: string,
+  provider: string,
+  providerVersion: string
+): Promise<NormalizedFixtures> => {
+  const url = `${serviceUrl}/api/fixtures/normalized/${provider}/${providerVersion}`
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to download normalized fixtures: ${response.statusText}`)
+  }
+
+  return response.json()
 }

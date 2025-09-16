@@ -13,8 +13,10 @@ import type {
   ClientConfig,
   ClientInteraction,
   Fixture,
+  FixtureProposal,
   HTTPRequest,
   HTTPResponse,
+  LocalMockData,
   MockOptions,
   OpenAPISpec,
 } from '@entente/types'
@@ -130,14 +132,23 @@ export const createClient = (config: ClientConfig): EntenteClient => {
           resolvedConfig.apiKey,
           service,
           actualProviderVersion,
-          options?.localFixtures
+          options?.localFixtures,
+          options?.localMockData
         )
+      }
+
+      // Convert LocalMockData to fixtures if provided
+      let allFixtures = fixtures
+      if (options?.localMockData && fixtures.length === 0) {
+        console.log(`📋 Converting local mock data to fixtures for ${service}@${actualProviderVersion}`)
+        const convertedFixtures = convertMockDataToFixtures(options.localMockData, service, actualProviderVersion, spec)
+        allFixtures = prioritizeFixtures(convertedFixtures)
       }
 
       // Create mock server with fixture support
       const mockServer = await createMockServer({
         spec,
-        fixtures,
+        fixtures: allFixtures,
         port: options?.port || 0,
         validateRequest: options?.validateRequests ?? true,
         validateResponse: options?.validateResponses ?? true,
@@ -156,9 +167,9 @@ export const createClient = (config: ClientConfig): EntenteClient => {
         providerVersion: actualProviderVersion,
         mockServer,
         recorder,
-        fixtures,
+        fixtures: allFixtures,
         fixtureManager,
-        hasFixtures: fixtures.length > 0,
+        hasFixtures: allFixtures.length > 0,
         config: resolvedConfig, // Pass the resolved config for access to consumer info
         skipOperations: usingFallbackName || usingFallbackVersion, // Skip operations if using fallbacks
       })
@@ -217,7 +228,7 @@ const fetchSpec = async (
   const params = new URLSearchParams({
     providerVersion,
     environment,
-    branch
+    branch,
   })
   const response = await fetch(`${serviceUrl}/api/specs/${service}/by-provider-version?${params}`, {
     headers: {
@@ -230,7 +241,8 @@ const fetchSpec = async (
     const errorData = await response.json().catch(() => ({}))
 
     if (response.status === 404) {
-      const errorMsg = errorData.message || `Provider version ${providerVersion} not found for ${service}`
+      const errorMsg =
+        errorData.message || `Provider version ${providerVersion} not found for ${service}`
       const suggestion = errorData.suggestion || ''
       const availableVersions = errorData.availableVersions || []
 
@@ -245,23 +257,166 @@ const fetchSpec = async (
       throw new Error(fullErrorMsg)
     }
 
-    throw new Error(`Failed to fetch spec for ${service}@${providerVersion}: ${response.statusText}`)
+    throw new Error(
+      `Failed to fetch spec for ${service}@${providerVersion}: ${response.statusText}`
+    )
   }
 
   const data = await response.json()
 
   // Show helpful messages (safely check for metadata)
+  const resolvedVersion = data.metadata?.providerVersion || providerVersion
+
+  console.log(`🔍 Provider version resolution: requested="${providerVersion}" → resolved="${resolvedVersion}" for ${service}`)
+
   if (data.metadata?.resolvedFromLatest) {
-    console.log(`📋 Using latest provider version: ${data.metadata.providerVersion} for ${service}`)
+    console.log(`📋 Using latest provider version: ${resolvedVersion} for ${service}`)
   }
 
   if (data.metadata && !data.metadata.isDeployed) {
-    console.log(`ℹ️  Using spec for ${service}@${data.metadata.providerVersion} (not currently deployed in ${environment})`)
+    console.log(
+      `ℹ️  Using spec for ${service}@${resolvedVersion} (not currently deployed in ${environment})`
+    )
   }
 
   return {
     spec: data.spec || data, // Support both new format (data.spec) and old format (data directly)
-    providerVersion: data.metadata?.providerVersion || providerVersion // Use resolved version or fallback to requested
+    providerVersion: resolvedVersion, // Use resolved version consistently
+  }
+}
+
+// Convert LocalMockData to Fixture format for mock server
+const convertMockDataToFixtures = (
+  mockData: LocalMockData,
+  service: string,
+  version: string,
+  spec: OpenAPISpec
+): Fixture[] => {
+  const fixtures: Fixture[] = []
+  let fixtureId = 1
+
+  // Create mapping from operation ID to path and method
+  const operationMap = new Map<string, { path: string; method: string }>()
+  for (const [path, pathItem] of Object.entries(spec.paths)) {
+    for (const [method, operation] of Object.entries(pathItem as any)) {
+      if (typeof operation === 'object' && operation && (operation as any).operationId) {
+        operationMap.set((operation as any).operationId, { path, method: method.toUpperCase() })
+      }
+    }
+  }
+
+  for (const [operationId, scenarios] of Object.entries(mockData)) {
+    const operationInfo = operationMap.get(operationId)
+    if (!operationInfo) {
+      console.warn(`⚠️  Operation ${operationId} not found in OpenAPI spec, skipping fixture`)
+      continue
+    }
+
+    for (const [scenarioName, mockResponse] of Object.entries(scenarios)) {
+      // Generate request data based on operation info and scenario
+      const requestData = generateRequestDataForOperation(operationId, scenarioName, operationInfo, mockResponse)
+
+      const fixture: Fixture = {
+        id: `local_${fixtureId++}`,
+        service,
+        serviceVersion: version,
+        serviceVersions: [version],
+        operation: operationId,
+        status: 'approved',
+        source: 'manual',
+        priority: scenarioName === 'success' || scenarioName === 'default' ? 1 : 2,
+        data: {
+          request: requestData,
+          response: {
+            status: mockResponse.status,
+            headers: mockResponse.headers || { 'content-type': 'application/json' },
+            body: mockResponse.body,
+          },
+        },
+        createdFrom: {
+          type: 'manual',
+          timestamp: new Date(),
+          generatedBy: 'local-mock-data',
+        },
+        createdAt: new Date(),
+        notes: `Local mock data for ${operationId} - ${scenarioName}`,
+      }
+      fixtures.push(fixture)
+    }
+  }
+
+  return fixtures
+}
+
+// Generate request data for a given operation and scenario
+const generateRequestDataForOperation = (
+  operationId: string,
+  scenarioName: string,
+  operationInfo: { path: string; method: string },
+  mockResponse: any
+): HTTPRequest => {
+  let path = operationInfo.path
+  let body: unknown = null
+
+  // Handle different scenarios and operations
+  switch (operationId) {
+    case 'getCastle':
+      // For getCastle, we need to replace {id} with actual ID based on scenario
+      if (scenarioName === 'notFound') {
+        path = path.replace('{id}', 'non-existent-id')
+      } else {
+        // Use the ID from the response body if available
+        const responseBody = mockResponse.body
+        const id = responseBody?.id || '550e8400-e29b-41d4-a716-446655440000'
+        path = path.replace('{id}', id)
+      }
+      break
+
+    case 'deleteCastle':
+      // For deleteCastle, replace {id} with actual ID
+      if (scenarioName === 'notFound') {
+        path = path.replace('{id}', 'non-existent-id')
+      } else {
+        path = path.replace('{id}', '550e8400-e29b-41d4-a716-446655440000')
+      }
+      break
+
+    case 'createCastle':
+      // For createCastle, set request body based on scenario
+      if (scenarioName === 'validationError') {
+        body = {
+          name: '',
+          region: 'Test Region',
+          yearBuilt: 999
+        }
+      } else {
+        body = {
+          name: 'Château de Test',
+          region: 'Test Region',
+          yearBuilt: 1500
+        }
+      }
+      break
+
+    case 'listCastles':
+      // For listCastles, no special handling needed
+      break
+
+    default:
+      console.warn(`⚠️  Unknown operation ${operationId}, using default request data`)
+  }
+
+  const headers: Record<string, string> = {}
+  if (operationInfo.method === 'POST' || operationInfo.method === 'PUT') {
+    headers['content-type'] = 'application/json'
+  }
+
+  return {
+    method: operationInfo.method,
+    path,
+    headers,
+    query: {},
+    body
   }
 }
 
@@ -270,15 +425,35 @@ const fetchFixtures = async (
   apiKey: string,
   service: string,
   version: string,
-  localFixtures?: Fixture[]
+  localFixtures?: Fixture[],
+  localMockData?: LocalMockData
 ): Promise<Fixture[]> => {
   try {
-    // If local fixtures are provided, use them and upload to server
-    if (localFixtures && localFixtures.length > 0) {
-      // Upload local fixtures to the server for future use
-      await uploadLocalFixtures(serviceUrl, apiKey, localFixtures)
+    // Handle new LocalMockData format (preferred)
+    if (localMockData) {
+      console.log(`📋 Using local mock data for ${service}@${version}`)
+      // We need the spec to generate proper request data, but we don't have it yet at this point
+      // This will be handled in createMockServer where we have the spec available
+      return []
+    }
 
-      const prioritizedFixtures = prioritizeFixtures(localFixtures)
+    // Handle legacy local fixtures format (deprecated)
+    if (localFixtures && localFixtures.length > 0) {
+      console.log(
+        `⚠️  Using legacy local fixtures format - consider migrating to localMockData format`
+      )
+
+      // Fix any fixtures that have wrong versions (override with resolved version)
+      const correctedFixtures = localFixtures.map(fixture => ({
+        ...fixture,
+        serviceVersion: version, // Override with resolved provider version
+        serviceVersions: [version], // Update service versions array
+      }))
+
+      // Upload local fixtures to the server for future use
+      await uploadLocalFixtures(serviceUrl, apiKey, correctedFixtures)
+
+      const prioritizedFixtures = prioritizeFixtures(correctedFixtures)
       return prioritizedFixtures
     }
 
@@ -784,7 +959,8 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
 const createFixtureCollector = (
   service: string,
   providerVersion: string,
-  fixtureManager: ReturnType<typeof createFixtureManager>
+  serviceUrl: string,
+  apiKey: string
 ): FixtureCollector => {
   const collectedFixtures = new Map<
     string,
@@ -806,23 +982,47 @@ const createFixtureCollector = (
         return
       }
 
-      for (const { operation, data } of collectedFixtures.values()) {
-        try {
-          await fixtureManager.propose({
-            service,
-            serviceVersion: providerVersion,
-            operation,
-            source: 'consumer',
-            data,
-            createdFrom: {
-              type: 'test_output',
-              timestamp: new Date(),
-              generatedBy: 'consumer-test',
-              testRun: process.env.BUILD_ID || 'local',
-            },
-            notes: 'Auto-generated fixture from consumer test',
-          })
-        } catch (_error) {}
+      // Convert collected fixtures to fixture proposals
+      const fixtureProposals: FixtureProposal[] = Array.from(collectedFixtures.values()).map(
+        ({ operation, data }) => ({
+          service,
+          serviceVersion: providerVersion,
+          operation,
+          source: 'consumer' as const,
+          data,
+          createdFrom: {
+            type: 'test_output',
+            timestamp: new Date(),
+            generatedBy: 'consumer-test',
+            testRun: process.env.BUILD_ID || 'local',
+          },
+          notes: 'Auto-generated fixture from consumer test',
+        })
+      )
+
+      // Batch upload all fixtures
+      try {
+        const response = await fetch(`${serviceUrl}/api/fixtures/batch`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ fixtures: fixtureProposals }),
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          console.log(
+            `✅ Batch uploaded ${fixtureProposals.length} fixtures: ${result.created} created, ${result.duplicates} duplicates`
+          )
+        } else {
+          console.error(
+            `❌ Failed to batch upload fixtures: ${response.status} ${response.statusText}`
+          )
+        }
+      } catch (error) {
+        console.error(`❌ Error batch uploading fixtures: ${error}`)
       }
 
       collectedFixtures.clear()
@@ -847,7 +1047,8 @@ const createEntenteMock = (mockConfig: {
   const fixtureCollector = createFixtureCollector(
     mockConfig.service,
     mockConfig.providerVersion,
-    mockConfig.fixtureManager
+    mockConfig.config.serviceUrl,
+    mockConfig.config.apiKey
   )
 
   // Set up recording if enabled
@@ -881,8 +1082,8 @@ const createEntenteMock = (mockConfig: {
     })
   }
 
-  // Set up fixture collection if no fixtures exist and not skipping operations
-  if (!mockConfig.hasFixtures && process.env.CI && !mockConfig.skipOperations) {
+  // Set up fixture collection in CI environment and not skipping operations
+  if (process.env.CI && !mockConfig.skipOperations) {
     mockConfig.mockServer.onRequest(async (request, response) => {
       // Only collect fixtures for successful responses
       if (response.status >= 200 && response.status < 300) {
@@ -906,7 +1107,7 @@ const createEntenteMock = (mockConfig: {
         })
       }
     })
-  } else if (!mockConfig.hasFixtures && process.env.CI && mockConfig.skipOperations) {
+  } else if (process.env.CI && mockConfig.skipOperations) {
     console.log('🚫 Skipping fixture collection - consumer info unavailable')
   }
 

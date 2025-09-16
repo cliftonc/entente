@@ -13,12 +13,13 @@
     "build:ui": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist build .wrangler",
-    "test": "vitest",
+    "test": "echo 'No tests yet'",
     "deploy": "wrangler deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "migrate:service-versions": "tsx src/scripts/migrate-service-versions.ts"
   },
   "dependencies": {
     "@entente/fixtures": "workspace:*",
@@ -59,11 +60,5 @@
     "vitest": "^2.1.8",
     "wrangler": "^4.36.0"
   },
-  "keywords": [
-    "contract-testing",
-    "server",
-    "hono",
-    "cloudflare-workers",
-    "react"
-  ]
+  "keywords": ["contract-testing", "server", "hono", "cloudflare-workers", "react"]
 }

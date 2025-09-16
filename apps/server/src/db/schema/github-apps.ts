@@ -14,12 +14,15 @@ export const githubAppInstallations = pgTable(
     targetType: varchar('target_type', { length: 20 }).notNull(), // 'User' | 'Organization'
     permissions: json('permissions').$type<Record<string, string>>().notNull(),
     repositorySelection: varchar('repository_selection', { length: 10 }).notNull(), // 'all' | 'selected'
-    selectedRepositories: json('selected_repositories').$type<Array<{
-      id: number
-      name: string
-      fullName: string
-      private: boolean
-    }>>(),
+    selectedRepositories:
+      json('selected_repositories').$type<
+        Array<{
+          id: number
+          name: string
+          fullName: string
+          private: boolean
+        }>
+      >(),
     // GitHub App credentials for token generation
     appId: integer('app_id').notNull(),
     privateKeyEncrypted: text('private_key_encrypted').notNull(),

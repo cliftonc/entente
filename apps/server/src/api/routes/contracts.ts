@@ -42,7 +42,7 @@ contractsRouter.get('/', async c => {
       lastSeen: contracts.lastSeen,
       createdAt: contracts.createdAt,
       updatedAt: contracts.updatedAt,
-      interactionCount: count(interactions.id).as('interaction_count')
+      interactionCount: count(interactions.id).as('interaction_count'),
     })
     .from(contracts)
     .leftJoin(interactions, eq(contracts.id, interactions.contractId))
@@ -118,7 +118,7 @@ contractsRouter.get('/:id', async c => {
       lastSeen: contracts.lastSeen,
       createdAt: contracts.createdAt,
       updatedAt: contracts.updatedAt,
-      interactionCount: count(interactions.id).as('interaction_count')
+      interactionCount: count(interactions.id).as('interaction_count'),
     })
     .from(contracts)
     .leftJoin(interactions, eq(contracts.id, interactions.contractId))
@@ -267,7 +267,7 @@ contractsRouter.patch('/:id', async c => {
       lastSeen: contracts.lastSeen,
       createdAt: contracts.createdAt,
       updatedAt: contracts.updatedAt,
-      interactionCount: count(interactions.id).as('interaction_count')
+      interactionCount: count(interactions.id).as('interaction_count'),
     })
     .from(contracts)
     .leftJoin(interactions, eq(contracts.id, interactions.contractId))
@@ -391,7 +391,8 @@ export async function createOrUpdateContract(
     })
     .returning()
 
-  console.log(`✅ Created new contract ${newContract.id} for ${consumerName}@${consumerVersion} -> ${providerName}@${providerVersion}`)
+  console.log(
+    `✅ Created new contract ${newContract.id} for ${consumerName}@${consumerVersion} -> ${providerName}@${providerVersion}`
+  )
   return newContract.id
 }
-

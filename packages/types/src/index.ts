@@ -21,6 +21,22 @@ export interface Service {
   updatedAt: Date
 }
 
+// Service Version entity - represents a specific version of a service
+export interface ServiceVersion {
+  id: string
+  tenantId: string
+  serviceId: string
+  serviceName: string
+  serviceType: 'consumer' | 'provider'
+  version: string
+  spec?: any // OpenAPI specification
+  gitSha?: string
+  packageJson?: Record<string, unknown>
+  createdBy: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 // Legacy interfaces for backward compatibility
 export interface Provider {
   id: string
@@ -276,6 +292,7 @@ export interface Fixture {
   id: string
   service: string
   serviceVersion: string
+  serviceVersions: string[] // Array of all versions where this fixture appears
   operation: string
   status: 'draft' | 'approved' | 'rejected'
   source: 'consumer' | 'provider' | 'manual'
@@ -321,6 +338,36 @@ export interface FixtureUpdate {
   status?: 'draft' | 'approved' | 'rejected'
 }
 
+// Local Mock Data types (simplified format for users)
+export interface LocalMockData {
+  [operationId: string]: {
+    [scenarioName: string]: MockResponse
+  }
+}
+
+export interface MockResponse {
+  status: number
+  body?: unknown
+  headers?: Record<string, string>
+}
+
+// Batch fixture upload types
+export interface BatchFixtureUpload {
+  fixtures: FixtureProposal[]
+}
+
+export interface BatchFixtureResult {
+  total: number
+  created: number
+  duplicates: number
+  errors: number
+  results: {
+    fixtureId?: string
+    status: 'created' | 'duplicate' | 'error'
+    error?: string
+  }[]
+}
+
 // Configuration types
 export interface ClientConfig {
   serviceUrl: string
@@ -336,6 +383,8 @@ export interface ProviderConfig {
   apiKey: string
   provider?: string // Optional - will fallback to package.json name
   providerVersion?: string // Optional - will fallback to package.json version
+  useNormalizedFixtures?: boolean // Enable automatic fixture data normalization
+  dataSetupCallback?: (fixtures: NormalizedFixtures) => Promise<void> // Callback for database setup
 }
 
 export interface MockOptions {
@@ -344,7 +393,8 @@ export interface MockOptions {
   validateRequests?: boolean
   validateResponses?: boolean
   useFixtures?: boolean
-  localFixtures?: Fixture[]
+  localFixtures?: Fixture[] // Deprecated: Use localMockData instead
+  localMockData?: LocalMockData // Recommended: Simple mock data format
 }
 
 export interface VerifyOptions {
@@ -568,7 +618,15 @@ export interface GitHubWorkflowRun {
   id: number
   name: string | null
   status: 'queued' | 'in_progress' | 'completed'
-  conclusion: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required' | null
+  conclusion:
+    | 'success'
+    | 'failure'
+    | 'neutral'
+    | 'cancelled'
+    | 'skipped'
+    | 'timed_out'
+    | 'action_required'
+    | null
   html_url: string
   created_at: string
   updated_at: string
@@ -585,4 +643,32 @@ export interface GitHubServiceConfigRequest {
 export interface GitHubTriggerWorkflowRequest {
   ref?: string
   inputs?: Record<string, any>
+}
+
+// Normalized fixtures types
+export interface EntityData {
+  id: string | number
+  type: string
+  data: Record<string, unknown>
+  operation: 'create' | 'update' | 'delete'
+  source: string // operation ID that created this entity
+}
+
+export interface EntityRelationship {
+  fromEntity: string
+  fromId: string | number
+  toEntity: string
+  toId: string | number
+  relationship: string
+}
+
+export interface NormalizedFixtures {
+  entities: Record<string, EntityData[]>
+  relationships: EntityRelationship[]
+  metadata: {
+    service: string
+    version: string
+    totalFixtures: number
+    extractedAt: Date
+  }
 }

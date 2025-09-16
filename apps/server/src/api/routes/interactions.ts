@@ -2,8 +2,15 @@ import { generateInteractionHash } from '@entente/fixtures'
 import type { ClientInfo, ClientInteraction, HTTPRequest, HTTPResponse } from '@entente/types'
 import { and, avg, count, desc, eq, gte } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { contracts, interactions, serviceDependencies, services, verificationTasks } from '../../db/schema'
+import {
+  contracts,
+  interactions,
+  serviceDependencies,
+  services,
+  verificationTasks,
+} from '../../db/schema'
 import type { DbConnection } from '../../db/types'
+import { ensureServiceVersion } from '../utils/service-versions'
 import { createOrUpdateContract } from './contracts'
 
 export const interactionsRouter = new Hono()
@@ -276,8 +283,19 @@ interactionsRouter.post('/', async c => {
   const interaction: ClientInteraction = await c.req.json()
 
   // Validate interaction data
-  if (!interaction.service || !interaction.consumer || !interaction.operation || !interaction.providerVersion) {
-    return c.json({ error: 'Missing required interaction fields (service, consumer, operation, providerVersion)' }, 400)
+  if (
+    !interaction.service ||
+    !interaction.consumer ||
+    !interaction.operation ||
+    !interaction.providerVersion
+  ) {
+    return c.json(
+      {
+        error:
+          'Missing required interaction fields (service, consumer, operation, providerVersion)',
+      },
+      400
+    )
   }
 
   const db = c.get('db')
@@ -352,6 +370,26 @@ interactionsRouter.post('/', async c => {
 
   // Create new interaction if no duplicate found
   try {
+    // Ensure service versions exist and get their IDs
+    const consumerVersionId = await ensureServiceVersion(
+      db,
+      tenantId,
+      interaction.consumer,
+      interaction.consumerVersion,
+      {
+        gitSha: interaction.consumerGitSha,
+        createdBy: 'interaction-recording'
+      }
+    )
+
+    const providerVersionId = await ensureServiceVersion(
+      db,
+      tenantId,
+      interaction.service,
+      interaction.providerVersion,
+      { createdBy: 'interaction-recording' }
+    )
+
     // Create or update contract if we have both provider and consumer IDs
     let contractId: string | null = null
     if (provider?.id && consumer?.id) {
@@ -379,8 +417,10 @@ interactionsRouter.post('/', async c => {
         service: interaction.service,
         consumer: interaction.consumer,
         consumerVersion: interaction.consumerVersion,
+        consumerVersionId, // Add the new FK
         consumerGitSha: interaction.consumerGitSha || null,
         providerVersion: interaction.providerVersion,
+        providerVersionId, // Add the new FK
         environment: interaction.environment,
         operation: interaction.operation,
         request: interaction.request,
@@ -673,6 +713,26 @@ interactionsRouter.post('/batch', async c => {
         continue
       }
 
+      // Ensure service versions exist and get their IDs
+      const consumerVersionId = await ensureServiceVersion(
+        db,
+        tenantId,
+        interaction.consumer,
+        interaction.consumerVersion,
+        {
+          gitSha: interaction.consumerGitSha,
+          createdBy: 'interaction-recording'
+        }
+      )
+
+      const providerVersionId = await ensureServiceVersion(
+        db,
+        tenantId,
+        interaction.service,
+        interaction.providerVersion,
+        { createdBy: 'interaction-recording' }
+      )
+
       // Create or update contract if we have both provider and consumer IDs
       let contractId: string | null = null
       if (provider?.id && consumer?.id) {
@@ -701,8 +761,10 @@ interactionsRouter.post('/batch', async c => {
           service: interaction.service,
           consumer: interaction.consumer,
           consumerVersion: interaction.consumerVersion,
+          consumerVersionId, // Add the new FK
           consumerGitSha: interaction.consumerGitSha || null,
           providerVersion: interaction.providerVersion,
+          providerVersionId, // Add the new FK
           environment: interaction.environment,
           operation: interaction.operation,
           request: interaction.request,
@@ -793,7 +855,10 @@ interactionsRouter.post('/batch', async c => {
 
         // Get provider version from interactions for this consumer-provider pair
         const interactionForPair = incomingInteractions.find(
-          i => i.service === providerData.name && i.consumer === consumerData.name && i.consumerVersion === consumerVersion
+          i =>
+            i.service === providerData.name &&
+            i.consumer === consumerData.name &&
+            i.consumerVersion === consumerVersion
         )
         const providerVersion = interactionForPair?.providerVersion || 'latest'
 
@@ -814,7 +879,6 @@ interactionsRouter.post('/batch', async c => {
       )
     }
   }
-
 
   console.log(
     `📋 Batch processed ${incomingInteractions.length} interactions: ${results.recorded} recorded, ${results.duplicates} duplicates, ${results.errors} errors`

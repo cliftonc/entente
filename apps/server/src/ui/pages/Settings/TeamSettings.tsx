@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import type { InviteTeamMemberRequest, TeamMember } from '@entente/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { TeamMember, InviteTeamMemberRequest } from '@entente/types'
-import TeamMemberRow from './components/TeamMemberRow'
+import { useState } from 'react'
 import InviteForm from './components/InviteForm'
+import TeamMemberRow from './components/TeamMemberRow'
 
 function TeamSettings() {
   const queryClient = useQueryClient()
@@ -41,7 +41,7 @@ function TeamSettings() {
   })
 
   const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string, role: 'admin' | 'member' }) => {
+    mutationFn: async ({ userId, role }: { userId: string; role: 'admin' | 'member' }) => {
       const response = await fetch(`/api/settings/team/${userId}/role`, {
         method: 'PATCH',
         headers: {
@@ -121,9 +121,7 @@ function TeamSettings() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold text-base-content">Team Members</h2>
-            <p className="text-base-content/60 mt-1">
-              Manage who has access to your tenant
-            </p>
+            <p className="text-base-content/60 mt-1">Manage who has access to your tenant</p>
           </div>
 
           <button
@@ -131,7 +129,12 @@ function TeamSettings() {
             onClick={() => setShowInviteForm(!showInviteForm)}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
             </svg>
             Invite Member
           </button>
@@ -140,7 +143,7 @@ function TeamSettings() {
         {showInviteForm && (
           <div className="mb-6 p-4 bg-base-200 rounded-lg">
             <InviteForm
-              onInvite={(invitation) => inviteMutation.mutate(invitation)}
+              onInvite={invitation => inviteMutation.mutate(invitation)}
               onCancel={() => setShowInviteForm(false)}
               loading={inviteMutation.isPending}
               error={inviteMutation.error?.message}
@@ -154,11 +157,11 @@ function TeamSettings() {
               Active Members ({activeMembers.length})
             </h3>
             <div className="space-y-2">
-              {activeMembers.map((member) => (
+              {activeMembers.map(member => (
                 <TeamMemberRow
                   key={member.id}
                   member={member}
-                  onUpdateRole={(role) => updateRoleMutation.mutate({ userId: member.userId, role })}
+                  onUpdateRole={role => updateRoleMutation.mutate({ userId: member.userId, role })}
                   onRemove={() => removeMemberMutation.mutate(member.userId)}
                   updating={updateRoleMutation.isPending}
                   removing={removeMemberMutation.isPending}
@@ -173,7 +176,7 @@ function TeamSettings() {
                 Pending Invitations ({pendingInvitations.length})
               </h3>
               <div className="space-y-2">
-                {pendingInvitations.map((invitation) => (
+                {pendingInvitations.map(invitation => (
                   <TeamMemberRow
                     key={invitation.id}
                     member={invitation}
@@ -193,8 +196,18 @@ function TeamSettings() {
 
         {members.length === 0 && (
           <div className="text-center py-8 text-base-content/60">
-            <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            <svg
+              className="w-16 h-16 mx-auto mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1}
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+              />
             </svg>
             <p>No team members yet</p>
             <p className="text-sm">Invite your first team member to get started</p>
@@ -202,13 +215,22 @@ function TeamSettings() {
         )}
       </div>
 
-      {(updateRoleMutation.isError || removeMemberMutation.isError || resendInviteMutation.isError) && (
+      {(updateRoleMutation.isError ||
+        removeMemberMutation.isError ||
+        resendInviteMutation.isError) && (
         <div className="alert alert-error">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <span>
-            {updateRoleMutation.error?.message || removeMemberMutation.error?.message || resendInviteMutation.error?.message}
+            {updateRoleMutation.error?.message ||
+              removeMemberMutation.error?.message ||
+              resendInviteMutation.error?.message}
           </span>
         </div>
       )}

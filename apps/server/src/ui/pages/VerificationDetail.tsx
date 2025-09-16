@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import ErrorDetails from '../components/ErrorDetails'
 import TimestampDisplay from '../components/TimestampDisplay'
+import VersionBadge from '../components/VersionBadge'
 import { verificationApi } from '../utils/api'
 
 function VerificationDetail() {
@@ -132,20 +133,26 @@ function VerificationDetail() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-base-content">Verification Details</h1>
+        <p className="text-base-content/70 mt-1">Detailed view of provider verification results</p>
+      </div>
+
       <div className="breadcrumbs text-sm">
         <ul>
           <li>
             <Link to="/verification">Verification</Link>
           </li>
-          <li>
-            {verification.provider} v{verification.providerVersion}
+          <li className="flex items-center gap-1">
+            <span>{verification.provider}</span>
+            <VersionBadge
+              version={verification.providerVersion}
+              serviceName={verification.provider}
+              serviceType="provider"
+
+            />
           </li>
         </ul>
-      </div>
-
-      <div>
-        <h1 className="text-3xl font-bold text-base-content">Verification Details</h1>
-        <p className="text-base-content/70 mt-1">Detailed view of provider verification results</p>
       </div>
 
       {/* Overview Card */}
@@ -157,14 +164,30 @@ function VerificationDetail() {
               <div>
                 <strong>Provider:</strong> {verification.provider}
               </div>
-              <div>
-                <strong>Provider Version:</strong> v{verification.providerVersion}
+              <div className="flex items-center gap-2">
+                <strong>Provider Version:</strong>
+                <VersionBadge
+                  version={verification.providerVersion}
+                  serviceName={verification.provider}
+                  serviceType="provider"
+                  
+                />
               </div>
               <div>
                 <strong>Consumer:</strong> {verification.consumer || 'N/A'}
               </div>
-              <div>
-                <strong>Consumer Version:</strong> {verification.consumerVersion || 'N/A'}
+              <div className="flex items-center gap-2">
+                <strong>Consumer Version:</strong>
+                {verification.consumer ? (
+                  <VersionBadge
+                    version={verification.consumerVersion || 'N/A'}
+                    serviceName={verification.consumer}
+                    serviceType="consumer"
+                    
+                  />
+                ) : (
+                  <span>N/A</span>
+                )}
               </div>
             </div>
             <div className="space-y-2">

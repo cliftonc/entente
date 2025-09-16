@@ -293,7 +293,23 @@ function FixtureDetails() {
                 <strong>Service:</strong> {fixture.service}
               </div>
               <div>
-                <strong>Service Version:</strong> {fixture.serviceVersion}
+                <strong>Service Versions:</strong>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {fixture.serviceVersions && fixture.serviceVersions.length > 0 ? (
+                    fixture.serviceVersions.map((version, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 border border-gray-300 rounded-md"
+                      >
+                        v{version}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 border border-gray-300 rounded-md">
+                      v{fixture.serviceVersion}
+                    </span>
+                  )}
+                </div>
               </div>
               <div>
                 <strong>Operation:</strong>

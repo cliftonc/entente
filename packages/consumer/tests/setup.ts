@@ -37,7 +37,7 @@ export const setupDefaultMocks = () => {
     `${process.cwd()}/package.json`,
     JSON.stringify({
       name: 'test-consumer',
-      version: '1.0.0',
+      version: '1.2.3', // Realistic consumer version
     })
   )
 
@@ -46,24 +46,36 @@ export const setupDefaultMocks = () => {
     if (url.includes('/api/specs/')) {
       return Promise.resolve(
         mocks.fetch.mockSuccess({
-          openapi: '3.0.0',
-          info: { title: 'Test API', version: '1.0.0' },
-          paths: {
-            '/test': {
-              get: {
-                operationId: 'getTest',
-                responses: {
-                  '200': {
-                    description: 'Success',
-                    content: {
-                      'application/json': {
-                        example: { message: 'test response' },
+          spec: {
+            openapi: '3.0.0',
+            info: { title: 'Test API', version: '1.0.0' }, // This should be ignored!
+            paths: {
+              '/test': {
+                get: {
+                  operationId: 'getTest',
+                  responses: {
+                    '200': {
+                      description: 'Success',
+                      content: {
+                        'application/json': {
+                          example: { message: 'test response' },
+                        },
                       },
                     },
                   },
                 },
               },
             },
+          },
+          metadata: {
+            providerVersion: '2.1.0', // This is the actual provider version that should be used
+            serviceVersionId: 'sv_123',
+            environment: 'test',
+            branch: 'main',
+            hasSpec: true,
+            createdAt: '2024-01-01T00:00:00Z',
+            resolvedFromLatest: false,
+            isDeployed: true,
           },
         })
       )

@@ -2,6 +2,7 @@ import { relations } from 'drizzle-orm'
 import { pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 import { deployments } from './deployments'
 import { services } from './services'
+import { serviceVersions } from './service-versions'
 import { tenants } from './tenants'
 
 export const serviceDependencies = pgTable('service_dependencies', {
@@ -11,7 +12,9 @@ export const serviceDependencies = pgTable('service_dependencies', {
     .notNull(),
   consumerId: uuid('consumer_id').references(() => services.id), // Relaxed FK constraint
   consumerVersion: varchar('consumer_version', { length: 100 }).notNull(),
+  consumerVersionId: uuid('consumer_version_id').references(() => serviceVersions.id), // New FK to serviceVersions
   providerId: uuid('provider_id').references(() => services.id), // Relaxed FK constraint
+  providerVersionId: uuid('provider_version_id').references(() => serviceVersions.id), // New FK to serviceVersions
   registeredAt: timestamp('registered_at').defaultNow().notNull(),
 })
 

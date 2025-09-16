@@ -3,6 +3,9 @@ import { and, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { deployments, services, specs } from '../../db/schema'
 import type { DbSpec } from '../../db/types'
+import { ensureServiceVersion, getServiceVersions } from '../utils/service-versions'
+import { findBestSemverMatch, getLatestVersion } from '../utils/semver-match'
+
 
 export const specsRouter = new Hono()
 
@@ -19,6 +22,7 @@ specsRouter.post('/:service', async c => {
 
   const db = c.get('db')
   const { tenantId } = c.get('session')
+  const { user } = c.get('auth')
 
   // Find the provider service for this service
   const provider = await db.query.services.findFirst({
@@ -37,6 +41,20 @@ specsRouter.post('/:service', async c => {
       404
     )
   }
+
+  // Ensure service version exists and get its ID
+  const serviceVersionId = await ensureServiceVersion(
+    db,
+    tenantId,
+    metadata.service,
+    metadata.version,
+    {
+      spec: spec,
+      gitSha: metadata.gitSha,
+      packageJson: metadata.packageJson,
+      createdBy: user?.name || 'spec-upload'
+    }
+  )
 
   // Check if spec already exists for this provider+version+environment+branch
   const existingSpec = await db.query.specs.findFirst({
@@ -154,123 +172,83 @@ specsRouter.get('/:service/versions', async c => {
 // Get OpenAPI specification by provider deployment version
 specsRouter.get('/:service/by-provider-version', async c => {
   const service = c.req.param('service')
-  const providerVersion = c.req.query('providerVersion')
+  const requestedVersion = c.req.query('providerVersion')
   const environment = c.req.query('environment') || 'production'
   const branch = c.req.query('branch') || 'main'
 
-  if (!providerVersion) {
+  if (!requestedVersion) {
     return c.json({ error: 'providerVersion parameter is required' }, 400)
   }
 
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
-  let deployment
-  let actualProviderVersion = providerVersion
+  // Find all service versions for this service
+  const allVersions = await getServiceVersions(db, tenantId, service)
 
-  if (providerVersion === 'latest') {
-    // Find the most recently deployed version
-    deployment = await db.query.deployments.findFirst({
-      where: and(
-        eq(deployments.tenantId, tenantId),
-        eq(deployments.service, service),
-        eq(deployments.type, 'provider'),
-        eq(deployments.environment, environment),
-        eq(deployments.active, true)
-      ),
-      orderBy: desc(deployments.deployedAt),
-    })
-
-    if (deployment) {
-      actualProviderVersion = deployment.version
-    }
-  } else {
-    // Look for specific version
-    deployment = await db.query.deployments.findFirst({
-      where: and(
-        eq(deployments.tenantId, tenantId),
-        eq(deployments.service, service),
-        eq(deployments.type, 'provider'),
-        eq(deployments.version, providerVersion),
-        eq(deployments.environment, environment),
-        eq(deployments.active, true)
-      ),
-    })
-  }
-
-  // If no deployment found, we'll still try to find a spec
-  // This allows testing against specs even if not deployed
-  if (!deployment && providerVersion === 'latest') {
-    // For 'latest' without deployment, we can't resolve to a specific version
-    // So provide helpful error with available deployed versions
-    const availableDeployments = await db.query.deployments.findMany({
-      where: and(
-        eq(deployments.tenantId, tenantId),
-        eq(deployments.service, service),
-        eq(deployments.type, 'provider'),
-        eq(deployments.environment, environment),
-        eq(deployments.active, true)
-      ),
-      columns: { version: true },
-      orderBy: desc(deployments.deployedAt),
-    })
-
-    const availableVersions = availableDeployments.map(d => d.version)
-
+  if (allVersions.length === 0) {
     return c.json({
-      error: 'No deployed versions found for latest',
-      message: `No deployed versions found for provider '${service}' in environment '${environment}'.`,
-      availableVersions,
-      suggestion: availableVersions.length > 0
-        ? `Try using a specific version like: ${availableVersions.join(', ')}`
-        : `No deployed versions found for '${service}' in '${environment}'. Upload a spec or deploy the provider first.`
+      error: 'No versions found',
+      message: `No versions found for service '${service}'.`,
+      suggestion: `Upload a spec or record interactions for this service first.`,
     }, 404)
   }
 
-  // Now find the spec that corresponds to this provider deployment version
-  // We'll look for a spec with the same version, but if not found, we'll look for specs
-  // from the same environment and branch (allowing for spec versioning independence)
-  let spec = await db.query.specs.findFirst({
+  // Find best match using semver
+  let selectedVersion = null
+  if (requestedVersion === 'latest') {
+    // Get latest version by creation date
+    selectedVersion = getLatestVersion(allVersions)
+  } else {
+    // Try exact match first
+    selectedVersion = allVersions.find(v => v.version === requestedVersion)
+
+    // If no exact match, use semver matching
+    if (!selectedVersion) {
+      const match = findBestSemverMatch(requestedVersion, allVersions)
+      if (match) {
+        selectedVersion = allVersions.find(v => v.id === match.id)
+        console.log(`🔍 Version ${requestedVersion} not found for ${service}, using best semver match: ${match.version}`)
+      }
+    }
+  }
+
+  if (!selectedVersion) {
+    return c.json({
+      error: 'No compatible version found',
+      message: `No compatible version found for '${requestedVersion}'.`,
+      requestedVersion: requestedVersion,
+      availableVersions: allVersions.map(v => v.version),
+      suggestion: allVersions.length > 0
+        ? `Try using one of the available versions: ${allVersions.map(v => v.version).join(', ')}`
+        : `No versions available for ${service}.`,
+    }, 404)
+  }
+
+  // Check if this version is deployed (for metadata)
+  const deployment = await db.query.deployments.findFirst({
     where: and(
-      eq(specs.tenantId, tenantId),
-      eq(specs.service, service),
-      eq(specs.version, actualProviderVersion), // Try exact version match first
-      eq(specs.environment, environment),
-      eq(specs.branch, branch)
+      eq(deployments.tenantId, tenantId),
+      eq(deployments.service, service),
+      eq(deployments.type, 'provider'),
+      eq(deployments.version, selectedVersion.version),
+      eq(deployments.environment, environment),
+      eq(deployments.active, true)
     ),
   })
 
-  if (!spec) {
-    // If no exact version match, find the most recent spec for this service/environment/branch
-    spec = await db.query.specs.findFirst({
-      where: and(
-        eq(specs.tenantId, tenantId),
-        eq(specs.service, service),
-        eq(specs.environment, environment),
-        eq(specs.branch, branch)
-      ),
-      orderBy: desc(specs.uploadedAt),
-    })
-  }
-
-  if (!spec) {
-    return c.json({
-      error: 'No OpenAPI spec found',
-      message: `No OpenAPI specification found for provider '${service}' in environment '${environment}' on branch '${branch}'.`,
-      suggestion: `Please upload an OpenAPI spec for this provider using 'entente upload-spec'.`
-    }, 404)
-  }
-
+  // Return spec from ServiceVersion
   return c.json({
-    spec: spec.spec,
+    spec: selectedVersion.spec || {}, // Return empty spec if none stored
     metadata: {
-      providerVersion: actualProviderVersion, // Return the resolved version (important for 'latest')
-      specVersion: spec.version,
+      providerVersion: selectedVersion.version, // Return actual version used
+      serviceVersionId: selectedVersion.id,
       environment,
       branch,
-      uploadedAt: spec.uploadedAt,
-      resolvedFromLatest: providerVersion === 'latest',
-      isDeployed: !!deployment // Indicates if this version is actually deployed
-    }
+      hasSpec: !!selectedVersion.spec,
+      createdAt: selectedVersion.createdAt,
+      resolvedFromLatest: requestedVersion === 'latest',
+      isDeployed: !!deployment, // Indicates if this version is actually deployed
+    },
   })
 })

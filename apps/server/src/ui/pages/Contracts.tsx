@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import ConsumerFilter from '../components/ConsumerFilter'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
+import VersionBadge from '../components/VersionBadge'
 import { contractApi } from '../utils/api'
 
 function Contracts() {
@@ -15,9 +16,7 @@ function Contracts() {
   const [selectedConsumer, setSelectedConsumer] = useState<string>(
     searchParams.get('consumer') || ''
   )
-  const [selectedStatus, setSelectedStatus] = useState<string>(
-    searchParams.get('status') || ''
-  )
+  const [selectedStatus, setSelectedStatus] = useState<string>(searchParams.get('status') || '')
 
   // Update filters when URL params change
   useEffect(() => {
@@ -62,7 +61,6 @@ function Contracts() {
       status: selectedStatus || undefined,
     })
   }
-
 
   const handleStatusChange = (status: string) => {
     setSelectedStatus(status)
@@ -146,14 +144,30 @@ function Contracts() {
                 <tbody>
                   {[1, 2, 3, 4, 5].map(i => (
                     <tr key={i}>
-                      <td><div className="skeleton h-4 w-24" /></td>
-                      <td><div className="skeleton h-4 w-16" /></td>
-                      <td><div className="skeleton h-4 w-24" /></td>
-                      <td><div className="skeleton h-4 w-16" /></td>
-                      <td><div className="skeleton h-4 w-12" /></td>
-                      <td><div className="skeleton h-4 w-16" /></td>
-                      <td><div className="skeleton h-4 w-20" /></td>
-                      <td><div className="skeleton h-4 w-12" /></td>
+                      <td>
+                        <div className="skeleton h-4 w-24" />
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-16" />
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-24" />
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-16" />
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-12" />
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-16" />
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-20" />
+                      </td>
+                      <td>
+                        <div className="skeleton h-4 w-12" />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -206,7 +220,6 @@ function Contracts() {
         <ProviderFilter value={selectedProvider} onChange={handleProviderChange} />
         <ConsumerFilter value={selectedConsumer} onChange={handleConsumerChange} />
 
-
         <div className="form-control">
           <label className="label">
             <span className="label-text">Status</span>
@@ -214,7 +227,7 @@ function Contracts() {
           <select
             className="select select-bordered w-full max-w-xs"
             value={selectedStatus}
-            onChange={(e) => handleStatusChange(e.target.value)}
+            onChange={e => handleStatusChange(e.target.value)}
           >
             <option value="">All Statuses</option>
             <option value="active">Active</option>
@@ -264,7 +277,7 @@ function Contracts() {
                     </td>
                   </tr>
                 ) : (
-                  contracts.map((contract) => (
+                  contracts.map(contract => (
                     <tr key={contract.id}>
                       <td>
                         <Link
@@ -275,7 +288,12 @@ function Contracts() {
                         </Link>
                       </td>
                       <td>
-                        <span className="badge badge-outline">v{contract.consumerVersion}</span>
+                        <VersionBadge
+                          version={contract.consumerVersion}
+                          serviceName={contract.consumerName}
+                          serviceType="consumer"
+                          
+                        />
                       </td>
                       <td>
                         <Link
@@ -286,7 +304,12 @@ function Contracts() {
                         </Link>
                       </td>
                       <td>
-                        <span className="badge badge-outline">v{contract.providerVersion || 'latest'}</span>
+                        <VersionBadge
+                          version={contract.providerVersion || 'latest'}
+                          serviceName={contract.providerName}
+                          serviceType="provider"
+                          
+                        />
                       </td>
                       <td>
                         <span className="font-mono text-sm">{contract.interactionCount}</span>
@@ -300,10 +323,7 @@ function Contracts() {
                         <TimestampDisplay timestamp={contract.lastSeen} />
                       </td>
                       <td>
-                        <Link
-                          to={`/contracts/${contract.id}`}
-                          className="btn btn-sm btn-ghost"
-                        >
+                        <Link to={`/contracts/${contract.id}`} className="btn btn-sm btn-ghost">
                           View
                         </Link>
                       </td>

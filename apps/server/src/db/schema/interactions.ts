@@ -1,6 +1,7 @@
 import { integer, jsonb, pgTable, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core'
 import { contracts } from './contracts'
 import { services } from './services'
+import { serviceVersions } from './service-versions'
 import { tenants } from './tenants'
 
 export const interactions = pgTable(
@@ -16,8 +17,10 @@ export const interactions = pgTable(
     service: varchar('service', { length: 255 }).notNull(), // Keep for backward compatibility
     consumer: varchar('consumer', { length: 255 }).notNull(), // Keep for backward compatibility
     consumerVersion: varchar('consumer_version', { length: 100 }).notNull(),
+    consumerVersionId: uuid('consumer_version_id').references(() => serviceVersions.id), // New FK to serviceVersions
     consumerGitSha: varchar('consumer_git_sha', { length: 40 }), // Git SHA for the consumer
     providerVersion: varchar('provider_version', { length: 100 }).notNull(), // Provider deployment version
+    providerVersionId: uuid('provider_version_id').references(() => serviceVersions.id), // New FK to serviceVersions
     environment: varchar('environment', { length: 100 }).notNull(),
     operation: varchar('operation', { length: 255 }).notNull(),
     request: jsonb('request').notNull(),

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { TenantSettings, TenantSettingsUpdate } from '@entente/types'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import SettingToggle from './components/SettingToggle'
 
 function DeleteTenantSection() {

@@ -109,10 +109,10 @@ describe('@entente/consumer', () => {
       }
 
       const client = createClient(config)
-      await client.createMock('test-service', '1.0.0')
+      await client.createMock('test-service', '2.1.0')
 
       expect(mocks.fetch.fetch).toHaveBeenCalledWith(
-        'https://test.entente.com/api/specs/test-service/by-provider-version?providerVersion=1.0.0&environment=test&branch=main',
+        'https://test.entente.com/api/specs/test-service/by-provider-version?providerVersion=2.1.0&environment=test&branch=main',
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: 'Bearer test-key',
@@ -133,10 +133,10 @@ describe('@entente/consumer', () => {
       }
 
       const client = createClient(config)
-      const mock = await client.createMock('test-service', '1.0.0')
+      const mock = await client.createMock('test-service', '2.1.0')
 
       expect(mocks.fetch.fetch).toHaveBeenCalledWith(
-        'https://test.entente.com/api/fixtures/service/test-service?version=1.0.0&status=approved',
+        'https://test.entente.com/api/fixtures/service/test-service?version=2.1.0&status=approved',
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: 'Bearer test-key',
@@ -341,7 +341,7 @@ describe('@entente/consumer', () => {
       }
 
       const client = createClient(config)
-      const mock = await client.createMock('test-service', '1.0.0')
+      const mock = await client.createMock('test-service', '2.1.0')
 
       const fixtureData = {
         request: { method: 'GET', path: '/test' },
@@ -353,7 +353,7 @@ describe('@entente/consumer', () => {
       expect(mocks.fixtures.fixtureManagerMock.propose).toHaveBeenCalledWith(
         expect.objectContaining({
           service: 'test-service',
-          serviceVersion: '1.0.0',
+          serviceVersion: '2.1.0', // Should use resolved provider version
           operation: 'getTest',
           source: 'consumer',
           data: fixtureData,

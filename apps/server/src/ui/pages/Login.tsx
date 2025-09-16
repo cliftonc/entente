@@ -46,9 +46,9 @@ export default function Login() {
             </a>
           </div>
 
-
           <p className="text-center text-base-content/70 mb-8">
-            Automated contract testing platform that combines OpenAPI specifications with real interaction recording to ensure your services work together seamlessly.
+            Automated contract testing platform that combines OpenAPI specifications with real
+            interaction recording to ensure your services work together seamlessly.
           </p>
 
           {error && (
@@ -98,7 +98,6 @@ export default function Login() {
               </>
             )}
           </button>
-
         </div>
       </div>
     </div>

@@ -1,13 +1,13 @@
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ApiKey, CreateKeyRequest } from '@entente/types'
-import { api } from '../../utils/api'
 import {
-  KeyIcon,
-  ClipboardDocumentIcon,
   ArrowPathIcon,
-  TrashIcon
+  ClipboardDocumentIcon,
+  KeyIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { api } from '../../utils/api'
 
 function KeySettings() {
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -26,7 +26,7 @@ function KeySettings() {
 
   const createKeyMutation = useMutation({
     mutationFn: (data: CreateKeyRequest) => api.post('/keys', data) as Promise<ApiKey>,
-    onSuccess: (newKey) => {
+    onSuccess: newKey => {
       queryClient.invalidateQueries({ queryKey: ['keys'] })
       setShowCreateModal(false)
       setCreateForm({ name: '', expiresAt: '' })
@@ -38,7 +38,7 @@ function KeySettings() {
 
   const rotateKeyMutation = useMutation({
     mutationFn: (keyId: string) => api.post(`/keys/${keyId}/rotate`, {}) as Promise<ApiKey>,
-    onSuccess: (rotatedKey) => {
+    onSuccess: rotatedKey => {
       queryClient.invalidateQueries({ queryKey: ['keys'] })
       if (rotatedKey.fullKey) {
         setShowRotatedKey({ key: rotatedKey.fullKey, name: rotatedKey.name })
@@ -69,7 +69,11 @@ function KeySettings() {
   }
 
   const handleRotateKey = (keyId: string) => {
-    if (confirm('Are you sure you want to rotate this key? The old key will stop working immediately.')) {
+    if (
+      confirm(
+        'Are you sure you want to rotate this key? The old key will stop working immediately.'
+      )
+    ) {
       rotateKeyMutation.mutate(keyId)
     }
   }
@@ -155,7 +159,7 @@ function KeySettings() {
                 </tr>
               </thead>
               <tbody>
-                {keys.map((key) => (
+                {keys.map(key => (
                   <tr key={key.id}>
                     <td>
                       <div className="font-medium">{key.name}</div>
@@ -186,9 +190,7 @@ function KeySettings() {
                         <div className="badge badge-success text-success-content">Active</div>
                       )}
                     </td>
-                    <td className="text-sm">
-                      {formatDate(key.lastUsedAt)}
-                    </td>
+                    <td className="text-sm">{formatDate(key.lastUsedAt)}</td>
                     <td className="text-sm">
                       {key.expiresAt ? (
                         <span className={isExpired(key.expiresAt) ? 'text-error' : ''}>
@@ -243,7 +245,7 @@ function KeySettings() {
                 className="input input-bordered"
                 placeholder="e.g., Production Deploy Key"
                 value={createForm.name}
-                onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
+                onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
               />
             </div>
 
@@ -255,7 +257,7 @@ function KeySettings() {
                 type="datetime-local"
                 className="input input-bordered"
                 value={createForm.expiresAt}
-                onChange={(e) => setCreateForm(prev => ({ ...prev, expiresAt: e.target.value }))}
+                onChange={e => setCreateForm(prev => ({ ...prev, expiresAt: e.target.value }))}
               />
               <label className="label">
                 <span className="label-text-alt">Leave empty for no expiration</span>
@@ -299,8 +301,18 @@ function KeySettings() {
             </h3>
 
             <div className="alert alert-warning text-warning-content mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="stroke-current shrink-0 h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
               </svg>
               <span>Save this key now! You won't be able to see it again.</span>
             </div>

@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
-import { statsApi } from '../utils/api'
+import VersionBadge from '../components/VersionBadge'
 import { useAuth } from '../hooks/useAuth'
+import { statsApi } from '../utils/api'
 
 function Dashboard() {
   const location = useLocation()
@@ -26,7 +27,8 @@ function Dashboard() {
     if (searchParams.get('invitation-accepted') === 'true') {
       // Remove the parameter from URL
       searchParams.delete('invitation-accepted')
-      const newUrl = location.pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '')
+      const newUrl =
+        location.pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '')
       navigate(newUrl, { replace: true })
 
       // Clear all query cache since we switched to a new tenant
@@ -226,10 +228,15 @@ function Dashboard() {
                         >
                           {deployment.service}
                         </Link>
-                        <div className="text-sm text-base-content/70">
-                          v{deployment.version}
+                        <div className="text-sm text-base-content/70 flex items-center gap-2">
+                          <VersionBadge
+                            version={deployment.version}
+                            serviceName={deployment.service}
+                            serviceType={(deployment.type as 'consumer' | 'provider') || 'provider'}
+
+                          />
                           {deployment.status === 'failed' && (
-                            <span className="text-error ml-2">• Blocked</span>
+                            <span className="text-error">• Blocked</span>
                           )}
                         </div>
                       </div>

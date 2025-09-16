@@ -1,8 +1,8 @@
 import { App } from '@octokit/app'
-import { Octokit } from '@octokit/rest'
+import type { Octokit } from '@octokit/rest'
 import { eq } from 'drizzle-orm'
-import type { Database } from '../db/database'
 import { githubAppInstallations } from '../../db/schema'
+import type { Database } from '../db/database'
 
 interface GitHubInstallationInfo {
   id: number
@@ -40,9 +40,12 @@ export async function createInstallationToken(
   const app = createGitHubApp(appId, privateKey)
 
   // Create installation access token
-  const { data } = await app.octokit.request('POST /app/installations/{installation_id}/access_tokens', {
-    installation_id: installationId
-  })
+  const { data } = await app.octokit.request(
+    'POST /app/installations/{installation_id}/access_tokens',
+    {
+      installation_id: installationId,
+    }
+  )
 
   return data.token
 }
@@ -77,20 +80,23 @@ export async function getInstallationInfo(
   const app = createGitHubApp(appId, privateKey)
 
   // Use app-level authentication to get installation info
-  const { data: installationData } = await app.octokit.request('GET /app/installations/{installation_id}', {
-    installation_id: installationId
-  })
+  const { data: installationData } = await app.octokit.request(
+    'GET /app/installations/{installation_id}',
+    {
+      installation_id: installationId,
+    }
+  )
 
   return {
     id: installationData.id,
     account: {
       id: installationData.account?.id || 0,
       login: installationData.account?.login || '',
-      type: installationData.account?.type as 'User' | 'Organization'
+      type: installationData.account?.type as 'User' | 'Organization',
     },
     repository_selection: installationData.repository_selection as 'all' | 'selected',
     permissions: installationData.permissions,
-    suspended_at: installationData.suspended_at || undefined
+    suspended_at: installationData.suspended_at || undefined,
   }
 }
 
@@ -102,14 +108,14 @@ export async function getInstallationRepositories(
   const octokit = await getInstallationOctokit(installationId, appId, privateKey)
 
   const { data } = await octokit.rest.apps.listReposAccessibleToInstallation({
-    per_page: 100
+    per_page: 100,
   })
 
   return data.repositories.map(repo => ({
     id: repo.id,
     name: repo.name,
     full_name: repo.full_name,
-    private: repo.private
+    private: repo.private,
   }))
 }
 
@@ -122,7 +128,10 @@ export function decodePrivateKey(encodedPrivateKey: string): string {
   return Buffer.from(encodedPrivateKey, 'base64').toString('utf8')
 }
 
-export async function getInstallationForTenant(db: Database, tenantId: string): Promise<{
+export async function getInstallationForTenant(
+  db: Database,
+  tenantId: string
+): Promise<{
   installationId: number
   appId: number
   privateKey: string
@@ -147,7 +156,7 @@ export async function getInstallationForTenant(db: Database, tenantId: string): 
   return {
     installationId: installation.installationId,
     appId: installation.appId,
-    privateKey
+    privateKey,
   }
 }
 

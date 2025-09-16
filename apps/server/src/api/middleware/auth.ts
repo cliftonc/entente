@@ -52,11 +52,22 @@ export async function authMiddleware(c: Context, next: Next) {
         console.error('Failed to update key usage:', err)
       })
 
+      // Create dummy user for API key authentication
+      const dummyUser = {
+        id: `api-key-${validation.keyId}`,
+        githubId: 0,
+        username: validation.keyName || 'api-key',
+        email: `${validation.keyName || 'api-key'}@api.local`,
+        name: validation.keyName || 'API Key',
+        avatarUrl: null,
+      }
+
       // Set auth context for API key
       c.set('auth', {
         tenantId: validation.tenantId,
         permissions: validation.permissions,
         apiKey,
+        user: dummyUser,
       })
 
       // Set session context for consistent access
@@ -129,10 +140,7 @@ export async function authMiddleware(c: Context, next: Next) {
           const tenantMembership = await db
             .select({ role: tenantUsers.role })
             .from(tenantUsers)
-            .where(and(
-              eq(tenantUsers.userId, user.id),
-              eq(tenantUsers.tenantId, selectedTenantId)
-            ))
+            .where(and(eq(tenantUsers.userId, user.id), eq(tenantUsers.tenantId, selectedTenantId)))
             .limit(1)
 
           if (tenantMembership.length > 0) {
@@ -169,7 +177,8 @@ export async function authMiddleware(c: Context, next: Next) {
         }
 
         // Map role to permissions
-        const permissions = selectedRole === 'owner' ? ['admin', 'read', 'write'] : ['read', 'write']
+        const permissions =
+          selectedRole === 'owner' ? ['admin', 'read', 'write'] : ['read', 'write']
 
         c.set('auth', {
           tenantId: selectedTenantId,

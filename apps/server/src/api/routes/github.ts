@@ -12,18 +12,22 @@ console.log('🔍 withGitHub function:', typeof withGitHub)
 githubRoutes.use('*', withGitHub())
 
 // Debug endpoint
-githubRoutes.get('/debug', async (c) => {
+githubRoutes.get('/debug', async c => {
   console.log('🐛 GitHub debug endpoint reached')
   console.log('🔍 Context keys available:', Object.keys(c.var))
   const github = c.get('github')
   console.log('🔍 GitHub helper in context:', github ? 'available' : 'null')
-  return c.json({ message: 'GitHub routes are working', timestamp: new Date().toISOString(), github: github ? 'available' : 'null' })
+  return c.json({
+    message: 'GitHub routes are working',
+    timestamp: new Date().toISOString(),
+    github: github ? 'available' : 'null',
+  })
 })
 
 console.log('✅ GitHub debug route registered')
 
 // Get all repositories accessible to the tenant
-githubRoutes.get('/repositories', async (c) => {
+githubRoutes.get('/repositories', async c => {
   console.log('🚀 GitHub repositories endpoint called')
   const github = c.get('github')
 
@@ -46,7 +50,7 @@ githubRoutes.get('/repositories', async (c) => {
 })
 
 // Get repository details by owner/repo
-githubRoutes.get('/repository/:owner/:repo', async (c) => {
+githubRoutes.get('/repository/:owner/:repo', async c => {
   const github = c.get('github')
 
   if (!github) {
@@ -65,7 +69,7 @@ githubRoutes.get('/repository/:owner/:repo', async (c) => {
 })
 
 // Find repository by service name
-githubRoutes.get('/repository/service/:serviceName', async (c) => {
+githubRoutes.get('/repository/service/:serviceName', async c => {
   const github = c.get('github')
 
   if (!github) {
@@ -88,7 +92,7 @@ githubRoutes.get('/repository/service/:serviceName', async (c) => {
 })
 
 // Get workflows for a repository
-githubRoutes.get('/repository/:owner/:repo/workflows', async (c) => {
+githubRoutes.get('/repository/:owner/:repo/workflows', async c => {
   const github = c.get('github')
 
   if (!github) {
@@ -107,7 +111,7 @@ githubRoutes.get('/repository/:owner/:repo/workflows', async (c) => {
 })
 
 // Get workflow runs for a repository
-githubRoutes.get('/repository/:owner/:repo/workflow-runs', async (c) => {
+githubRoutes.get('/repository/:owner/:repo/workflow-runs', async c => {
   const github = c.get('github')
 
   if (!github) {
@@ -121,7 +125,7 @@ githubRoutes.get('/repository/:owner/:repo/workflow-runs', async (c) => {
   const branch = c.req.query('branch')
   const event = c.req.query('event')
   const status = c.req.query('status') as 'queued' | 'in_progress' | 'completed' | undefined
-  const perPage = c.req.query('per_page') ? parseInt(c.req.query('per_page')!) : undefined
+  const perPage = c.req.query('per_page') ? Number.parseInt(c.req.query('per_page')!) : undefined
 
   const options = {
     ...(workflowId && { workflowId }),
@@ -141,7 +145,7 @@ githubRoutes.get('/repository/:owner/:repo/workflow-runs', async (c) => {
 })
 
 // Get a specific workflow run
-githubRoutes.get('/repository/:owner/:repo/workflow-runs/:runId', async (c) => {
+githubRoutes.get('/repository/:owner/:repo/workflow-runs/:runId', async c => {
   const github = c.get('github')
 
   if (!github) {
@@ -151,7 +155,7 @@ githubRoutes.get('/repository/:owner/:repo/workflow-runs/:runId', async (c) => {
   const { owner, repo, runId } = c.req.param()
 
   try {
-    const workflowRun = await github.getWorkflowRun(owner, repo, parseInt(runId))
+    const workflowRun = await github.getWorkflowRun(owner, repo, Number.parseInt(runId))
     return c.json({ workflow_run: workflowRun })
   } catch (error) {
     console.error('Error fetching workflow run:', error)
@@ -160,7 +164,7 @@ githubRoutes.get('/repository/:owner/:repo/workflow-runs/:runId', async (c) => {
 })
 
 // Get jobs for a workflow run
-githubRoutes.get('/repository/:owner/:repo/workflow-runs/:runId/jobs', async (c) => {
+githubRoutes.get('/repository/:owner/:repo/workflow-runs/:runId/jobs', async c => {
   const github = c.get('github')
 
   if (!github) {
@@ -170,7 +174,7 @@ githubRoutes.get('/repository/:owner/:repo/workflow-runs/:runId/jobs', async (c)
   const { owner, repo, runId } = c.req.param()
 
   try {
-    const jobs = await github.getWorkflowJobs(owner, repo, parseInt(runId))
+    const jobs = await github.getWorkflowJobs(owner, repo, Number.parseInt(runId))
     return c.json({ jobs })
   } catch (error) {
     console.error('Error fetching workflow jobs:', error)
@@ -179,7 +183,7 @@ githubRoutes.get('/repository/:owner/:repo/workflow-runs/:runId/jobs', async (c)
 })
 
 // Trigger a workflow
-githubRoutes.post('/repository/:owner/:repo/workflows/:workflowId/dispatch', async (c) => {
+githubRoutes.post('/repository/:owner/:repo/workflows/:workflowId/dispatch', async c => {
   const github = c.get('github')
 
   if (!github) {
@@ -201,7 +205,7 @@ githubRoutes.post('/repository/:owner/:repo/workflows/:workflowId/dispatch', asy
 })
 
 // Get pull requests for a repository
-githubRoutes.get('/repository/:owner/:repo/pulls', async (c) => {
+githubRoutes.get('/repository/:owner/:repo/pulls', async c => {
   const github = c.get('github')
 
   if (!github) {
@@ -209,7 +213,7 @@ githubRoutes.get('/repository/:owner/:repo/pulls', async (c) => {
   }
 
   const { owner, repo } = c.req.param()
-  const state = c.req.query('state') as 'open' | 'closed' | 'all' || 'open'
+  const state = (c.req.query('state') as 'open' | 'closed' | 'all') || 'open'
 
   try {
     const pullRequests = await github.getPullRequests(owner, repo, state)
@@ -221,7 +225,7 @@ githubRoutes.get('/repository/:owner/:repo/pulls', async (c) => {
 })
 
 // Get a specific pull request
-githubRoutes.get('/repository/:owner/:repo/pulls/:pullNumber', async (c) => {
+githubRoutes.get('/repository/:owner/:repo/pulls/:pullNumber', async c => {
   const github = c.get('github')
 
   if (!github) {
@@ -231,7 +235,7 @@ githubRoutes.get('/repository/:owner/:repo/pulls/:pullNumber', async (c) => {
   const { owner, repo, pullNumber } = c.req.param()
 
   try {
-    const pullRequest = await github.getPullRequest(owner, repo, parseInt(pullNumber))
+    const pullRequest = await github.getPullRequest(owner, repo, Number.parseInt(pullNumber))
     return c.json({ pull_request: pullRequest })
   } catch (error) {
     console.error('Error fetching pull request:', error)
@@ -240,7 +244,7 @@ githubRoutes.get('/repository/:owner/:repo/pulls/:pullNumber', async (c) => {
 })
 
 // Comment on a pull request
-githubRoutes.post('/repository/:owner/:repo/pulls/:pullNumber/comments', async (c) => {
+githubRoutes.post('/repository/:owner/:repo/pulls/:pullNumber/comments', async c => {
   const github = c.get('github')
 
   if (!github) {
@@ -257,7 +261,7 @@ githubRoutes.post('/repository/:owner/:repo/pulls/:pullNumber/comments', async (
       return c.json({ error: 'Comment body is required' }, 400)
     }
 
-    await github.createPullRequestComment(owner, repo, parseInt(pullNumber), comment)
+    await github.createPullRequestComment(owner, repo, Number.parseInt(pullNumber), comment)
     return c.json({ message: 'Comment created successfully' })
   } catch (error) {
     console.error('Error creating pull request comment:', error)
@@ -266,7 +270,7 @@ githubRoutes.post('/repository/:owner/:repo/pulls/:pullNumber/comments', async (
 })
 
 // Get issues for a repository
-githubRoutes.get('/repository/:owner/:repo/issues', async (c) => {
+githubRoutes.get('/repository/:owner/:repo/issues', async c => {
   const github = c.get('github')
 
   if (!github) {
@@ -274,7 +278,7 @@ githubRoutes.get('/repository/:owner/:repo/issues', async (c) => {
   }
 
   const { owner, repo } = c.req.param()
-  const state = c.req.query('state') as 'open' | 'closed' | 'all' || 'open'
+  const state = (c.req.query('state') as 'open' | 'closed' | 'all') || 'open'
 
   try {
     const issues = await github.getIssues(owner, repo, state)
@@ -286,7 +290,7 @@ githubRoutes.get('/repository/:owner/:repo/issues', async (c) => {
 })
 
 // Create an issue
-githubRoutes.post('/repository/:owner/:repo/issues', async (c) => {
+githubRoutes.post('/repository/:owner/:repo/issues', async c => {
   const github = c.get('github')
 
   if (!github) {
@@ -312,7 +316,7 @@ githubRoutes.post('/repository/:owner/:repo/issues', async (c) => {
 })
 
 // Utility endpoint to parse repository URL
-githubRoutes.post('/utils/parse-repository-url', async (c) => {
+githubRoutes.post('/utils/parse-repository-url', async c => {
   const github = c.get('github')
 
   if (!github) {

@@ -1,3 +1,4 @@
+import { relations } from 'drizzle-orm'
 import {
   integer,
   jsonb,
@@ -23,6 +24,7 @@ export const fixtures = pgTable(
       .notNull(),
     service: varchar('service', { length: 255 }).notNull(),
     serviceVersion: varchar('service_version', { length: 100 }).notNull(),
+    serviceVersions: jsonb('service_versions').notNull(), // Array of versions where this fixture appears
     operation: varchar('operation', { length: 255 }).notNull(),
     hash: varchar('hash', { length: 64 }).notNull(), // SHA-256 hash for deduplication
     status: fixtureStatusEnum('status').default('draft').notNull(),
@@ -40,3 +42,5 @@ export const fixtures = pgTable(
     tenantHashUnique: unique().on(table.tenantId, table.hash),
   })
 )
+
+// Relations will be defined in fixture-service-versions.ts to avoid circular imports

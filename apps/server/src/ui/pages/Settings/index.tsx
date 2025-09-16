@@ -1,9 +1,9 @@
-import { Route, Routes, Navigate } from 'react-router-dom'
-import SettingsNav from './components/SettingsNav'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import GeneralSettings from './GeneralSettings'
+import GitHubSettings from './GitHubSettings'
 import KeySettings from './KeySettings'
 import TeamSettings from './TeamSettings'
-import GitHubSettings from './GitHubSettings'
+import SettingsNav from './components/SettingsNav'
 
 function Settings() {
   return (

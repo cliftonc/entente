@@ -1,5 +1,6 @@
 import { boolean, jsonb, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 import { services } from './services'
+import { serviceVersions } from './service-versions'
 import { tenants } from './tenants'
 
 export const deployments = pgTable('deployments', {
@@ -11,6 +12,7 @@ export const deployments = pgTable('deployments', {
   serviceId: uuid('service_id').references(() => services.id), // Unified reference to services
   service: varchar('service', { length: 255 }).notNull(), // Keep for backward compatibility
   version: varchar('version', { length: 100 }).notNull(),
+  serviceVersionId: uuid('service_version_id').references(() => serviceVersions.id), // New FK to serviceVersions
   gitSha: varchar('git_sha', { length: 40 }), // Git SHA for this deployment
   environment: varchar('environment', { length: 100 }).notNull(),
   deployedAt: timestamp('deployed_at').notNull(),

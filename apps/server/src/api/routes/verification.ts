@@ -604,10 +604,7 @@ verificationRouter.get('/contract/:contractId', async c => {
     .from(verificationResults)
     .leftJoin(verificationTasks, eq(verificationResults.taskId, verificationTasks.id))
     .where(
-      and(
-        eq(verificationResults.tenantId, tenantId),
-        eq(verificationTasks.contractId, contractId)
-      )
+      and(eq(verificationResults.tenantId, tenantId), eq(verificationTasks.contractId, contractId))
     )
     .orderBy(desc(verificationResults.submittedAt))
 

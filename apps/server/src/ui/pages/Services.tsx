@@ -128,7 +128,11 @@ function Services() {
           </div>
         ) : (
           filteredServices.map(service => (
-            <Link key={service.name} to={`/services/${service.type}/${service.name}`} className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer">
+            <Link
+              key={service.name}
+              to={`/services/${service.type}/${service.name}`}
+              className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
+            >
               <div className="card-body p-4">
                 <div className="flex items-start justify-between mb-2">
                   <h2 className="card-title text-base">{service.name}</h2>
@@ -153,7 +157,6 @@ function Services() {
           ))
         )}
       </div>
-
     </div>
   )
 }

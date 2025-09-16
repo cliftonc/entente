@@ -1,16 +1,18 @@
 import type { Contract } from '@entente/types'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
-import TimestampDisplay from '../components/TimestampDisplay'
-import VerificationPanel from '../components/VerificationPanel'
 import ContractsPanel from '../components/ContractsPanel'
 import GitHubIntegrationPanel from '../components/GitHubIntegrationPanel'
+import TimestampDisplay from '../components/TimestampDisplay'
+import VerificationPanel from '../components/VerificationPanel'
+import VersionBadge from '../components/VersionBadge'
 import {
   contractApi,
   deploymentApi,
   fixtureApi,
   interactionApi,
   providerApi,
+  serviceVersionApi,
   verificationApi,
 } from '../utils/api'
 
@@ -96,6 +98,16 @@ function ProviderDetail() {
     },
   })
 
+  // Fetch service versions
+  const { data: serviceVersions, isLoading: serviceVersionsLoading } = useQuery({
+    queryKey: ['service-versions', name],
+    queryFn: () => {
+      if (!name) throw new Error('Provider name is required')
+      return serviceVersionApi.getByService(name)
+    },
+    enabled: !!name,
+  })
+
   // Interaction counts are now calculated dynamically by the API
   const getContractInteractionCount = (contract: Contract): number => {
     return contract.interactionCount
@@ -179,36 +191,35 @@ function ProviderDetail() {
           <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
               <h2 className="card-title">Service Overview</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+                <div className="md:col-span-4">
                   <label className="label">
                     <span className="label-text">Description</span>
                   </label>
-                  <p className="text-base-content/80">
-                    {provider.description || 'No description available'}
-                  </p>
+                  <div className="bg-base-200/50 p-4 rounded-lg">
+                    <p className="text-base-content/80">
+                      {provider.description || 'No description available'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <label className="label">
-                    <span className="label-text">Last Updated</span>
-                  </label>
-                  <TimestampDisplay timestamp={provider.updatedAt} />
-                </div>
-                <div>
-                  <label className="label">
-                    <span className="label-text">Version</span>
-                  </label>
-                  <span className="font-mono text-sm">{provider.version || 'latest'}</span>
-                </div>
-                <div>
-                  <label className="label">
-                    <span className="label-text">Status</span>
-                  </label>
-                  <div className="badge badge-success">active</div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Status</span>
+                    </label>
+                    <div className="badge badge-success">active</div>
+                  </div>
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Last Updated</span>
+                    </label>
+                    <TimestampDisplay timestamp={provider.updatedAt} />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+
 
           {/* Pending Verification */}
           {!pendingTasksLoading && providerPendingTasks.length > 0 && (
@@ -244,6 +255,14 @@ function ProviderDetail() {
             viewAllUrl={`/contracts?provider=${name}`}
             getContractInteractionCount={getContractInteractionCount}
           />
+
+          {/* GitHub Integration */}
+          <GitHubIntegrationPanel
+            serviceName={name || ''}
+            serviceType="provider"
+            gitRepositoryUrl={provider.gitRepositoryUrl}
+            hasGitHubApp={!!githubInstallation}
+          />
         </div>
 
         {/* Sidebar */}
@@ -271,9 +290,11 @@ function ProviderDetail() {
                       <div className="flex justify-between items-center mb-1">
                         <span className="font-medium text-sm">{deployment.environment}</span>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs bg-base-300 px-2 py-1 rounded">
-                            {deployment.version}
-                          </span>
+                          <VersionBadge
+                            version={deployment.version}
+                            serviceName={name || ''}
+                            serviceType="provider"
+                          />
                           <div
                             className={`badge badge-sm px-2 ${
                               deployment.active ? 'badge-success' : 'badge-error'
@@ -329,7 +350,10 @@ function ProviderDetail() {
             <div className="card-body">
               <div className="flex justify-between items-center">
                 <h3 className="card-title text-lg text-error">Blocked Deployments</h3>
-                <Link to={`/deployments?service=${name}&include-failures=true`} className="btn btn-ghost btn-xs">
+                <Link
+                  to={`/deployments?service=${name}&include-failures=true`}
+                  className="btn btn-ghost btn-xs"
+                >
                   View All
                 </Link>
               </div>
@@ -340,7 +364,8 @@ function ProviderDetail() {
                   {blockedDeployments.slice(0, 3).map((deployment, idx) => (
                     <div
                       key={
-                        deployment.id || `blocked-${deployment.environment}-${deployment.version}-${idx}`
+                        deployment.id ||
+                        `blocked-${deployment.environment}-${deployment.version}-${idx}`
                       }
                       className="bg-error/10 border border-error/20 rounded-lg p-3"
                     >
@@ -350,9 +375,7 @@ function ProviderDetail() {
                           <span className="font-mono text-xs bg-error/20 px-2 py-1 rounded">
                             {deployment.version}
                           </span>
-                          <div className="badge badge-sm badge-error px-2">
-                            blocked
-                          </div>
+                          <div className="badge badge-sm badge-error px-2">blocked</div>
                         </div>
                       </div>
                       <div className="text-xs text-error mb-2">
@@ -398,13 +421,49 @@ function ProviderDetail() {
             </div>
           </div>
 
-          {/* GitHub Integration */}
-          <GitHubIntegrationPanel
-            serviceName={name || ''}
-            serviceType="provider"
-            gitRepositoryUrl={provider.gitRepositoryUrl}
-            hasGitHubApp={!!githubInstallation}
-          />
+          {/* Service Versions */}
+          <div className="card bg-base-100 shadow-xl">
+            <div className="card-body">
+              <div className="flex justify-between items-center">
+                <h3 className="card-title text-lg">Service Versions</h3>
+                <Link
+                  to={`/services/${name}/versions?type=provider`}
+                  className="btn btn-ghost btn-xs"
+                >
+                  View All
+                </Link>
+              </div>
+              {serviceVersionsLoading ? (
+                <div className="skeleton h-16 w-full" />
+              ) : serviceVersions && serviceVersions.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {serviceVersions.slice(0, 6).map(version => (
+                    <VersionBadge
+                      key={version.id}
+                      version={version.version}
+                      serviceName={version.serviceName}
+                      serviceType={version.serviceType}
+                      serviceVersionId={version.id}
+                      className="px-1"
+                    />
+                  ))}
+                  {serviceVersions.length > 6 && (
+                    <Link
+                      to={`/services/${name}/versions?type=provider`}
+                      className="text-xs text-primary hover:underline text-center col-span-full"
+                    >
+                      +{serviceVersions.length - 6} more
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-base-content/70">
+                  <div className="text-sm">No versions found</div>
+                </div>
+              )}
+            </div>
+          </div>
+
 
           {/* Draft Fixtures */}
           <div className="card bg-base-100 shadow-xl">
@@ -424,8 +483,15 @@ function ProviderDetail() {
                       <div className="flex justify-between items-start mb-1">
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">{fixture.operation}</div>
-                          <div className="text-xs text-base-content/70">
-                            {fixture.service} • v{fixture.serviceVersion || 'latest'}
+                          <div className="text-xs text-base-content/70 flex items-center gap-1">
+                            <span>{fixture.service}</span>
+                            <span>•</span>
+                            <VersionBadge
+                              version={fixture.serviceVersion || 'latest'}
+                              serviceName={fixture.service}
+                              serviceType="provider"
+
+                            />
                           </div>
                         </div>
                         <div

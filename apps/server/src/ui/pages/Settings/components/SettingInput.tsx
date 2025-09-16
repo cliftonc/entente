@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 interface SettingInputProps {
   label: string
@@ -25,7 +25,7 @@ function SettingInput({
   min,
   max,
   suffix,
-  placeholder
+  placeholder,
 }: SettingInputProps) {
   const [localValue, setLocalValue] = useState(String(value))
 
@@ -60,18 +60,12 @@ function SettingInput({
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex-1">
-        <label className="text-base font-medium text-base-content">
-          {label}
-        </label>
-        <p className="text-sm text-base-content/60 mt-1">
-          {description}
-        </p>
+        <label className="text-base font-medium text-base-content">{label}</label>
+        <p className="text-sm text-base-content/60 mt-1">{description}</p>
       </div>
 
       <div className="flex items-center gap-2 min-w-0">
-        {loading && (
-          <div className="loading loading-spinner loading-sm"></div>
-        )}
+        {loading && <div className="loading loading-spinner loading-sm"></div>}
 
         <div className="flex items-center gap-2">
           <input
@@ -85,9 +79,7 @@ function SettingInput({
             max={max}
             placeholder={placeholder}
           />
-          {suffix && (
-            <span className="text-sm text-base-content/60">{suffix}</span>
-          )}
+          {suffix && <span className="text-sm text-base-content/60">{suffix}</span>}
         </div>
       </div>
     </div>

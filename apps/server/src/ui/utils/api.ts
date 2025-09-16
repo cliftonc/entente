@@ -14,6 +14,7 @@ import type {
   RevokeKeyRequest,
   Service,
   ServiceDependency,
+  ServiceVersion,
   VerificationResults,
   VerificationTask,
 } from '@entente/types'
@@ -365,7 +366,10 @@ export const api = {
 // GitHub integration API functions
 export const githubApi = {
   // Get GitHub configuration for a service
-  getServiceConfig: (serviceName: string, serviceType: 'consumer' | 'provider'): Promise<GitHubServiceConfig> =>
+  getServiceConfig: (
+    serviceName: string,
+    serviceType: 'consumer' | 'provider'
+  ): Promise<GitHubServiceConfig> =>
     fetchApi(`/services/${serviceName}/${serviceType}/github/config`),
 
   // Update GitHub configuration for a service
@@ -377,11 +381,17 @@ export const githubApi = {
     api.put(`/services/${serviceName}/${serviceType}/github/config`, config),
 
   // Clear GitHub configuration for a service
-  clearServiceConfig: (serviceName: string, serviceType: 'consumer' | 'provider'): Promise<{ message: string }> =>
+  clearServiceConfig: (
+    serviceName: string,
+    serviceType: 'consumer' | 'provider'
+  ): Promise<{ message: string }> =>
     api.delete(`/services/${serviceName}/${serviceType}/github/config`),
 
   // Get available workflows for a service's GitHub repository
-  getWorkflows: (serviceName: string, serviceType: 'consumer' | 'provider'): Promise<GitHubWorkflow[]> =>
+  getWorkflows: (
+    serviceName: string,
+    serviceType: 'consumer' | 'provider'
+  ): Promise<GitHubWorkflow[]> =>
     fetchApi(`/services/${serviceName}/${serviceType}/github/workflows`),
 
   // Trigger verification workflow for a service
@@ -391,4 +401,13 @@ export const githubApi = {
     request: GitHubTriggerWorkflowRequest
   ): Promise<{ message: string }> =>
     api.post(`/services/${serviceName}/${serviceType}/github/trigger-workflow`, request),
+}
+
+// Service Version API functions
+export const serviceVersionApi = {
+  getByService: (serviceName: string): Promise<ServiceVersion[]> =>
+    fetchApi<ServiceVersion[]>(`/services/${serviceName}/versions`),
+
+  getById: (serviceVersionId: string): Promise<ServiceVersion> =>
+    fetchApi<ServiceVersion>(`/service-versions/${serviceVersionId}`),
 }

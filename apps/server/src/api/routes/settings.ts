@@ -1,20 +1,18 @@
 import type {
-  TeamMember,
-  TenantSettings,
-  TeamInvitation,
-  InviteTeamMemberRequest,
-  UpdateTeamMemberRoleRequest,
-  TenantSettingsUpdate,
   GitHubAppInstallation,
   GitHubAppInstallationUpdate,
+  InviteTeamMemberRequest,
+  TeamInvitation,
+  TeamMember,
+  TenantSettings,
+  TenantSettingsUpdate,
+  UpdateTeamMemberRoleRequest,
 } from '@entente/types'
 import { zValidator } from '@hono/zod-validator'
 import { and, eq, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env } from '..'
-import { getEnv } from '../middleware/env'
-import { sendEmail, createInvitationEmailTemplate } from '../services/email'
 import {
   githubAppInstallations,
   teamInvitations,
@@ -23,6 +21,8 @@ import {
   tenants,
   users,
 } from '../../db/schema'
+import { getEnv } from '../middleware/env'
+import { createInvitationEmailTemplate, sendEmail } from '../services/email'
 
 const settings = new Hono<Env>()
 
@@ -211,12 +211,7 @@ settings.get('/team', async c => {
       status: sql<'pending'>`'pending'`,
     })
     .from(teamInvitations)
-    .where(
-      and(
-        eq(teamInvitations.tenantId, tenantId),
-        eq(teamInvitations.status, 'pending')
-      )
-    )
+    .where(and(eq(teamInvitations.tenantId, tenantId), eq(teamInvitations.status, 'pending')))
 
   const allMembers: TeamMember[] = [
     ...members.map(member => ({
@@ -306,11 +301,7 @@ settings.post('/team/invite', zValidator('json', inviteSchema), async c => {
     const tenantName = tenant[0]?.name || 'the team'
     const inviterName = user.name || user.username
 
-    const emailTemplate = createInvitationEmailTemplate(
-      tenantName,
-      inviterName,
-      inviteUrl
-    )
+    const emailTemplate = createInvitationEmailTemplate(tenantName, inviterName, inviteUrl)
 
     await sendEmail(
       env,
@@ -378,11 +369,7 @@ settings.post('/team/resend/:email', async c => {
     const tenantName = tenant[0]?.name || 'the team'
     const inviterName = user.name || user.username
 
-    const emailTemplate = createInvitationEmailTemplate(
-      tenantName,
-      inviterName,
-      inviteUrl
-    )
+    const emailTemplate = createInvitationEmailTemplate(tenantName, inviterName, inviteUrl)
 
     await sendEmail(
       env,
@@ -403,45 +390,37 @@ const updateRoleSchema = z.object({
   role: z.enum(['admin', 'member']),
 })
 
-settings.patch(
-  '/team/:userId/role',
-  zValidator('json', updateRoleSchema),
-  async c => {
-    const { tenantId } = c.get('session')
-    const { user } = c.get('auth')
-    const db = c.get('db')
-    const userId = c.req.param('userId')
-    const { role } = c.req.valid('json') as UpdateTeamMemberRoleRequest
+settings.patch('/team/:userId/role', zValidator('json', updateRoleSchema), async c => {
+  const { tenantId } = c.get('session')
+  const { user } = c.get('auth')
+  const db = c.get('db')
+  const userId = c.req.param('userId')
+  const { role } = c.req.valid('json') as UpdateTeamMemberRoleRequest
 
-    // Check if user is member of tenant
-    const member = await db
-      .select()
-      .from(tenantUsers)
-      .where(
-        and(eq(tenantUsers.userId, userId), eq(tenantUsers.tenantId, tenantId))
-      )
-      .limit(1)
+  // Check if user is member of tenant
+  const member = await db
+    .select()
+    .from(tenantUsers)
+    .where(and(eq(tenantUsers.userId, userId), eq(tenantUsers.tenantId, tenantId)))
+    .limit(1)
 
-    if (member.length === 0) {
-      return c.json({ error: 'User is not a member of this tenant' }, 404)
-    }
-
-    // Cannot change owner role
-    if (member[0].role === 'owner') {
-      return c.json({ error: 'Cannot change owner role' }, 400)
-    }
-
-    // Update role
-    await db
-      .update(tenantUsers)
-      .set({ role })
-      .where(
-        and(eq(tenantUsers.userId, userId), eq(tenantUsers.tenantId, tenantId))
-      )
-
-    return c.json({ success: true })
+  if (member.length === 0) {
+    return c.json({ error: 'User is not a member of this tenant' }, 404)
   }
-)
+
+  // Cannot change owner role
+  if (member[0].role === 'owner') {
+    return c.json({ error: 'Cannot change owner role' }, 400)
+  }
+
+  // Update role
+  await db
+    .update(tenantUsers)
+    .set({ role })
+    .where(and(eq(tenantUsers.userId, userId), eq(tenantUsers.tenantId, tenantId)))
+
+  return c.json({ success: true })
+})
 
 // Remove team member
 settings.delete('/team/:userIdentifier', async c => {
@@ -488,9 +467,7 @@ settings.delete('/team/:userIdentifier', async c => {
     const member = await db
       .select()
       .from(tenantUsers)
-      .where(
-        and(eq(tenantUsers.userId, userIdentifier), eq(tenantUsers.tenantId, tenantId))
-      )
+      .where(and(eq(tenantUsers.userId, userIdentifier), eq(tenantUsers.tenantId, tenantId)))
       .limit(1)
 
     if (member.length === 0) {
@@ -505,9 +482,7 @@ settings.delete('/team/:userIdentifier', async c => {
     // Remove from tenant
     await db
       .delete(tenantUsers)
-      .where(
-        and(eq(tenantUsers.userId, userIdentifier), eq(tenantUsers.tenantId, tenantId))
-      )
+      .where(and(eq(tenantUsers.userId, userIdentifier), eq(tenantUsers.tenantId, tenantId)))
 
     return c.json({ success: true })
   }
@@ -575,7 +550,7 @@ settings.get('/github/manage-url', async c => {
   return c.json({
     manageUrl,
     installationId,
-    accountLogin: installation[0].accountLogin
+    accountLogin: installation[0].accountLogin,
   })
 })
 
@@ -594,54 +569,48 @@ const updateGitHubSchema = z.object({
     .optional(),
 })
 
-settings.patch(
-  '/github',
-  zValidator('json', updateGitHubSchema),
-  async c => {
-    const { tenantId } = c.get('session')
-    const db = c.get('db')
-    const updates = c.req.valid('json') as GitHubAppInstallationUpdate
+settings.patch('/github', zValidator('json', updateGitHubSchema), async c => {
+  const { tenantId } = c.get('session')
+  const db = c.get('db')
+  const updates = c.req.valid('json') as GitHubAppInstallationUpdate
 
-    const updated = await db
-      .update(githubAppInstallations)
-      .set({
-        ...updates,
-        updatedAt: new Date(),
-      })
-      .where(eq(githubAppInstallations.tenantId, tenantId))
-      .returning()
+  const updated = await db
+    .update(githubAppInstallations)
+    .set({
+      ...updates,
+      updatedAt: new Date(),
+    })
+    .where(eq(githubAppInstallations.tenantId, tenantId))
+    .returning()
 
-    if (updated.length === 0) {
-      return c.json({ error: 'GitHub app installation not found' }, 404)
-    }
-
-    const result: GitHubAppInstallation = {
-      id: updated[0].id,
-      tenantId: updated[0].tenantId,
-      installationId: updated[0].installationId,
-      accountType: updated[0].accountType as 'user' | 'organization',
-      accountLogin: updated[0].accountLogin,
-      targetType: updated[0].targetType as 'User' | 'Organization',
-      permissions: updated[0].permissions,
-      repositorySelection: updated[0].repositorySelection as 'all' | 'selected',
-      selectedRepositories: updated[0].selectedRepositories || [],
-      suspendedAt: updated[0].suspendedAt || undefined,
-      installedAt: updated[0].installedAt,
-      updatedAt: updated[0].updatedAt,
-    }
-
-    return c.json(result)
+  if (updated.length === 0) {
+    return c.json({ error: 'GitHub app installation not found' }, 404)
   }
-)
+
+  const result: GitHubAppInstallation = {
+    id: updated[0].id,
+    tenantId: updated[0].tenantId,
+    installationId: updated[0].installationId,
+    accountType: updated[0].accountType as 'user' | 'organization',
+    accountLogin: updated[0].accountLogin,
+    targetType: updated[0].targetType as 'User' | 'Organization',
+    permissions: updated[0].permissions,
+    repositorySelection: updated[0].repositorySelection as 'all' | 'selected',
+    selectedRepositories: updated[0].selectedRepositories || [],
+    suspendedAt: updated[0].suspendedAt || undefined,
+    installedAt: updated[0].installedAt,
+    updatedAt: updated[0].updatedAt,
+  }
+
+  return c.json(result)
+})
 
 // Delete GitHub app installation
 settings.delete('/github', async c => {
   const { tenantId } = c.get('session')
   const db = c.get('db')
 
-  await db
-    .delete(githubAppInstallations)
-    .where(eq(githubAppInstallations.tenantId, tenantId))
+  await db.delete(githubAppInstallations).where(eq(githubAppInstallations.tenantId, tenantId))
 
   return c.json({ success: true })
 })

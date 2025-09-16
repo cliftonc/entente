@@ -8,6 +8,7 @@ import { Hono } from 'hono'
 
 import { and, count, desc, eq, gte, ne } from 'drizzle-orm'
 import { deployments, services } from '../../db/schema'
+import { findServiceVersion } from '../utils/service-versions'
 
 export const deploymentsRouter = new Hono()
 
@@ -35,6 +36,20 @@ deploymentsRouter.post('/consumer', async c => {
     return c.json({ error: 'Consumer service not found. Register the consumer first.' }, 404)
   }
 
+  // Validate that service version exists
+  const serviceVersion = await findServiceVersion(
+    db,
+    tenantId,
+    consumerDeployment.name,
+    consumerDeployment.version
+  )
+
+  if (!serviceVersion) {
+    return c.json({
+      error: `Service version not found: ${consumerDeployment.name}@${consumerDeployment.version}. Please register this version first through service registration or interaction recording.`
+    }, 404)
+  }
+
   // Create deployment record
   const [deployment] = await db
     .insert(deployments)
@@ -44,6 +59,7 @@ deploymentsRouter.post('/consumer', async c => {
       serviceId: consumer.id,
       service: consumerDeployment.name, // Backward compatibility
       version: consumerDeployment.version,
+      serviceVersionId: serviceVersion.id, // Link to service version
       gitSha: consumerDeployment.gitSha,
       environment: consumerDeployment.environment,
       deployedAt: new Date(),
@@ -110,6 +126,20 @@ deploymentsRouter.post('/provider', async c => {
     return c.json({ error: 'Provider service not found. Register the provider first.' }, 404)
   }
 
+  // Validate that service version exists
+  const serviceVersion = await findServiceVersion(
+    db,
+    tenantId,
+    providerDeployment.name,
+    providerDeployment.version
+  )
+
+  if (!serviceVersion) {
+    return c.json({
+      error: `Service version not found: ${providerDeployment.name}@${providerDeployment.version}. Please register this version first through service registration or spec upload.`
+    }, 404)
+  }
+
   // Create deployment record
   const [deployment] = await db
     .insert(deployments)
@@ -119,6 +149,7 @@ deploymentsRouter.post('/provider', async c => {
       serviceId: provider.id,
       service: providerDeployment.name, // Backward compatibility
       version: providerDeployment.version,
+      serviceVersionId: serviceVersion.id, // Link to service version
       gitSha: providerDeployment.gitSha,
       environment: providerDeployment.environment,
       deployedAt: new Date(),

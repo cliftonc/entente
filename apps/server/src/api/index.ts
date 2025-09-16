@@ -17,6 +17,7 @@ import { databaseMiddleware } from './middleware/database.js'
 import { envMiddleware } from './middleware/env.js'
 import { performanceMiddleware } from './middleware/performance.js'
 
+import { getEnv } from './middleware/env.js'
 import { authRouter } from './routes/auth.js'
 import { contractsRouter } from './routes/contracts.js'
 import { dependenciesRouter } from './routes/dependencies.js'
@@ -25,12 +26,12 @@ import { fixturesRouter } from './routes/fixtures.js'
 import { githubRoutes } from './routes/github.js'
 import { interactionsRouter } from './routes/interactions.js'
 import { keysRouter } from './routes/keys.js'
+import { serviceVersionsRouter } from './routes/service-versions.js'
 import { servicesRouter } from './routes/services.js'
 import settingsRouter from './routes/settings.js'
 import { specsRouter } from './routes/specs.js'
 import { statsRouter } from './routes/stats.js'
 import { verificationRouter } from './routes/verification.js'
-import { getEnv } from './middleware/env.js'
 
 const app = new Hono()
 
@@ -72,6 +73,7 @@ app.use('/api/fixtures/*', authMiddleware)
 app.use('/api/deployments/*', authMiddleware)
 app.use('/api/verification/*', authMiddleware)
 app.use('/api/services/*', authMiddleware)
+app.use('/api/service-versions/*', authMiddleware)
 app.use('/api/dependencies/*', authMiddleware)
 app.use('/api/stats/*', authMiddleware)
 app.use('/api/settings/*', authMiddleware)
@@ -85,6 +87,7 @@ app.route('/api/fixtures', fixturesRouter)
 app.route('/api/deployments', deploymentsRouter)
 app.route('/api/verification', verificationRouter)
 app.route('/api/services', servicesRouter)
+app.route('/api/service-versions', serviceVersionsRouter)
 app.route('/api/dependencies', dependenciesRouter)
 app.route('/api/stats', statsRouter)
 app.route('/api/settings', settingsRouter)
@@ -462,13 +465,16 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
     if (!canDeploy) {
       try {
         // Find the service to get serviceId
-        const primaryService = serviceRecords.find(s => s.type === (type || (isConsumer ? 'consumer' : 'provider'))) || serviceRecords[0]
+        const primaryService =
+          serviceRecords.find(s => s.type === (type || (isConsumer ? 'consumer' : 'provider'))) ||
+          serviceRecords[0]
 
         const canIDeployResult = {
           canDeploy,
           compatibleServices,
           message,
-          serviceType: isConsumer && isProvider ? 'consumer/provider' : isConsumer ? 'consumer' : 'provider',
+          serviceType:
+            isConsumer && isProvider ? 'consumer/provider' : isConsumer ? 'consumer' : 'provider',
           errorMessages,
           allVerified,
         }
@@ -501,7 +507,7 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
           .update(deployments)
           .set({
             status: 'resolved',
-            failureReason: `Resolved: ${message}` // Update reason to show resolution
+            failureReason: `Resolved: ${message}`, // Update reason to show resolution
           })
           .where(
             and(
@@ -514,7 +520,9 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
           .returning({ id: deployments.id })
 
         if (resolvedCount.length > 0) {
-          console.log(`✅ Marked ${resolvedCount.length} failed deployment attempts as resolved for ${service}@${version}`)
+          console.log(
+            `✅ Marked ${resolvedCount.length} failed deployment attempts as resolved for ${service}@${version}`
+          )
         }
       } catch (resolveError) {
         console.error('Failed to resolve deployment attempts:', resolveError)

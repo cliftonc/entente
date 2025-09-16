@@ -1,15 +1,20 @@
-import { generateFixtureHash, validateFixtureData } from '@entente/fixtures'
+import { generateFixtureHash, normalizeFixtures, validateFixtureData } from '@entente/fixtures'
 import type {
+  BatchFixtureResult,
+  BatchFixtureUpload,
   Fixture,
   FixtureCreation,
   FixtureData,
   FixtureProposal,
   FixtureUpdate,
+  NormalizedFixtures,
 } from '@entente/types'
 import { Hono } from 'hono'
 
-import { and, asc, desc, eq } from 'drizzle-orm'
-import { fixtures } from '../../db/schema'
+import { and, asc, desc, eq, sql } from 'drizzle-orm'
+import { fixtures, fixtureServiceVersions } from '../../db/schema'
+import { ensureServiceVersion } from '../utils/service-versions'
+import { addServiceVersionToFixture } from '../utils/fixture-service-versions'
 
 export const fixturesRouter = new Hono()
 
@@ -38,10 +43,40 @@ fixturesRouter.post('/', async c => {
   })
 
   if (existingFixture) {
+    // Add the service version to the fixture using the join table
+    await addServiceVersionToFixture(
+      db,
+      existingFixture.id,
+      tenantId,
+      proposal.service,
+      proposal.serviceVersion
+    )
+
+    // Get existing service versions array, handling null case for pre-migration fixtures
+    const existingVersions = (existingFixture.serviceVersions as string[]) || []
+
+    // Check if the current version is already in the array (for backward compatibility)
+    if (!existingVersions.includes(proposal.serviceVersion)) {
+      // Add the new version to the array for backward compatibility
+      const updatedVersions = [...existingVersions, proposal.serviceVersion]
+
+      // Update the fixture with the new version added (keeping backward compatibility)
+      await db
+        .update(fixtures)
+        .set({
+          serviceVersions: updatedVersions,
+          serviceVersion: proposal.serviceVersion, // Update latest version for backward compatibility
+        })
+        .where(eq(fixtures.id, existingFixture.id))
+    }
+
     const fixture: Fixture = {
       id: existingFixture.id,
       service: existingFixture.service,
-      serviceVersion: existingFixture.serviceVersion,
+      serviceVersion: proposal.serviceVersion, // Use the current proposal version
+      serviceVersions: existingVersions.includes(proposal.serviceVersion)
+        ? existingVersions
+        : [...existingVersions, proposal.serviceVersion],
       operation: existingFixture.operation,
       status: existingFixture.status as 'draft' | 'approved' | 'rejected',
       source: existingFixture.source as 'consumer' | 'provider' | 'manual',
@@ -65,6 +100,7 @@ fixturesRouter.post('/', async c => {
         tenantId,
         service: proposal.service,
         serviceVersion: proposal.serviceVersion,
+        serviceVersions: [proposal.serviceVersion], // Initialize with current version for backward compatibility
         operation: proposal.operation,
         hash,
         status: 'draft',
@@ -79,10 +115,20 @@ fixturesRouter.post('/', async c => {
       })
       .returning()
 
+    // Add the service version relationship using the join table
+    await addServiceVersionToFixture(
+      db,
+      newFixture.id,
+      tenantId,
+      proposal.service,
+      proposal.serviceVersion
+    )
+
     const fixture: Fixture = {
       id: newFixture.id,
       service: newFixture.service,
       serviceVersion: newFixture.serviceVersion,
+      serviceVersions: newFixture.serviceVersions as string[],
       operation: newFixture.operation,
       status: newFixture.status as 'draft' | 'approved' | 'rejected',
       source: newFixture.source as 'consumer' | 'provider' | 'manual',
@@ -112,16 +158,47 @@ fixturesRouter.post('/', async c => {
       })
 
       if (existingFixture) {
+        // Add the service version to the fixture using the join table
+        await addServiceVersionToFixture(
+          db,
+          existingFixture.id,
+          tenantId,
+          proposal.service,
+          proposal.serviceVersion
+        )
+
+        // Get existing service versions array, handling null case for pre-migration fixtures
+        const existingVersions = (existingFixture.serviceVersions as string[]) || []
+
+        // Check if the current version is already in the array (for backward compatibility)
+        if (!existingVersions.includes(proposal.serviceVersion)) {
+          // Add the new version to the array for backward compatibility
+          const updatedVersions = [...existingVersions, proposal.serviceVersion]
+
+          // Update the fixture with the new version added (keeping backward compatibility)
+          await db
+            .update(fixtures)
+            .set({
+              serviceVersions: updatedVersions,
+              serviceVersion: proposal.serviceVersion, // Update latest version for backward compatibility
+            })
+            .where(eq(fixtures.id, existingFixture.id))
+        }
+
         const fixture: Fixture = {
           id: existingFixture.id,
           service: existingFixture.service,
-          serviceVersion: existingFixture.serviceVersion,
+          serviceVersion: proposal.serviceVersion, // Use the current proposal version
+          serviceVersions: existingVersions.includes(proposal.serviceVersion)
+            ? existingVersions
+            : [...existingVersions, proposal.serviceVersion],
           operation: existingFixture.operation,
           status: existingFixture.status as 'draft' | 'approved' | 'rejected',
           source: existingFixture.source as 'consumer' | 'provider' | 'manual',
           priority: existingFixture.priority,
           data: existingFixture.data as FixtureData,
           createdFrom: existingFixture.createdFrom as FixtureCreation,
+          createdAt: existingFixture.createdAt,
           approvedBy: existingFixture.approvedBy || undefined,
           approvedAt: existingFixture.approvedAt || undefined,
           notes: existingFixture.notes || undefined,
@@ -167,6 +244,7 @@ fixturesRouter.get('/', async c => {
     id: f.id,
     service: f.service,
     serviceVersion: f.serviceVersion,
+    serviceVersions: f.serviceVersions as string[],
     operation: f.operation,
     status: f.status as 'draft' | 'approved' | 'rejected',
     source: f.source as 'consumer' | 'provider' | 'manual',
@@ -207,6 +285,7 @@ fixturesRouter.get('/pending', async c => {
     id: f.id,
     service: f.service,
     serviceVersion: f.serviceVersion,
+    serviceVersions: f.serviceVersions as string[],
     operation: f.operation,
     status: f.status as 'draft' | 'approved' | 'rejected',
     source: f.source as 'consumer' | 'provider' | 'manual',
@@ -237,7 +316,21 @@ fixturesRouter.get('/service/:service', async c => {
     eq(fixtures.status, status as 'draft' | 'approved' | 'rejected'),
   ]
 
-  if (version) whereConditions.push(eq(fixtures.serviceVersion, version))
+  if (version) {
+    // Use the join table to find fixtures for this version
+    // First find the service version ID, then join with fixture_service_versions
+    whereConditions.push(
+      sql`EXISTS (
+        SELECT 1 FROM fixture_service_versions fsv
+        JOIN service_versions sv ON fsv.service_version_id = sv.id
+        JOIN services s ON sv.service_id = s.id
+        WHERE fsv.fixture_id = ${fixtures.id}
+        AND s.name = ${service}
+        AND sv.version = ${version}
+        AND sv.tenant_id = ${tenantId}
+      )`
+    )
+  }
 
   const dbFixtures = await db.query.fixtures.findMany({
     where: and(...whereConditions),
@@ -248,6 +341,7 @@ fixturesRouter.get('/service/:service', async c => {
     id: f.id,
     service: f.service,
     serviceVersion: f.serviceVersion,
+    serviceVersions: f.serviceVersions as string[],
     operation: f.operation,
     status: f.status as 'draft' | 'approved' | 'rejected',
     source: f.source as 'consumer' | 'provider' | 'manual',
@@ -282,6 +376,7 @@ fixturesRouter.get('/by-id/:id', async c => {
     id: dbFixture.id,
     service: dbFixture.service,
     serviceVersion: dbFixture.serviceVersion,
+    serviceVersions: dbFixture.serviceVersions as string[],
     operation: dbFixture.operation,
     status: dbFixture.status as 'draft' | 'approved' | 'rejected',
     source: dbFixture.source as 'consumer' | 'provider' | 'manual',
@@ -316,7 +411,15 @@ fixturesRouter.get('/:operation', async c => {
       eq(fixtures.tenantId, tenantId),
       eq(fixtures.operation, operation),
       eq(fixtures.service, service),
-      eq(fixtures.serviceVersion, version),
+      sql`EXISTS (
+        SELECT 1 FROM fixture_service_versions fsv
+        JOIN service_versions sv ON fsv.service_version_id = sv.id
+        JOIN services s ON sv.service_id = s.id
+        WHERE fsv.fixture_id = ${fixtures.id}
+        AND s.name = ${service}
+        AND sv.version = ${version}
+        AND sv.tenant_id = ${tenantId}
+      )`,
       eq(fixtures.status, status as 'draft' | 'approved' | 'rejected')
     ),
     orderBy: [desc(fixtures.priority), desc(fixtures.createdAt)],
@@ -326,6 +429,7 @@ fixturesRouter.get('/:operation', async c => {
     id: f.id,
     service: f.service,
     serviceVersion: f.serviceVersion,
+    serviceVersions: f.serviceVersions as string[],
     operation: f.operation,
     status: f.status as 'draft' | 'approved' | 'rejected',
     source: f.source as 'consumer' | 'provider' | 'manual',
@@ -557,4 +661,214 @@ fixturesRouter.delete('/:id', async c => {
   }
 
   return c.json({ status: 'deleted' })
+})
+
+// Get normalized fixtures for provider testing
+fixturesRouter.get('/normalized/:service/:version', async c => {
+  const service = c.req.param('service')
+  const version = c.req.param('version')
+
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+
+  // Get all approved fixtures for this service and version
+  const dbFixtures = await db.query.fixtures.findMany({
+    where: and(
+      eq(fixtures.tenantId, tenantId),
+      eq(fixtures.service, service),
+      sql`EXISTS (
+        SELECT 1 FROM fixture_service_versions fsv
+        JOIN service_versions sv ON fsv.service_version_id = sv.id
+        JOIN services s ON sv.service_id = s.id
+        WHERE fsv.fixture_id = ${fixtures.id}
+        AND s.name = ${service}
+        AND sv.version = ${version}
+        AND sv.tenant_id = ${tenantId}
+      )`,
+      eq(fixtures.status, 'approved')
+    ),
+    orderBy: [desc(fixtures.priority), desc(fixtures.createdAt)],
+  })
+
+  const fixturesList: Fixture[] = dbFixtures.map(f => ({
+    id: f.id,
+    service: f.service,
+    serviceVersion: f.serviceVersion,
+    serviceVersions: f.serviceVersions as string[],
+    operation: f.operation,
+    status: f.status as 'draft' | 'approved' | 'rejected',
+    source: f.source as 'consumer' | 'provider' | 'manual',
+    priority: f.priority,
+    data: f.data as FixtureData,
+    createdFrom: f.createdFrom as FixtureCreation,
+    createdAt: f.createdAt,
+    approvedBy: f.approvedBy || undefined,
+    approvedAt: f.approvedAt || undefined,
+    notes: f.notes || undefined,
+  }))
+
+  // Normalize fixtures into entities
+  const normalizedFixtures = normalizeFixtures(fixturesList, service, version)
+
+  return c.json(normalizedFixtures)
+})
+
+// Batch upload fixtures
+fixturesRouter.post('/batch', async c => {
+  const { fixtures: fixtureProposals }: BatchFixtureUpload = await c.req.json()
+
+  if (!Array.isArray(fixtureProposals) || fixtureProposals.length === 0) {
+    return c.json({ error: 'Fixtures array is required and must not be empty' }, 400)
+  }
+
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+
+  const results: BatchFixtureResult['results'] = []
+  let created = 0
+  let duplicates = 0
+  let errors = 0
+
+  for (const proposal of fixtureProposals) {
+    try {
+      // Validate fixture data
+      if (!validateFixtureData(proposal.data)) {
+        results.push({
+          status: 'error',
+          error: 'Invalid fixture data'
+        })
+        errors++
+        continue
+      }
+
+      if (!proposal.service || !proposal.operation) {
+        results.push({
+          status: 'error',
+          error: 'Missing required fields'
+        })
+        errors++
+        continue
+      }
+
+      // Generate hash for deduplication
+      const hash = await generateFixtureHash(proposal.operation, proposal.data)
+
+      // Check if fixture already exists
+      const existing = await db.query.fixtures.findFirst({
+        where: and(
+          eq(fixtures.tenantId, tenantId),
+          eq(fixtures.hash, hash),
+          eq(fixtures.service, proposal.service),
+          eq(fixtures.serviceVersion, proposal.serviceVersion),
+          eq(fixtures.operation, proposal.operation)
+        ),
+      })
+
+      if (existing) {
+        results.push({
+          fixtureId: existing.id,
+          status: 'duplicate'
+        })
+        duplicates++
+        continue
+      }
+
+      // Create fixture
+      const [newFixture] = await db
+        .insert(fixtures)
+        .values({
+          tenantId,
+          service: proposal.service,
+          serviceVersion: proposal.serviceVersion,
+          operation: proposal.operation,
+          source: proposal.source,
+          status: 'draft',
+          priority: proposal.priority || 1,
+          data: proposal.data,
+          createdFrom: proposal.createdFrom,
+          hash,
+          notes: proposal.notes || `Batch uploaded fixture for ${proposal.service}@${proposal.serviceVersion}`,
+        })
+        .returning()
+
+      // Add service version association
+      await addServiceVersionToFixture(db, newFixture.id, tenantId, proposal.service, proposal.serviceVersion)
+
+      results.push({
+        fixtureId: newFixture.id,
+        status: 'created'
+      })
+      created++
+
+      console.log(`📋 Batch created fixture ${newFixture.id} for ${proposal.service}@${proposal.serviceVersion}:${proposal.operation}`)
+
+    } catch (error) {
+      console.error('Error creating fixture:', error)
+      results.push({
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+      errors++
+    }
+  }
+
+  const result: BatchFixtureResult = {
+    total: fixtureProposals.length,
+    created,
+    duplicates,
+    errors,
+    results
+  }
+
+  console.log(`✅ Batch fixture upload completed: ${created} created, ${duplicates} duplicates, ${errors} errors`)
+
+  return c.json(result)
+})
+
+// Repair existing fixtures - add missing service version relationships
+fixturesRouter.post('/repair-service-versions', async c => {
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+
+  // Get all fixtures that don't have service version relationships
+  const fixturesWithoutRelations = await db.query.fixtures.findMany({
+    where: eq(fixtures.tenantId, tenantId)
+  })
+
+  let repaired = 0
+  let errors = 0
+
+  for (const fixture of fixturesWithoutRelations) {
+    try {
+      // Check if relationship already exists
+      const existingRelation = await db.query.fixtureServiceVersions.findFirst({
+        where: eq(fixtureServiceVersions.fixtureId, fixture.id)
+      })
+
+      if (!existingRelation) {
+        // Add the service version relationship
+        await addServiceVersionToFixture(
+          db,
+          fixture.id,
+          tenantId,
+          fixture.service,
+          fixture.serviceVersion
+        )
+        repaired++
+        console.log(`✅ Repaired fixture ${fixture.id} for ${fixture.service}@${fixture.serviceVersion}`)
+      }
+    } catch (error) {
+      console.error(`❌ Failed to repair fixture ${fixture.id}:`, error)
+      errors++
+    }
+  }
+
+  console.log(`🔧 Repair completed: ${repaired} fixtures repaired, ${errors} errors`)
+
+  return c.json({
+    message: `Repaired ${repaired} fixtures with ${errors} errors`,
+    repaired,
+    errors,
+    total: fixturesWithoutRelations.length
+  })
 })

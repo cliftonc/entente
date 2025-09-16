@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom'
 
 function TopNavBar() {
@@ -24,7 +23,10 @@ function TopNavBar() {
         </label>
 
         {/* Mobile logo - only visible when sidebar is collapsed */}
-        <Link to="/" className="flex items-center gap-1 ml-4 lg:hidden hover:bg-base-200 p-2 rounded transition-colors">
+        <Link
+          to="/"
+          className="flex items-center gap-1 ml-4 lg:hidden hover:bg-base-200 p-2 rounded transition-colors"
+        >
           <div className="avatar">
             <div className="w-8 rounded bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white">
               <div className="flex items-center justify-center w-full h-full">
@@ -35,7 +37,6 @@ function TopNavBar() {
           <span className="text-xl font-bold">ntente</span>
         </Link>
       </div>
-
     </div>
   )
 }

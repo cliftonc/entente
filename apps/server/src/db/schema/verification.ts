@@ -3,6 +3,7 @@ import { jsonb, pgTable, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg
 import { contracts } from './contracts'
 import { serviceDependencies } from './service-dependencies'
 import { services } from './services'
+import { serviceVersions } from './service-versions'
 import { tenants } from './tenants'
 
 export const verificationTasks = pgTable(
@@ -22,9 +23,11 @@ export const verificationTasks = pgTable(
     dependencyId: uuid('dependency_id').references(() => serviceDependencies.id),
     provider: varchar('provider', { length: 255 }).notNull(), // Keep for backward compatibility
     providerVersion: varchar('provider_version', { length: 100 }).notNull(),
+    providerVersionId: uuid('provider_version_id').references(() => serviceVersions.id), // New FK to serviceVersions
     providerGitSha: varchar('provider_git_sha', { length: 40 }), // Git SHA for the provider
     consumer: varchar('consumer', { length: 255 }).notNull(), // Keep for backward compatibility
     consumerVersion: varchar('consumer_version', { length: 100 }).notNull(),
+    consumerVersionId: uuid('consumer_version_id').references(() => serviceVersions.id), // New FK to serviceVersions
     consumerGitSha: varchar('consumer_git_sha', { length: 40 }), // Git SHA for the consumer
     environment: varchar('environment', { length: 100 }).notNull(),
     interactions: jsonb('interactions').notNull(),
@@ -57,9 +60,11 @@ export const verificationResults = pgTable('verification_results', {
     .notNull(),
   provider: varchar('provider', { length: 255 }).notNull(),
   providerVersion: varchar('provider_version', { length: 100 }).notNull(),
+  providerVersionId: uuid('provider_version_id').references(() => serviceVersions.id), // New FK to serviceVersions
   providerGitSha: varchar('provider_git_sha', { length: 40 }), // Git SHA for the provider
   consumer: varchar('consumer', { length: 255 }), // Add new field
   consumerVersion: varchar('consumer_version', { length: 100 }), // Add new field
+  consumerVersionId: uuid('consumer_version_id').references(() => serviceVersions.id), // New FK to serviceVersions
   consumerGitSha: varchar('consumer_git_sha', { length: 40 }), // Git SHA for the consumer
   results: jsonb('results').notNull(),
   submittedAt: timestamp('submitted_at').defaultNow().notNull(),

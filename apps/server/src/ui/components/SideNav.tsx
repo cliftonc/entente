@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
-import { useDraftFixturesCount } from '../hooks/useQueries'
 import { useAuth } from '../hooks/useAuth'
+import { useDraftFixturesCount } from '../hooks/useQueries'
 import TenantSelector from './TenantSelector'
 
 interface NavItem {
@@ -68,7 +68,10 @@ function SideNav() {
     <aside className="min-h-full w-80 bg-base-100 text-base-content">
       {/* Brand */}
       <div className="flex items-center justify-between px-4 py-6">
-        <Link to="/" className="flex items-center gap-1 hover:bg-base-200 transition-colors rounded px-2 py-1">
+        <Link
+          to="/"
+          className="flex items-center gap-1 hover:bg-base-200 transition-colors rounded px-2 py-1"
+        >
           <div className="avatar">
             <div className="w-8 rounded bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white">
               <div className="flex items-center justify-center w-full h-full">
@@ -108,9 +111,10 @@ function SideNav() {
       {/* Navigation Menu */}
       <ul className="menu p-4 space-y-2">
         {navItems.map(item => {
-          const isActive = item.path === '/settings'
-            ? location.pathname.startsWith('/settings')
-            : location.pathname === item.path
+          const isActive =
+            item.path === '/settings'
+              ? location.pathname.startsWith('/settings')
+              : location.pathname === item.path
 
           return (
             <li key={item.path}>
@@ -165,7 +169,11 @@ function SideNav() {
                 <div className="text-sm font-medium truncate">{user.name}</div>
                 <div className="text-xs text-base-content/70 truncate">@{user.username}</div>
               </div>
-              <button onClick={handleLogout} className="btn btn-ghost btn-sm btn-circle text-error" title="Logout">
+              <button
+                onClick={handleLogout}
+                className="btn btn-ghost btn-sm btn-circle text-error"
+                title="Logout"
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
@@ -179,7 +187,6 @@ function SideNav() {
           </div>
         </div>
       )}
-
     </aside>
   )
 }

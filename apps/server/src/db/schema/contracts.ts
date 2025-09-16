@@ -2,6 +2,7 @@ import { relations } from 'drizzle-orm'
 import { integer, pgTable, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core'
 import { interactions } from './interactions'
 import { services } from './services'
+import { serviceVersions } from './service-versions'
 import { tenants } from './tenants'
 import { verificationTasks } from './verification'
 
@@ -18,6 +19,7 @@ export const contracts = pgTable(
       .notNull(),
     consumerName: varchar('consumer_name', { length: 255 }).notNull(), // Denormalized for performance
     consumerVersion: varchar('consumer_version', { length: 100 }).notNull(),
+    consumerVersionId: uuid('consumer_version_id').references(() => serviceVersions.id), // New FK to serviceVersions
     consumerGitSha: varchar('consumer_git_sha', { length: 40 }), // Git SHA for the consumer version
 
     // Provider information
@@ -26,6 +28,7 @@ export const contracts = pgTable(
       .notNull(),
     providerName: varchar('provider_name', { length: 255 }).notNull(), // Denormalized for performance
     providerVersion: varchar('provider_version', { length: 100 }).notNull(), // Provider deployment version
+    providerVersionId: uuid('provider_version_id').references(() => serviceVersions.id), // New FK to serviceVersions
 
     // Environment
     environment: varchar('environment', { length: 100 }).notNull(),

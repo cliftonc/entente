@@ -5,13 +5,14 @@ import ConsumerFilter from '../components/ConsumerFilter'
 import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
+import VersionBadge from '../components/VersionBadge'
 import { deploymentApi } from '../utils/api'
 
 // Modal component for failure details
 function FailureDetailsModal({
   deployment,
   isOpen,
-  onClose
+  onClose,
 }: {
   deployment: any
   isOpen: boolean
@@ -22,19 +23,28 @@ function FailureDetailsModal({
   return (
     <div className="modal modal-open">
       <div className="modal-box max-w-4xl">
-        <h3 className="font-bold text-lg text-error">
-          Blocked Deployment Details
-        </h3>
+        <h3 className="font-bold text-lg text-error">Blocked Deployment Details</h3>
 
         <div className="py-4 space-y-4">
           <div>
             <h4 className="font-semibold">Service Information</h4>
             <div className="bg-base-200 p-3 rounded">
-              <p><strong>Service:</strong> {deployment.service}</p>
-              <p><strong>Version:</strong> {deployment.version}</p>
-              <p><strong>Environment:</strong> {deployment.environment}</p>
-              <p><strong>Attempted by:</strong> {deployment.deployedBy}</p>
-              <p><strong>Attempted at:</strong> <TimestampDisplay timestamp={deployment.deployedAt} /></p>
+              <p>
+                <strong>Service:</strong> {deployment.service}
+              </p>
+              <p>
+                <strong>Version:</strong> {deployment.version}
+              </p>
+              <p>
+                <strong>Environment:</strong> {deployment.environment}
+              </p>
+              <p>
+                <strong>Attempted by:</strong> {deployment.deployedBy}
+              </p>
+              <p>
+                <strong>Attempted at:</strong>{' '}
+                <TimestampDisplay timestamp={deployment.deployedAt} />
+              </p>
             </div>
           </div>
 
@@ -117,10 +127,13 @@ function Deployments() {
       if (consumerFilter && deployment.consumer !== consumerFilter) return false
       if (statusFilter === 'active' && !deployment.active) return false
       if (statusFilter === 'inactive' && deployment.active) return false
-      if (statusFilter === 'active-or-blocked' && !(deployment.active || deployment.status === 'failed')) return false
+      if (
+        statusFilter === 'active-or-blocked' &&
+        !(deployment.active || deployment.status === 'failed')
+      )
+        return false
       return true
     }) || []
-
 
   // Use environment breakdown from summary or calculate from filtered deployments
   const deploymentsByEnv =
@@ -144,18 +157,22 @@ function Deployments() {
   const totalDeployments = Object.values(deploymentsByEnv).reduce((sum, count) => sum + count, 0)
 
   // Calculate blocked deployments by environment
-  const blockedDeploymentsByEnv = filteredDeployments?.reduce(
-    (acc, deployment) => {
-      if (deployment.status === 'failed') {
-        acc[deployment.environment] = (acc[deployment.environment] || 0) + 1
-      }
-      return acc
-    },
-    {} as Record<string, number>
-  ) || {}
+  const blockedDeploymentsByEnv =
+    filteredDeployments?.reduce(
+      (acc, deployment) => {
+        if (deployment.status === 'failed') {
+          acc[deployment.environment] = (acc[deployment.environment] || 0) + 1
+        }
+        return acc
+      },
+      {} as Record<string, number>
+    ) || {}
 
   // Calculate total blocked deployments
-  const totalBlockedDeployments = Object.values(blockedDeploymentsByEnv).reduce((sum, count) => sum + count, 0)
+  const totalBlockedDeployments = Object.values(blockedDeploymentsByEnv).reduce(
+    (sum, count) => sum + count,
+    0
+  )
 
   // Handle filter changes
   const handleProviderFilterChange = (provider: string) => {
@@ -404,7 +421,10 @@ function Deployments() {
                   </tr>
                 ) : (
                   filteredDeployments.map((deployment, index) => (
-                    <tr key={deployment.id || index} className={deployment.status === 'failed' ? 'bg-error/5' : ''}>
+                    <tr
+                      key={deployment.id || index}
+                      className={deployment.status === 'failed' ? 'bg-error/5' : ''}
+                    >
                       <td>
                         <Link
                           to={`/services/${deployment.serviceType}/${deployment.service}`}
@@ -414,7 +434,12 @@ function Deployments() {
                         </Link>
                       </td>
                       <td>
-                        <span className="badge badge-outline">v{deployment.version}</span>
+                        <VersionBadge
+                          version={deployment.version}
+                          serviceName={deployment.service}
+                          serviceType={deployment.type as 'consumer' | 'provider'}
+                          
+                        />
                       </td>
                       <td>
                         <GitShaLink
@@ -472,7 +497,9 @@ function Deployments() {
                           ) : (
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 rounded-full bg-info" />
-                              <span className="text-sm capitalize">{deployment.status || 'Unknown'}</span>
+                              <span className="text-sm capitalize">
+                                {deployment.status || 'Unknown'}
+                              </span>
                             </div>
                           )}
                         </div>

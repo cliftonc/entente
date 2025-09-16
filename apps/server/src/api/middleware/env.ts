@@ -38,7 +38,8 @@ export async function envMiddleware(c: Context<{ Bindings: Env }>, next: Next) {
     GITHUB_APP_NAME: c.env?.GITHUB_APP_NAME || process.env.GITHUB_APP_NAME,
     GITHUB_APP_ID: c.env?.GITHUB_APP_ID || process.env.GITHUB_APP_ID,
     GITHUB_APP_PRIVATE_KEY: c.env?.GITHUB_APP_PRIVATE_KEY || process.env.GITHUB_APP_PRIVATE_KEY,
-    GITHUB_APP_WEBHOOK_SECRET: c.env?.GITHUB_APP_WEBHOOK_SECRET || process.env.GITHUB_APP_WEBHOOK_SECRET,
+    GITHUB_APP_WEBHOOK_SECRET:
+      c.env?.GITHUB_APP_WEBHOOK_SECRET || process.env.GITHUB_APP_WEBHOOK_SECRET,
     APP_URL: c.env?.APP_URL || process.env.APP_URL,
     NODE_ENV: c.env?.NODE_ENV || process.env.NODE_ENV,
     RESEND_API_KEY: c.env?.RESEND_API_KEY || process.env.RESEND_API_KEY,

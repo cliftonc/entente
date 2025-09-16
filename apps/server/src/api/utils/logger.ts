@@ -14,7 +14,10 @@ export function debugLog(...args: unknown[]): void {
 }
 
 // Context-aware logging for when you have access to Hono context
-export function contextLog(env: Record<string, string | undefined> | undefined, ...args: unknown[]): void {
+export function contextLog(
+  env: Record<string, string | undefined> | undefined,
+  ...args: unknown[]
+): void {
   if (env?.DEBUG === 'true') {
     console.log(...args)
   }

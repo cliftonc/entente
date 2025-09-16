@@ -5,6 +5,7 @@ import ConsumerFilter from '../components/ConsumerFilter'
 import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
+import VersionBadge from '../components/VersionBadge'
 import { verificationApi } from '../utils/api'
 
 function Verification() {
@@ -19,7 +20,6 @@ function Verification() {
     if (provider) setProviderFilter(provider)
     if (consumer) setConsumerFilter(consumer)
   }, [searchParams])
-
 
   const {
     data: verificationResults,
@@ -242,7 +242,6 @@ function Verification() {
         </div>
       </div>
 
-
       {/* Pending Verifications Section */}
       {filteredPendingTasks.length > 0 && (
         <div className="card bg-base-100 shadow-xl">
@@ -267,56 +266,65 @@ function Verification() {
                 </thead>
                 <tbody>
                   {filteredPendingTasks.map((task, index) => (
-                      <tr key={task.id || index}>
-                        <td>
+                    <tr key={task.id || index}>
+                      <td>
+                        <Link
+                          to={`/services/provider/${task.provider}`}
+                          className="font-medium hover:underline text-primary"
+                        >
+                          {task.provider}
+                        </Link>
+                      </td>
+                      <td>
+                        <VersionBadge
+                          version={task.providerVersion}
+                          serviceName={task.provider}
+                          serviceType="provider"
+                          
+                        />
+                      </td>
+                      <td>
+                        <Link
+                          to={`/services/consumer/${task.consumer}`}
+                          className="font-medium hover:underline text-primary"
+                        >
+                          {task.consumer}
+                        </Link>
+                      </td>
+                      <td>
+                        <VersionBadge
+                          version={task.consumerVersion}
+                          serviceName={task.consumer}
+                          serviceType="consumer"
+                          
+                        />
+                      </td>
+                      <td>
+                        <span className="text-sm">
+                          {Array.isArray(task.interactions) ? task.interactions.length : 0}{' '}
+                          interactions
+                        </span>
+                      </td>
+                      <td>
+                        <span className="badge badge-warning">Pending</span>
+                      </td>
+                      <td>
+                        <TimestampDisplay timestamp={task.createdAt} />
+                      </td>
+                      <td>
+                        {task.contractId ? (
                           <Link
-                            to={`/services/provider/${task.provider}`}
-                            className="font-medium hover:underline text-primary"
+                            to={`/contracts/${task.contractId}`}
+                            className="btn btn-ghost btn-xs"
                           >
-                            {task.provider}
+                            View Contract
                           </Link>
-                        </td>
-                        <td>
-                          <span className="badge badge-outline">v{task.providerVersion}</span>
-                        </td>
-                        <td>
-                          <Link
-                            to={`/services/consumer/${task.consumer}`}
-                            className="font-medium hover:underline text-primary"
-                          >
-                            {task.consumer}
-                          </Link>
-                        </td>
-                        <td>
-                          <span className="badge badge-outline">v{task.consumerVersion}</span>
-                        </td>
-                        <td>
-                          <span className="text-sm">
-                            {Array.isArray(task.interactions) ? task.interactions.length : 0}{' '}
-                            interactions
-                          </span>
-                        </td>
-                        <td>
-                          <span className="badge badge-warning">Pending</span>
-                        </td>
-                        <td>
-                          <TimestampDisplay timestamp={task.createdAt} />
-                        </td>
-                        <td>
-                          {task.contractId ? (
-                            <Link
-                              to={`/contracts/${task.contractId}`}
-                              className="btn btn-ghost btn-xs"
-                            >
-                              View Contract
-                            </Link>
-                          ) : (
-                            <span className="text-base-content/50 text-xs">No contract</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  }
+                        ) : (
+                          <span className="text-base-content/50 text-xs">No contract</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -325,117 +333,124 @@ function Verification() {
       )}
 
       {/* Recent Verification Results */}
-        <div className="card bg-base-100 shadow-xl">
-          <div className="card-body">
-            <h2 className="card-title">Recent Verification Results</h2>
-            <div className="overflow-x-auto">
-              <table className="table table-zebra">
-                <thead>
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body">
+          <h2 className="card-title">Recent Verification Results</h2>
+          <div className="overflow-x-auto">
+            <table className="table table-zebra">
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Provider Version</th>
+                  <th>Consumer</th>
+                  <th>Consumer Version</th>
+                  <th>Results</th>
+                  <th>Status</th>
+                  <th>Last Run</th>
+                  <th>Actions</th>
+                  <th>Contract</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredResults.length === 0 ? (
                   <tr>
-                    <th>Provider</th>
-                    <th>Provider Version</th>
-                    <th>Consumer</th>
-                    <th>Consumer Version</th>
-                    <th>Results</th>
-                    <th>Status</th>
-                    <th>Last Run</th>
-                    <th>Actions</th>
-                    <th>Contract</th>
+                    <td colSpan={9} className="text-center text-base-content/70 py-8">
+                      {providerFilter
+                        ? `No verification results found for provider "${providerFilter}"`
+                        : 'No verification results available'}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredResults.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="text-center text-base-content/70 py-8">
-                        {providerFilter
-                          ? `No verification results found for provider "${providerFilter}"`
-                          : 'No verification results available'}
+                ) : (
+                  filteredResults.map((result, index) => (
+                    <tr key={result.id || index}>
+                      <td>
+                        <Link
+                          to={`/services/provider/${result.providerName || result.provider}`}
+                          className="font-medium hover:underline text-primary"
+                        >
+                          {result.providerName || result.provider}
+                        </Link>
                       </td>
-                    </tr>
-                  ) : (
-                    filteredResults.map((result, index) => (
-                      <tr key={result.id || index}>
-                        <td>
+                      <td>
+                        <VersionBadge
+                          version={result.providerVersion || result.version || '1.0.0'}
+                          serviceName={result.providerName || result.provider}
+                          serviceType="provider"
+                          
+                        />
+                      </td>
+                      <td>
+                        {result.consumerName || result.consumer ? (
                           <Link
-                            to={`/services/provider/${result.providerName || result.provider}`}
+                            to={`/services/consumer/${result.consumerName || result.consumer}`}
                             className="font-medium hover:underline text-primary"
                           >
-                            {result.providerName || result.provider}
+                            {result.consumerName || result.consumer}
                           </Link>
-                        </td>
-                        <td>
-                          <span className="badge badge-outline">
-                            v{result.providerVersion || result.version || '1.0.0'}
-                          </span>
-                        </td>
-                        <td>
-                          {result.consumerName || result.consumer ? (
-                            <Link
-                              to={`/services/consumer/${result.consumerName || result.consumer}`}
-                              className="font-medium hover:underline text-primary"
-                            >
-                              {result.consumerName || result.consumer}
-                            </Link>
-                          ) : (
-                            'N/A'
-                          )}
-                        </td>
-                        <td>
-                          <span className="badge badge-outline">
-                            v{result.consumerVersion || 'N/A'}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="text-sm">
-                            {result.passed || 0}/{result.total || 1}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className={`badge ${
-                              result.status === 'passed'
-                                ? 'badge-success'
-                                : result.status === 'failed'
-                                  ? 'badge-error'
-                                  : 'badge-warning'
-                            }`}
+                        ) : (
+                          'N/A'
+                        )}
+                      </td>
+                      <td>
+                        {result.consumerName || result.consumer ? (
+                          <VersionBadge
+                            version={result.consumerVersion || 'N/A'}
+                            serviceName={result.consumerName || result.consumer}
+                            serviceType="consumer"
+                            
+                          />
+                        ) : (
+                          <span className="text-sm text-base-content/50">N/A</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className="text-sm">
+                          {result.passed || 0}/{result.total || 1}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            result.status === 'passed'
+                              ? 'badge-success'
+                              : result.status === 'failed'
+                                ? 'badge-error'
+                                : 'badge-warning'
+                          }`}
+                        >
+                          {result.status}
+                        </span>
+                      </td>
+                      <td>
+                        <TimestampDisplay timestamp={result.createdAt || result.lastRun} />
+                      </td>
+                      <td>
+                        <div className="flex gap-1">
+                          <Link to={`/verification/${result.id}`} className="btn btn-ghost btn-xs">
+                            View
+                          </Link>
+                        </div>
+                      </td>
+                      <td>
+                        {result.contractId ? (
+                          <Link
+                            to={`/contracts/${result.contractId}`}
+                            className="btn btn-ghost btn-xs"
                           >
-                            {result.status}
-                          </span>
-                        </td>
-                        <td>
-                          <TimestampDisplay timestamp={result.createdAt || result.lastRun} />
-                        </td>
-                        <td>
-                          <div className="flex gap-1">
-                            <Link
-                              to={`/verification/${result.id}`}
-                              className="btn btn-ghost btn-xs"
-                            >
-                              View
-                            </Link>
-                          </div>
-                        </td>
-                        <td>
-                          {result.contractId ? (
-                            <Link
-                              to={`/contracts/${result.contractId}`}
-                              className="btn btn-ghost btn-xs"
-                            >
-                              View Contract
-                            </Link>
-                          ) : (
-                            <span className="text-base-content/50 text-xs">No contract</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                            View Contract
+                          </Link>
+                        ) : (
+                          <span className="text-base-content/50 text-xs">No contract</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
+      </div>
     </div>
   )
 }

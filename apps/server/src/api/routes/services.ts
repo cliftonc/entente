@@ -1,23 +1,24 @@
-import { and, eq } from 'drizzle-orm'
-import { Hono } from 'hono'
-import { zValidator } from '@hono/zod-validator'
-import { z } from 'zod'
-import { services } from '../../db/schema'
-import type { DbService } from '../../db/types'
-import type { Env } from '..'
-import {
-  getWorkflows,
-  parseRepositoryUrl,
-  getRepositories,
-  triggerWorkflow,
-  findRepositoryByName,
-} from '../utils/github-client'
 import type {
   GitHubServiceConfig,
   GitHubServiceConfigRequest,
   GitHubTriggerWorkflowRequest,
   GitHubWorkflow,
 } from '@entente/types'
+import { zValidator } from '@hono/zod-validator'
+import { and, eq } from 'drizzle-orm'
+import { Hono } from 'hono'
+import { z } from 'zod'
+import type { Env } from '..'
+import { services, serviceVersions } from '../../db/schema'
+import type { DbService } from '../../db/types'
+import { ensureServiceVersion } from '../utils/service-versions'
+import {
+  findRepositoryByName,
+  getRepositories,
+  getWorkflows,
+  parseRepositoryUrl,
+  triggerWorkflow,
+} from '../utils/github-client'
 
 export const servicesRouter = new Hono<Env>()
 
@@ -35,6 +36,7 @@ servicesRouter.post('/', async c => {
 
   const db = c.get('db')
   const { tenantId } = c.get('session')
+  const { user } = c.get('auth')
 
   // Check if service already exists with this name and type
   const existing = await db.query.services.findFirst({
@@ -64,6 +66,16 @@ servicesRouter.post('/', async c => {
   }
 
   if (existing) {
+    // Check if repository URL has changed
+    const repositoryUrlChanged = existing.gitRepositoryUrl !== registration.gitRepositoryUrl
+
+    // Update GitHub fields if:
+    // 1. New auto-linking is happening (gitRepositoryUrl provided and parsed successfully)
+    // 2. Repository URL changed and existing config was auto-linked (not manually configured)
+    // 3. Repository URL was removed/nullified and existing config was auto-linked
+    const shouldUpdateGitHubFields =
+      githubAutoLinked || (repositoryUrlChanged && existing.githubAutoLinked)
+
     // Update existing service
     const [updated] = await db
       .update(services)
@@ -71,11 +83,19 @@ servicesRouter.post('/', async c => {
         description: registration.description,
         packageJson: registration.packageJson,
         gitRepositoryUrl: registration.gitRepositoryUrl,
-        // Only update GitHub fields if not already configured or if auto-linking
-        githubRepositoryOwner: existing.githubRepositoryOwner || githubRepositoryOwner,
-        githubRepositoryName: existing.githubRepositoryName || githubRepositoryName,
-        githubAutoLinked: existing.githubAutoLinked || githubAutoLinked,
-        githubConfiguredAt: existing.githubConfiguredAt || (githubAutoLinked ? new Date() : undefined),
+        // Update GitHub fields only if appropriate
+        githubRepositoryOwner: shouldUpdateGitHubFields
+          ? githubRepositoryOwner || null
+          : existing.githubRepositoryOwner,
+        githubRepositoryName: shouldUpdateGitHubFields
+          ? githubRepositoryName || null
+          : existing.githubRepositoryName,
+        githubAutoLinked: shouldUpdateGitHubFields ? githubAutoLinked : existing.githubAutoLinked,
+        githubConfiguredAt: shouldUpdateGitHubFields
+          ? githubAutoLinked
+            ? new Date()
+            : null
+          : existing.githubConfiguredAt,
         updatedAt: new Date(),
       })
       .where(
@@ -88,6 +108,11 @@ servicesRouter.post('/', async c => {
       .returning()
 
     service = updated
+    if (shouldUpdateGitHubFields && repositoryUrlChanged) {
+      console.log(
+        `🔄 Updated GitHub auto-linking for ${registration.type}: ${registration.name} (repository URL changed)`
+      )
+    }
     console.log(`📦 Updated existing ${registration.type}: ${registration.name}`)
   } else {
     // Create new service
@@ -110,6 +135,26 @@ servicesRouter.post('/', async c => {
     service = created
     isNew = true
     console.log(`📦 Registered new ${registration.type}: ${registration.name}`)
+  }
+
+  // Extract version from packageJson and create service version
+  if (registration.packageJson && registration.packageJson.version) {
+    try {
+      await ensureServiceVersion(
+        db,
+        tenantId,
+        registration.name,
+        registration.packageJson.version,
+        {
+          packageJson: registration.packageJson,
+          gitSha: registration.gitSha,
+          createdBy: user?.name || 'service-registration'
+        }
+      )
+      console.log(`📋 Created service version: ${registration.name}@${registration.packageJson.version}`)
+    } catch (error) {
+      console.warn(`⚠️  Failed to create service version for ${registration.name}@${registration.packageJson.version}: ${error}`)
+    }
   }
 
   return c.json(
@@ -144,6 +189,57 @@ servicesRouter.get('/', async c => {
   })
 
   return c.json(serviceList)
+})
+
+// Get all versions for a service
+servicesRouter.get('/:name/versions', async c => {
+  const { name } = c.req.param()
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+
+  try {
+    // First find the service
+    const service = await db.query.services.findFirst({
+      where: and(
+        eq(services.tenantId, tenantId),
+        eq(services.name, name)
+      ),
+    })
+
+    if (!service) {
+      return c.json({ error: 'Service not found' }, 404)
+    }
+
+    // Get all versions for this service
+    const versions = await db.query.serviceVersions.findMany({
+      where: and(
+        eq(serviceVersions.tenantId, tenantId),
+        eq(serviceVersions.serviceId, service.id)
+      ),
+      orderBy: (serviceVersions, { desc }) => [desc(serviceVersions.createdAt)]
+    })
+
+    // Map to include service info for the frontend
+    const versionsWithService = versions.map(v => ({
+      id: v.id,
+      tenantId: v.tenantId,
+      serviceId: v.serviceId,
+      serviceName: service.name,
+      serviceType: service.type,
+      version: v.version,
+      spec: v.spec,
+      gitSha: v.gitSha,
+      packageJson: v.packageJson,
+      createdBy: v.createdBy,
+      createdAt: v.createdAt,
+      updatedAt: v.updatedAt
+    }))
+
+    return c.json(versionsWithService)
+  } catch (error) {
+    console.error('Error fetching service versions:', error)
+    return c.json({ error: 'Failed to fetch service versions' }, 500)
+  }
 })
 
 // Get specific service by name and type
@@ -276,57 +372,61 @@ const githubConfigSchema = z.object({
   verifyWorkflowPath: z.string().optional(),
 })
 
-servicesRouter.put('/:name/:type/github/config', zValidator('json', githubConfigSchema), async c => {
-  const name = c.req.param('name')
-  const type = c.req.param('type')
-  const config = c.req.valid('json') as GitHubServiceConfigRequest
+servicesRouter.put(
+  '/:name/:type/github/config',
+  zValidator('json', githubConfigSchema),
+  async c => {
+    const name = c.req.param('name')
+    const type = c.req.param('type')
+    const config = c.req.valid('json') as GitHubServiceConfigRequest
 
-  if (!['consumer', 'provider'].includes(type)) {
-    return c.json({ error: 'Type must be either consumer or provider' }, 400)
-  }
+    if (!['consumer', 'provider'].includes(type)) {
+      return c.json({ error: 'Type must be either consumer or provider' }, 400)
+    }
 
-  const db = c.get('db')
-  const { tenantId } = c.get('session')
+    const db = c.get('db')
+    const { tenantId } = c.get('session')
 
-  // Check if service exists
-  const existing = await db.query.services.findFirst({
-    where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
-  })
-
-  if (!existing) {
-    return c.json({ error: 'Service not found' }, 404)
-  }
-
-  // Update GitHub configuration
-  const [updated] = await db
-    .update(services)
-    .set({
-      githubRepositoryOwner: config.repositoryOwner ?? existing.githubRepositoryOwner,
-      githubRepositoryName: config.repositoryName ?? existing.githubRepositoryName,
-      githubVerifyWorkflowId: config.verifyWorkflowId ?? existing.githubVerifyWorkflowId,
-      githubVerifyWorkflowName: config.verifyWorkflowName ?? existing.githubVerifyWorkflowName,
-      githubVerifyWorkflowPath: config.verifyWorkflowPath ?? existing.githubVerifyWorkflowPath,
-      githubAutoLinked: false, // Manual configuration overrides auto-linking
-      githubConfiguredAt: new Date(),
-      updatedAt: new Date(),
+    // Check if service exists
+    const existing = await db.query.services.findFirst({
+      where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
     })
-    .where(and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)))
-    .returning()
 
-  console.log(`🔧 Updated GitHub config for ${type}: ${name}`)
+    if (!existing) {
+      return c.json({ error: 'Service not found' }, 404)
+    }
 
-  const result: GitHubServiceConfig = {
-    repositoryOwner: updated.githubRepositoryOwner || undefined,
-    repositoryName: updated.githubRepositoryName || undefined,
-    verifyWorkflowId: updated.githubVerifyWorkflowId || undefined,
-    verifyWorkflowName: updated.githubVerifyWorkflowName || undefined,
-    verifyWorkflowPath: updated.githubVerifyWorkflowPath || undefined,
-    autoLinked: updated.githubAutoLinked || false,
-    configuredAt: updated.githubConfiguredAt || undefined,
+    // Update GitHub configuration
+    const [updated] = await db
+      .update(services)
+      .set({
+        githubRepositoryOwner: config.repositoryOwner ?? existing.githubRepositoryOwner,
+        githubRepositoryName: config.repositoryName ?? existing.githubRepositoryName,
+        githubVerifyWorkflowId: config.verifyWorkflowId ?? existing.githubVerifyWorkflowId,
+        githubVerifyWorkflowName: config.verifyWorkflowName ?? existing.githubVerifyWorkflowName,
+        githubVerifyWorkflowPath: config.verifyWorkflowPath ?? existing.githubVerifyWorkflowPath,
+        githubAutoLinked: false, // Manual configuration overrides auto-linking
+        githubConfiguredAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)))
+      .returning()
+
+    console.log(`🔧 Updated GitHub config for ${type}: ${name}`)
+
+    const result: GitHubServiceConfig = {
+      repositoryOwner: updated.githubRepositoryOwner || undefined,
+      repositoryName: updated.githubRepositoryName || undefined,
+      verifyWorkflowId: updated.githubVerifyWorkflowId || undefined,
+      verifyWorkflowName: updated.githubVerifyWorkflowName || undefined,
+      verifyWorkflowPath: updated.githubVerifyWorkflowPath || undefined,
+      autoLinked: updated.githubAutoLinked || false,
+      configuredAt: updated.githubConfiguredAt || undefined,
+    }
+
+    return c.json(result)
   }
-
-  return c.json(result)
-})
+)
 
 // Clear GitHub configuration for a service
 servicesRouter.delete('/:name/:type/github/config', async c => {
@@ -424,48 +524,58 @@ const triggerWorkflowSchema = z.object({
   inputs: z.record(z.any()).optional(),
 })
 
-servicesRouter.post('/:name/:type/github/trigger-workflow', zValidator('json', triggerWorkflowSchema), async c => {
-  const name = c.req.param('name')
-  const type = c.req.param('type')
-  const { ref = 'main', inputs = {} } = c.req.valid('json') as GitHubTriggerWorkflowRequest
+servicesRouter.post(
+  '/:name/:type/github/trigger-workflow',
+  zValidator('json', triggerWorkflowSchema),
+  async c => {
+    const name = c.req.param('name')
+    const type = c.req.param('type')
+    const { ref = 'main', inputs = {} } = c.req.valid('json') as GitHubTriggerWorkflowRequest
 
-  if (!['consumer', 'provider'].includes(type)) {
-    return c.json({ error: 'Type must be either consumer or provider' }, 400)
-  }
+    if (!['consumer', 'provider'].includes(type)) {
+      return c.json({ error: 'Type must be either consumer or provider' }, 400)
+    }
 
-  const db = c.get('db')
-  const { tenantId } = c.get('session')
+    const db = c.get('db')
+    const { tenantId } = c.get('session')
 
-  // Get service with GitHub configuration
-  const service = await db.query.services.findFirst({
-    where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
-  })
+    // Get service with GitHub configuration
+    const service = await db.query.services.findFirst({
+      where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
+    })
 
-  if (!service) {
-    return c.json({ error: 'Service not found' }, 404)
-  }
+    if (!service) {
+      return c.json({ error: 'Service not found' }, 404)
+    }
 
-  if (!service.githubRepositoryOwner || !service.githubRepositoryName || !service.githubVerifyWorkflowPath) {
-    return c.json({ error: 'GitHub verification workflow not configured for this service' }, 400)
-  }
+    if (
+      !service.githubRepositoryOwner ||
+      !service.githubRepositoryName ||
+      !service.githubVerifyWorkflowPath
+    ) {
+      return c.json({ error: 'GitHub verification workflow not configured for this service' }, 400)
+    }
 
-  console.log(`🔍 Service GitHub config: owner="${service.githubRepositoryOwner}", repo="${service.githubRepositoryName}", path="${service.githubVerifyWorkflowPath}"`)
-
-  try {
-    await triggerWorkflow(
-      service.githubRepositoryOwner,
-      service.githubRepositoryName,
-      service.githubVerifyWorkflowPath,
-      ref,
-      inputs,
-      db,
-      tenantId
+    console.log(
+      `🔍 Service GitHub config: owner="${service.githubRepositoryOwner}", repo="${service.githubRepositoryName}", path="${service.githubVerifyWorkflowPath}"`
     )
 
-    console.log(`🚀 Triggered verification workflow for ${type}: ${name}`)
-    return c.json({ message: 'Verification workflow triggered successfully' })
-  } catch (error) {
-    console.error('Error triggering workflow:', error)
-    return c.json({ error: 'Failed to trigger verification workflow' }, 500)
+    try {
+      await triggerWorkflow(
+        service.githubRepositoryOwner,
+        service.githubRepositoryName,
+        service.githubVerifyWorkflowPath,
+        ref,
+        inputs,
+        db,
+        tenantId
+      )
+
+      console.log(`🚀 Triggered verification workflow for ${type}: ${name}`)
+      return c.json({ message: 'Verification workflow triggered successfully' })
+    } catch (error) {
+      console.error('Error triggering workflow:', error)
+      return c.json({ error: 'Failed to trigger verification workflow' }, 500)
+    }
   }
-})
+)

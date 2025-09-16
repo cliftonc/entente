@@ -1,4 +1,11 @@
-import type { Fixture, FixtureProposal, FixtureUpdate } from '@entente/types'
+import type {
+  EntityData,
+  EntityRelationship,
+  Fixture,
+  FixtureProposal,
+  FixtureUpdate,
+  NormalizedFixtures,
+} from '@entente/types'
 
 export interface FixtureManager {
   approve: (fixtureId: string, approver: string, notes?: string) => Promise<Fixture>
@@ -408,4 +415,186 @@ const isVolatileField = (key: string): boolean => {
   ]
 
   return volatilePatterns.some(pattern => pattern.test(key))
+}
+
+// Entity normalization functions
+export const normalizeFixtures = (
+  fixtures: Fixture[],
+  service: string,
+  version: string
+): NormalizedFixtures => {
+  const entities: Record<string, EntityData[]> = {}
+  const relationships: EntityRelationship[] = []
+
+  // Process each fixture and extract entities
+  for (const fixture of fixtures) {
+    const entityData = extractEntitiesFromFixture(fixture)
+
+    for (const entity of entityData.entities) {
+      if (!entities[entity.type]) {
+        entities[entity.type] = []
+      }
+
+      // Check if entity already exists (by ID)
+      const existingIndex = entities[entity.type].findIndex(e => e.id === entity.id)
+      if (existingIndex >= 0) {
+        // Update existing entity if this operation is newer or higher priority
+        const existing = entities[entity.type][existingIndex]
+        if (entity.operation === 'delete' || shouldReplaceEntity(existing, entity, fixture)) {
+          entities[entity.type][existingIndex] = entity
+        }
+      } else {
+        entities[entity.type].push(entity)
+      }
+    }
+
+    relationships.push(...entityData.relationships)
+  }
+
+  // // Remove deleted entities
+  // for (const entityType in entities) {
+  //   entities[entityType] = entities[entityType].filter(e => e.operation !== 'delete')
+  // }
+
+  return {
+    entities,
+    relationships,
+    metadata: {
+      service,
+      version,
+      totalFixtures: fixtures.length,
+      extractedAt: new Date(),
+    },
+  }
+}
+
+export const extractEntitiesFromFixture = (
+  fixture: Fixture
+): {
+  entities: EntityData[]
+  relationships: EntityRelationship[]
+} => {
+  const entities: EntityData[] = []
+  const relationships: EntityRelationship[] = []
+
+  const entityType = inferEntityType(fixture.operation)
+  if (!entityType) {
+    return { entities, relationships }
+  }
+
+  // Extract entity from request data (for create/update operations)
+  if (fixture.data.request) {
+    const requestEntity = extractEntityFromData(
+      fixture.data.request,
+      entityType,
+      'create',
+      fixture.operation
+    )
+    if (requestEntity) {
+      entities.push(requestEntity)
+    }
+  }
+
+  // Extract entity from response data (for read operations or successful creates)
+  if (fixture.data.response && typeof fixture.data.response === 'object') {
+    const responseData = fixture.data.response as Record<string, unknown>
+
+    // Check if response has a body with entity data
+    if (responseData.body) {
+      const bodyData = responseData.body
+
+      if (Array.isArray(bodyData)) {
+        // List response - extract multiple entities
+        for (const item of bodyData) {
+          const entity = extractEntityFromData(item, entityType, 'create', fixture.operation)
+          if (entity) {
+            entities.push(entity)
+          }
+        }
+      } else if (typeof bodyData === 'object' && bodyData !== null) {
+        // Single entity response
+        const entity = extractEntityFromData(bodyData, entityType, 'create', fixture.operation)
+        if (entity) {
+          entities.push(entity)
+        }
+      }
+    }
+  }
+
+  return { entities, relationships }
+}
+
+export const inferEntityType = (operation: string): string | null => {
+  // Extract entity name from operation ID
+  // Examples: getUser -> User, createOrder -> Order, deleteCustomer -> Customer
+
+  const methodPrefixes = ['get', 'create', 'update', 'delete', 'list', 'find', 'search']
+  let entityName = operation
+
+  for (const prefix of methodPrefixes) {
+    if (operation.toLowerCase().startsWith(prefix)) {
+      entityName = operation.slice(prefix.length)
+      break
+    }
+  }
+
+  if (!entityName) {
+    return null
+  }
+
+  // Capitalize first letter and return singular form
+  const capitalized = entityName.charAt(0).toUpperCase() + entityName.slice(1)
+
+  // Convert plural to singular
+  if (capitalized.endsWith('s') && capitalized.length > 1) {
+    return capitalized.slice(0, -1)
+  }
+
+  return capitalized
+}
+
+const extractEntityFromData = (
+  data: unknown,
+  entityType: string,
+  operation: 'create' | 'update' | 'delete',
+  source: string
+): EntityData | null => {
+  if (!data || typeof data !== 'object') {
+    return null
+  }
+
+  const record = data as Record<string, unknown>
+
+  // Try to find an ID field
+  const id = record.id || record._id || record.uuid || record.key
+  if (!id) {
+    return null
+  }
+
+  return {
+    id: String(id),
+    type: entityType,
+    data: record,
+    operation,
+    source,
+  }
+}
+
+const shouldReplaceEntity = (
+  existing: EntityData,
+  candidate: EntityData,
+  fixture: Fixture
+): boolean => {
+  // Prefer higher priority fixtures
+  if (fixture.priority > (existing.source === candidate.source ? 0 : 1)) {
+    return true
+  }
+
+  // Prefer provider fixtures over consumer fixtures
+  if (fixture.source === 'provider' && existing.source !== candidate.source) {
+    return true
+  }
+
+  // Prefer more recent fixtures
+  return fixture.createdAt > new Date(existing.source)
 }

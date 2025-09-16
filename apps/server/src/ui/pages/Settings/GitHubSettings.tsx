@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { GitHubAppInstallation, GitHubAppInstallationUpdate } from '@entente/types'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 
 function GitHubSettings() {
   const queryClient = useQueryClient()
@@ -91,7 +91,11 @@ function GitHubSettings() {
   }
 
   const handleUninstall = () => {
-    if (window.confirm('Are you sure you want to uninstall the GitHub app? This will remove all repository access.')) {
+    if (
+      window.confirm(
+        'Are you sure you want to uninstall the GitHub app? This will remove all repository access.'
+      )
+    ) {
       uninstallMutation.mutate()
     }
   }
@@ -103,21 +107,29 @@ function GitHubSettings() {
 
         {!installation ? (
           <div className="text-center py-8">
-            <svg className="w-16 h-16 mx-auto mb-4 text-base-content/40" fill="currentColor" viewBox="0 0 24 24">
-              <path fillRule="evenodd" d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" clipRule="evenodd" />
-            </svg>
-            <h3 className="text-lg font-medium text-base-content mb-2">
-              GitHub App Not Installed
-            </h3>
-            <p className="text-base-content/60 mb-6">
-              Install the Entente GitHub app to automatically sync your repositories and enable CI/CD integration.
-            </p>
-            <button
-              className="btn btn-primary text-primary-content"
-              onClick={handleInstall}
+            <svg
+              className="w-16 h-16 mx-auto mb-4 text-base-content/40"
+              fill="currentColor"
+              viewBox="0 0 24 24"
             >
+              <path
+                fillRule="evenodd"
+                d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <h3 className="text-lg font-medium text-base-content mb-2">GitHub App Not Installed</h3>
+            <p className="text-base-content/60 mb-6">
+              Install the Entente GitHub app to automatically sync your repositories and enable
+              CI/CD integration.
+            </p>
+            <button className="btn btn-primary text-primary-content" onClick={handleInstall}>
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path fillRule="evenodd" d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"
+                  clipRule="evenodd"
+                />
               </svg>
               Install GitHub App
             </button>
@@ -147,7 +159,11 @@ function GitHubSettings() {
                     className="btn btn-outline btn-sm"
                   >
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path fillRule="evenodd" d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" clipRule="evenodd" />
+                      <path
+                        fillRule="evenodd"
+                        d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                     Manage on GitHub
                   </a>
@@ -178,9 +194,11 @@ function GitHubSettings() {
                   <select
                     className="select select-sm"
                     value={installation.repositorySelection}
-                    onChange={(e) => updateMutation.mutate({
-                      repositorySelection: e.target.value as 'all' | 'selected'
-                    })}
+                    onChange={e =>
+                      updateMutation.mutate({
+                        repositorySelection: e.target.value as 'all' | 'selected',
+                      })
+                    }
                     disabled={updateMutation.isPending}
                   >
                     <option value="selected">Selected repositories</option>
@@ -194,15 +212,25 @@ function GitHubSettings() {
                       Selected Repositories ({installation.selectedRepositories.length})
                     </h4>
                     <div className="space-y-2">
-                      {installation.selectedRepositories.map((repo) => (
+                      {installation.selectedRepositories.map(repo => (
                         <div key={repo.id} className="flex items-center gap-3">
-                          <svg className="w-4 h-4 text-base-content/60" fill="currentColor" viewBox="0 0 24 24">
-                            <path fillRule="evenodd" d="M3 2.75A.75.75 0 0 1 3.75 2h.5a.75.75 0 0 1 .75.75v.5c0 .414.336.75.75.75H6a.75.75 0 0 1 .75.75v.5A.75.75 0 0 1 6 5.5h-.25A.75.75 0 0 1 5 4.75V4a.25.25 0 0 0-.25-.25h-.5a.25.25 0 0 0-.25.25v.75A.75.75 0 0 1 3 5.5v-.75ZM3.75 7a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h16.5a.75.75 0 0 0 .75-.75v-8.5a.75.75 0 0 0-.75-.75H3.75Z" clipRule="evenodd" />
+                          <svg
+                            className="w-4 h-4 text-base-content/60"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M3 2.75A.75.75 0 0 1 3.75 2h.5a.75.75 0 0 1 .75.75v.5c0 .414.336.75.75.75H6a.75.75 0 0 1 .75.75v.5A.75.75 0 0 1 6 5.5h-.25A.75.75 0 0 1 5 4.75V4a.25.25 0 0 0-.25-.25h-.5a.25.25 0 0 0-.25.25v.75A.75.75 0 0 1 3 5.5v-.75ZM3.75 7a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h16.5a.75.75 0 0 0 .75-.75v-8.5a.75.75 0 0 0-.75-.75H3.75Z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                           <span className="text-sm text-base-content">
                             {repo.fullName}
                             {repo.private && (
-                              <span className="ml-2 badge badge-neutral badge-sm text-neutral-content px-2">private</span>
+                              <span className="ml-2 badge badge-neutral badge-sm text-neutral-content px-2">
+                                private
+                              </span>
                             )}
                           </span>
                         </div>
@@ -247,7 +275,9 @@ function GitHubSettings() {
         <h2 className="text-xl font-semibold text-base-content mb-6">Features</h2>
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${installation ? 'bg-success' : 'bg-base-300'}`}></div>
+            <div
+              className={`w-3 h-3 rounded-full ${installation ? 'bg-success' : 'bg-base-300'}`}
+            ></div>
             <div>
               <span className="font-medium text-base-content">Automatic CI Integration</span>
               <p className="text-sm text-base-content/60">
@@ -257,7 +287,9 @@ function GitHubSettings() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${installation ? 'bg-success' : 'bg-base-300'}`}></div>
+            <div
+              className={`w-3 h-3 rounded-full ${installation ? 'bg-success' : 'bg-base-300'}`}
+            ></div>
             <div>
               <span className="font-medium text-base-content">Deployment Tracking</span>
               <p className="text-sm text-base-content/60">
@@ -267,7 +299,9 @@ function GitHubSettings() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${installation ? 'bg-success' : 'bg-base-300'}`}></div>
+            <div
+              className={`w-3 h-3 rounded-full ${installation ? 'bg-success' : 'bg-base-300'}`}
+            ></div>
             <div>
               <span className="font-medium text-base-content">Pull Request Checks</span>
               <p className="text-sm text-base-content/60">
@@ -281,7 +315,12 @@ function GitHubSettings() {
       {updateMutation.isError && (
         <div className="alert alert-error">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <span>{updateMutation.error?.message}</span>
         </div>

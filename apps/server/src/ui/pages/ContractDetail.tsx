@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { useParams, Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import GitShaLink from '../components/GitShaLink'
 import TimestampDisplay from '../components/TimestampDisplay'
+import VersionBadge from '../components/VersionBadge'
 import { contractApi, verificationApi } from '../utils/api'
 
 function ContractDetail() {
@@ -115,9 +116,7 @@ function ContractDetail() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-base-content">Contract Not Found</h1>
-          <p className="text-base-content/70 mt-1">
-            The requested contract could not be found.
-          </p>
+          <p className="text-base-content/70 mt-1">The requested contract could not be found.</p>
         </div>
         <div className="alert alert-warning">
           <svg className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
@@ -142,8 +141,12 @@ function ContractDetail() {
       <div>
         <div className="breadcrumbs text-sm">
           <ul>
-            <li><Link to="/contracts">Contracts</Link></li>
-            <li>{contract.consumerName} → {contract.providerName}</li>
+            <li>
+              <Link to="/contracts">Contracts</Link>
+            </li>
+            <li>
+              {contract.consumerName} → {contract.providerName}
+            </li>
           </ul>
         </div>
         <h1 className="text-3xl font-bold text-base-content">
@@ -186,7 +189,12 @@ function ContractDetail() {
               <label className="label">
                 <span className="label-text font-medium">Consumer Version</span>
               </label>
-              <span className="badge badge-outline">v{contract.consumerVersion}</span>
+              <VersionBadge
+                version={contract.consumerVersion}
+                serviceName={contract.consumerName}
+                serviceType="consumer"
+                
+              />
             </div>
 
             <div>
@@ -205,7 +213,12 @@ function ContractDetail() {
               <label className="label">
                 <span className="label-text font-medium">Provider Version</span>
               </label>
-              <span className="badge badge-outline">v{contract.providerVersion}</span>
+              <VersionBadge
+                version={contract.providerVersion}
+                serviceName={contract.providerName}
+                serviceType="provider"
+                
+              />
             </div>
 
             <div>
@@ -233,11 +246,16 @@ function ContractDetail() {
           <h2 className="card-title">
             Verification Status
             <span className="text-base font-normal text-base-content/70">
-              ({(verificationData?.pendingTasks?.length || 0) + (verificationData?.completedResults?.length || 0)} total)
+              (
+              {(verificationData?.pendingTasks?.length || 0) +
+                (verificationData?.completedResults?.length || 0)}{' '}
+              total)
             </span>
           </h2>
 
-          {verificationData && (verificationData.pendingTasks.length > 0 || verificationData.completedResults.length > 0) ? (
+          {verificationData &&
+          (verificationData.pendingTasks.length > 0 ||
+            verificationData.completedResults.length > 0) ? (
             <div className="space-y-6">
               {/* Pending Verifications */}
               {verificationData.pendingTasks.length > 0 && (
@@ -254,17 +272,28 @@ function ContractDetail() {
                         </tr>
                       </thead>
                       <tbody>
-                        {verificationData.pendingTasks.map((task) => (
+                        {verificationData.pendingTasks.map(task => (
                           <tr key={task.id}>
                             <td>
-                              <span className="badge badge-outline">v{task.providerVersion}</span>
+                              <VersionBadge
+                                version={task.providerVersion}
+                                serviceName={contract.providerName}
+                                serviceType="provider"
+                                
+                              />
                             </td>
                             <td>
-                              <span className="badge badge-outline">v{task.consumerVersion}</span>
+                              <VersionBadge
+                                version={task.consumerVersion}
+                                serviceName={contract.consumerName}
+                                serviceType="consumer"
+                                
+                              />
                             </td>
                             <td>
                               <span className="text-sm">
-                                {Array.isArray(task.interactions) ? task.interactions.length : 0} interactions
+                                {Array.isArray(task.interactions) ? task.interactions.length : 0}{' '}
+                                interactions
                               </span>
                             </td>
                             <td>
@@ -298,13 +327,23 @@ function ContractDetail() {
                         </tr>
                       </thead>
                       <tbody>
-                        {verificationData.completedResults.map((result) => (
+                        {verificationData.completedResults.map(result => (
                           <tr key={result.id}>
                             <td>
-                              <span className="badge badge-outline">v{result.providerVersion}</span>
+                              <VersionBadge
+                                version={result.providerVersion}
+                                serviceName={contract.providerName}
+                                serviceType="provider"
+                                
+                              />
                             </td>
                             <td>
-                              <span className="badge badge-outline">v{result.consumerVersion || 'N/A'}</span>
+                              <VersionBadge
+                                version={result.consumerVersion || 'N/A'}
+                                serviceName={contract.consumerName}
+                                serviceType="consumer"
+                                
+                              />
                             </td>
                             <td>
                               <span className="text-sm">
@@ -314,9 +353,7 @@ function ContractDetail() {
                             <td>
                               <span
                                 className={`badge ${
-                                  result.status === 'passed'
-                                    ? 'badge-success'
-                                    : 'badge-error'
+                                  result.status === 'passed' ? 'badge-success' : 'badge-error'
                                 }`}
                               >
                                 {result.status}
@@ -326,9 +363,7 @@ function ContractDetail() {
                               <TimestampDisplay timestamp={result.submittedAt} />
                             </td>
                             <td>
-                              {result.providerGitSha && (
-                                <GitShaLink sha={result.providerGitSha} />
-                              )}
+                              {result.providerGitSha && <GitShaLink sha={result.providerGitSha} />}
                             </td>
                             <td>
                               <Link
@@ -363,7 +398,8 @@ function ContractDetail() {
               </svg>
               <div className="font-medium">No verification data available</div>
               <div className="text-sm">
-                Verification tasks will appear here once the provider starts verifying against this contract.
+                Verification tasks will appear here once the provider starts verifying against this
+                contract.
               </div>
             </div>
           )}
@@ -400,7 +436,7 @@ function ContractDetail() {
                     </td>
                   </tr>
                 ) : (
-                  interactions.slice(0, 50).map((interaction) => (
+                  interactions.slice(0, 50).map(interaction => (
                     <tr key={interaction.id}>
                       <td>
                         <span className="font-mono text-sm">{interaction.operation}</span>

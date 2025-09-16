@@ -303,7 +303,10 @@ export const listFixtures = async (options: {
   }
 }
 
-export const getDeploymentStatus = async (environment: string, includeFailures = false): Promise<void> => {
+export const getDeploymentStatus = async (
+  environment: string,
+  includeFailures = false
+): Promise<void> => {
   const serviceUrl = await getServerUrl()
   const queryParam = includeFailures ? '&include_inactive=true' : ''
   const response = await makeAuthenticatedRequest(
@@ -324,15 +327,18 @@ export const getDeploymentStatus = async (environment: string, includeFailures =
   console.log(`\nDeployments in ${environment}:\n`)
 
   for (const deployment of deployments) {
-    const statusColor = deployment.status === 'successful'
-      ? chalk.green('✅')
-      : deployment.status === 'failed'
-        ? chalk.red('❌')
-        : chalk.yellow('⚠️')
+    const statusColor =
+      deployment.status === 'successful'
+        ? chalk.green('✅')
+        : deployment.status === 'failed'
+          ? chalk.red('❌')
+          : chalk.yellow('⚠️')
 
     const statusText = deployment.status === 'successful' ? 'deployed' : deployment.status
 
-    console.log(`${statusColor} ${deployment.service}@${deployment.version} (${statusText} ${deployment.deployedAt})`)
+    console.log(
+      `${statusColor} ${deployment.service}@${deployment.version} (${statusText} ${deployment.deployedAt})`
+    )
 
     if (deployment.status === 'failed' && deployment.failureReason) {
       console.log(`   ${chalk.red('Reason:')} ${deployment.failureReason}`)

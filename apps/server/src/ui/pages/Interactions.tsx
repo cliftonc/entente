@@ -6,6 +6,7 @@ import ConsumerFilter from '../components/ConsumerFilter'
 import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
+import VersionBadge from '../components/VersionBadge'
 import { interactionApi } from '../utils/api'
 
 function Interactions() {
@@ -249,7 +250,12 @@ function Interactions() {
                         </Link>
                       </td>
                       <td>
-                        <span className="badge badge-outline">v{interaction.consumerVersion}</span>
+                        <VersionBadge
+                          version={interaction.consumerVersion}
+                          serviceName={interaction.consumer}
+                          serviceType="consumer"
+                          
+                        />
                       </td>
                       <td>
                         <GitShaLink

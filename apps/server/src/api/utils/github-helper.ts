@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm'
 import type { Context } from 'hono'
-import type { Database } from '../db/database'
 import { services } from '../../db/schema'
-import { getInstallationConfig, parseRepositoryUrl, findRepositoryByName } from './github-client'
+import type { Database } from '../db/database'
+import { findRepositoryByName, getInstallationConfig, parseRepositoryUrl } from './github-client'
 import * as GitHubClient from './github-client'
 
 export interface GitHubHelper {
@@ -29,8 +29,16 @@ export interface GitHubHelper {
       perPage?: number
     }
   ) => Promise<GitHubClient.GitHubWorkflowRun[]>
-  getWorkflowRun: (owner: string, repo: string, runId: number) => Promise<GitHubClient.GitHubWorkflowRun>
-  getWorkflowJobs: (owner: string, repo: string, runId: number) => Promise<GitHubClient.GitHubWorkflowJob[]>
+  getWorkflowRun: (
+    owner: string,
+    repo: string,
+    runId: number
+  ) => Promise<GitHubClient.GitHubWorkflowRun>
+  getWorkflowJobs: (
+    owner: string,
+    repo: string,
+    runId: number
+  ) => Promise<GitHubClient.GitHubWorkflowJob[]>
   triggerWorkflow: (
     owner: string,
     repo: string,
@@ -45,7 +53,11 @@ export interface GitHubHelper {
     repo: string,
     state?: 'open' | 'closed' | 'all'
   ) => Promise<GitHubClient.GitHubPullRequest[]>
-  getPullRequest: (owner: string, repo: string, pullNumber: number) => Promise<GitHubClient.GitHubPullRequest>
+  getPullRequest: (
+    owner: string,
+    repo: string,
+    pullNumber: number
+  ) => Promise<GitHubClient.GitHubPullRequest>
   createPullRequestComment: (
     owner: string,
     repo: string,
@@ -104,7 +116,14 @@ export interface GitHubHelper {
     headSha: string,
     name: string,
     status: 'queued' | 'in_progress' | 'completed',
-    conclusion?: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required'
+    conclusion?:
+      | 'success'
+      | 'failure'
+      | 'neutral'
+      | 'cancelled'
+      | 'skipped'
+      | 'timed_out'
+      | 'action_required'
   ) => Promise<void>
 
   // Utility functions
@@ -158,11 +177,16 @@ export async function createGitHubHelper(db: Database, tenantId: string): Promis
       }
 
       try {
-        const repository = await GitHubClient.getRepository(repoInfo.owner, repoInfo.repo, db, tenantId)
+        const repository = await GitHubClient.getRepository(
+          repoInfo.owner,
+          repoInfo.repo,
+          db,
+          tenantId
+        )
         return {
           repository,
           owner: repoInfo.owner,
-          repo: repoInfo.repo
+          repo: repoInfo.repo,
         }
       } catch (error) {
         return null
@@ -216,16 +240,33 @@ export async function createGitHubHelper(db: Database, tenantId: string): Promis
     getFileContent: (owner: string, repo: string, path: string, ref?: string) =>
       GitHubClient.getFileContent(owner, repo, path, ref, db, tenantId),
 
-    updateFile: (owner: string, repo: string, path: string, content: string, message: string, sha: string, branch?: string) =>
-      GitHubClient.updateFile(owner, repo, path, content, message, sha, branch, db, tenantId),
+    updateFile: (
+      owner: string,
+      repo: string,
+      path: string,
+      content: string,
+      message: string,
+      sha: string,
+      branch?: string
+    ) => GitHubClient.updateFile(owner, repo, path, content, message, sha, branch, db, tenantId),
 
     // Webhook operations
-    createWebhook: (owner: string, repo: string, webhookUrl: string, events = ['push', 'pull_request']) =>
-      GitHubClient.createWebhook(owner, repo, webhookUrl, events, db, tenantId),
+    createWebhook: (
+      owner: string,
+      repo: string,
+      webhookUrl: string,
+      events = ['push', 'pull_request']
+    ) => GitHubClient.createWebhook(owner, repo, webhookUrl, events, db, tenantId),
 
     // Status checks
-    createCheckRun: (owner: string, repo: string, headSha: string, name: string, status, conclusion) =>
-      GitHubClient.createCheckRun(owner, repo, headSha, name, status, conclusion, db, tenantId),
+    createCheckRun: (
+      owner: string,
+      repo: string,
+      headSha: string,
+      name: string,
+      status,
+      conclusion
+    ) => GitHubClient.createCheckRun(owner, repo, headSha, name, status, conclusion, db, tenantId),
 
     // Utility functions
     parseRepositoryUrl: parseRepositoryUrl,
@@ -244,7 +285,10 @@ export function withGitHub() {
     const auth = c.get('auth')
 
     console.log('🔍 withGitHub middleware - db:', db ? 'available' : 'null')
-    console.log('🔍 withGitHub middleware - session:', session ? { tenantId: session.tenantId, userId: session.userId } : 'null')
+    console.log(
+      '🔍 withGitHub middleware - session:',
+      session ? { tenantId: session.tenantId, userId: session.userId } : 'null'
+    )
     console.log('🔍 withGitHub middleware - auth:', auth ? { tenantId: auth.tenantId } : 'null')
 
     const tenantId = session?.tenantId || auth?.tenantId
@@ -261,7 +305,10 @@ export function withGitHub() {
       c.set('github', github)
     } catch (error) {
       // Don't throw error if GitHub isn't configured, just don't set the helper
-      console.warn('⚠️ GitHub integration not available:', error instanceof Error ? error.message : 'Unknown error')
+      console.warn(
+        '⚠️ GitHub integration not available:',
+        error instanceof Error ? error.message : 'Unknown error'
+      )
       c.set('github', null)
     }
 

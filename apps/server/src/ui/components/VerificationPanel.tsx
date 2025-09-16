@@ -1,6 +1,7 @@
 import type { VerificationResults, VerificationTask } from '@entente/types'
 import { Link } from 'react-router-dom'
 import TimestampDisplay from './TimestampDisplay'
+import VersionBadge from './VersionBadge'
 
 interface VerificationPanelProps {
   title: string
@@ -30,18 +31,8 @@ function VerificationPanel({
           <h2 className={`card-title ${isPending ? 'text-warning' : ''}`}>{title}</h2>
           <Link to={viewAllUrl} className="btn btn-ghost btn-sm">
             View All
-            <svg
-              className="w-4 h-4 ml-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
+            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
         </div>
@@ -55,13 +46,27 @@ function VerificationPanel({
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <div className="badge badge-warning">pending</div>
-                    <span className="text-sm font-medium">
-                      {serviceType === 'consumer' ? serviceName : task.consumer} v{task.consumerVersion}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium">
+                        {serviceType === 'consumer' ? serviceName : task.consumer}
+                      </span>
+                      <VersionBadge
+                        version={task.consumerVersion}
+                        serviceName={serviceType === 'consumer' ? serviceName : task.consumer}
+                        serviceType="consumer"
+
+                      />
+                    </div>
                     <span className="text-sm text-base-content/80">→</span>
-                    <span className="text-sm font-medium">
-                      {task.provider} v{task.providerVersion}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium">{task.provider}</span>
+                      <VersionBadge
+                        version={task.providerVersion}
+                        serviceName={task.provider}
+                        serviceType="provider"
+
+                      />
+                    </div>
                     <span className="text-xs text-base-content/70">
                       <TimestampDisplay timestamp={task.createdAt} />
                     </span>
@@ -83,7 +88,11 @@ function VerificationPanel({
         ) : verificationResults && verificationResults.length > 0 ? (
           <div className="space-y-3">
             {verificationResults.slice(0, 3).map(verification => (
-              <div key={verification.id} className="bg-base-200 rounded-lg p-3">
+              <Link
+                key={verification.id}
+                to={`/verification/${verification.id}`}
+                className="block bg-base-200 rounded-lg p-3 hover:bg-base-300 transition-colors cursor-pointer"
+              >
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <div
@@ -103,13 +112,33 @@ function VerificationPanel({
                           ? 'failed'
                           : 'pending'}
                     </div>
-                    <span className="text-sm font-medium">
-                      {serviceType === 'consumer' ? serviceName : verification.consumer || 'Unknown'} v{verification.consumerVersion || 'latest'}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium">
+                        {serviceType === 'consumer'
+                          ? serviceName
+                          : verification.consumer || 'Unknown'}
+                      </span>
+                      <VersionBadge
+                        version={verification.consumerVersion || 'latest'}
+                        serviceName={serviceType === 'consumer'
+                          ? serviceName
+                          : verification.consumer || 'Unknown'}
+                        serviceType="consumer"
+
+                      />
+                    </div>
                     <span className="text-sm text-base-content/80">→</span>
-                    <span className="text-sm font-medium">
-                      {verification.provider || 'Unknown'} v{verification.providerVersion || 'latest'}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium">
+                        {verification.provider || 'Unknown'}
+                      </span>
+                      <VersionBadge
+                        version={verification.providerVersion || 'latest'}
+                        serviceName={verification.provider || 'Unknown'}
+                        serviceType="provider"
+
+                      />
+                    </div>
                     <span className="text-xs text-base-content/70">
                       <TimestampDisplay timestamp={verification.submittedAt} />
                     </span>
@@ -118,7 +147,7 @@ function VerificationPanel({
                     {verification.summary?.passed || 0}/{verification.summary?.total || 0} tests
                   </span>
                 </div>
-              </div>
+              </Link>
             ))}
             {verificationResults.length > 3 && (
               <div className="text-center">
@@ -144,7 +173,11 @@ function VerificationPanel({
               />
             </svg>
             <div className="font-medium">
-              {isPending ? 'No pending verifications' : serviceType === 'provider' ? 'No verification results' : 'No test results'}
+              {isPending
+                ? 'No pending verifications'
+                : serviceType === 'provider'
+                  ? 'No verification results'
+                  : 'No test results'}
             </div>
             <div className="text-sm">
               {isPending

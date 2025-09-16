@@ -49,9 +49,7 @@
         "tenants_slug_unique": {
           "name": "tenants_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -131,12 +129,8 @@
           "name": "user_sessions_user_id_users_id_fk",
           "tableFrom": "user_sessions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -210,23 +204,17 @@
         "users_github_id_unique": {
           "name": "users_github_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "github_id"
-          ]
+          "columns": ["github_id"]
         },
         "users_username_unique": {
           "name": "users_username_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "username"
-          ]
+          "columns": ["username"]
         },
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -307,12 +295,8 @@
           "name": "tenant_users_tenant_id_tenants_id_fk",
           "tableFrom": "tenant_users",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -320,12 +304,8 @@
           "name": "tenant_users_user_id_users_id_fk",
           "tableFrom": "tenant_users",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -333,10 +313,7 @@
       "compositePrimaryKeys": {
         "tenant_users_tenant_id_user_id_pk": {
           "name": "tenant_users_tenant_id_user_id_pk",
-          "columns": [
-            "tenant_id",
-            "user_id"
-          ]
+          "columns": ["tenant_id", "user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -501,12 +478,8 @@
           "name": "keys_tenant_id_tenants_id_fk",
           "tableFrom": "keys",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -516,9 +489,7 @@
         "keys_key_hash_unique": {
           "name": "keys_key_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "key_hash"
-          ]
+          "columns": ["key_hash"]
         }
       },
       "policies": {},
@@ -593,12 +564,8 @@
           "name": "services_tenant_id_tenants_id_fk",
           "tableFrom": "services",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -658,12 +625,8 @@
           "name": "service_dependencies_tenant_id_tenants_id_fk",
           "tableFrom": "service_dependencies",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -671,12 +634,8 @@
           "name": "service_dependencies_consumer_id_services_id_fk",
           "tableFrom": "service_dependencies",
           "tableTo": "services",
-          "columnsFrom": [
-            "consumer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["consumer_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -684,12 +643,8 @@
           "name": "service_dependencies_provider_id_services_id_fk",
           "tableFrom": "service_dependencies",
           "tableTo": "services",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -773,12 +728,8 @@
           "name": "specs_tenant_id_tenants_id_fk",
           "tableFrom": "specs",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -786,12 +737,8 @@
           "name": "specs_provider_id_services_id_fk",
           "tableFrom": "specs",
           "tableTo": "services",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -910,12 +857,8 @@
           "name": "interactions_tenant_id_tenants_id_fk",
           "tableFrom": "interactions",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -923,12 +866,8 @@
           "name": "interactions_provider_id_services_id_fk",
           "tableFrom": "interactions",
           "tableTo": "services",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -936,12 +875,8 @@
           "name": "interactions_consumer_id_services_id_fk",
           "tableFrom": "interactions",
           "tableTo": "services",
-          "columnsFrom": [
-            "consumer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["consumer_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -951,10 +886,7 @@
         "interactions_tenant_id_hash_unique": {
           "name": "interactions_tenant_id_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "hash"
-          ]
+          "columns": ["tenant_id", "hash"]
         }
       },
       "policies": {},
@@ -1068,12 +1000,8 @@
           "name": "fixtures_tenant_id_tenants_id_fk",
           "tableFrom": "fixtures",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1083,10 +1011,7 @@
         "fixtures_tenant_id_hash_unique": {
           "name": "fixtures_tenant_id_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "hash"
-          ]
+          "columns": ["tenant_id", "hash"]
         }
       },
       "policies": {},
@@ -1172,12 +1097,8 @@
           "name": "deployments_tenant_id_tenants_id_fk",
           "tableFrom": "deployments",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1185,12 +1106,8 @@
           "name": "deployments_service_id_services_id_fk",
           "tableFrom": "deployments",
           "tableTo": "services",
-          "columnsFrom": [
-            "service_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["service_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1292,12 +1209,8 @@
           "name": "verification_results_tenant_id_tenants_id_fk",
           "tableFrom": "verification_results",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1305,12 +1218,8 @@
           "name": "verification_results_task_id_verification_tasks_id_fk",
           "tableFrom": "verification_results",
           "tableTo": "verification_tasks",
-          "columnsFrom": [
-            "task_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["task_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1318,12 +1227,8 @@
           "name": "verification_results_provider_id_services_id_fk",
           "tableFrom": "verification_results",
           "tableTo": "services",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1331,12 +1236,8 @@
           "name": "verification_results_consumer_id_services_id_fk",
           "tableFrom": "verification_results",
           "tableTo": "services",
-          "columnsFrom": [
-            "consumer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["consumer_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1444,12 +1345,8 @@
           "name": "verification_tasks_tenant_id_tenants_id_fk",
           "tableFrom": "verification_tasks",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1457,12 +1354,8 @@
           "name": "verification_tasks_provider_id_services_id_fk",
           "tableFrom": "verification_tasks",
           "tableTo": "services",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1470,12 +1363,8 @@
           "name": "verification_tasks_consumer_id_services_id_fk",
           "tableFrom": "verification_tasks",
           "tableTo": "services",
-          "columnsFrom": [
-            "consumer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["consumer_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1483,12 +1372,8 @@
           "name": "verification_tasks_dependency_id_service_dependencies_id_fk",
           "tableFrom": "verification_tasks",
           "tableTo": "service_dependencies",
-          "columnsFrom": [
-            "dependency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["dependency_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1498,12 +1383,7 @@
         "verification_tasks_tenant_id_consumer_id_consumer_version_provider_id_unique": {
           "name": "verification_tasks_tenant_id_consumer_id_consumer_version_provider_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "tenant_id",
-            "consumer_id",
-            "consumer_version",
-            "provider_id"
-          ]
+          "columns": ["tenant_id", "consumer_id", "consumer_version", "provider_id"]
         }
       },
       "policies": {},
@@ -1575,12 +1455,8 @@
           "name": "tenant_settings_tenant_id_tenants_id_fk",
           "tableFrom": "tenant_settings",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1588,12 +1464,8 @@
           "name": "tenant_settings_updated_by_users_id_fk",
           "tableFrom": "tenant_settings",
           "tableTo": "users",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1725,12 +1597,8 @@
           "name": "team_invitations_tenant_id_tenants_id_fk",
           "tableFrom": "team_invitations",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1738,12 +1606,8 @@
           "name": "team_invitations_invited_by_users_id_fk",
           "tableFrom": "team_invitations",
           "tableTo": "users",
-          "columnsFrom": [
-            "invited_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["invited_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1889,12 +1753,8 @@
           "name": "github_app_installations_tenant_id_tenants_id_fk",
           "tableFrom": "github_app_installations",
           "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1904,9 +1764,7 @@
         "github_app_installations_installation_id_unique": {
           "name": "github_app_installations_installation_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "installation_id"
-          ]
+          "columns": ["installation_id"]
         }
       },
       "policies": {},
@@ -1918,20 +1776,12 @@
     "public.fixture_source": {
       "name": "fixture_source",
       "schema": "public",
-      "values": [
-        "consumer",
-        "provider",
-        "manual"
-      ]
+      "values": ["consumer", "provider", "manual"]
     },
     "public.fixture_status": {
       "name": "fixture_status",
       "schema": "public",
-      "values": [
-        "draft",
-        "approved",
-        "rejected"
-      ]
+      "values": ["draft", "approved", "rejected"]
     }
   },
   "schemas": {},

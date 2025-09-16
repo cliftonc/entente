@@ -17,15 +17,15 @@ export const sendEmail = async (env: Env, to: string, subject: string, content: 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         from: fromEmail,
         to,
         subject,
-        html: content
-      })
+        html: content,
+      }),
     })
 
     if (!response.ok) {

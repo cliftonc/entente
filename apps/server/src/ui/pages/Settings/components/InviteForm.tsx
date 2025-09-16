@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import type { InviteTeamMemberRequest } from '@entente/types'
+import { useState } from 'react'
 
 interface InviteFormProps {
   onInvite: (invitation: InviteTeamMemberRequest) => void
@@ -34,7 +34,7 @@ function InviteForm({ onInvite, onCancel, loading, error }: InviteFormProps) {
             className={`input input-sm w-full ${error ? 'input-error' : ''}`}
             placeholder="Enter email address"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={e => setEmail(e.target.value)}
             disabled={loading}
             required
           />
@@ -43,7 +43,7 @@ function InviteForm({ onInvite, onCancel, loading, error }: InviteFormProps) {
         <select
           className="select select-sm"
           value={role}
-          onChange={(e) => setRole(e.target.value as 'admin' | 'member')}
+          onChange={e => setRole(e.target.value as 'admin' | 'member')}
           disabled={loading}
         >
           <option value="member">Member</option>
@@ -77,11 +77,7 @@ function InviteForm({ onInvite, onCancel, loading, error }: InviteFormProps) {
         </div>
       </div>
 
-      {error && (
-        <div className="text-error text-sm">
-          {error}
-        </div>
-      )}
+      {error && <div className="text-error text-sm">{error}</div>}
 
       <div className="text-xs text-base-content/60">
         <p>The invited user will receive an email with instructions to join your team.</p>

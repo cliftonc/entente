@@ -10,17 +10,17 @@ import {
   getGitHubOAuth,
 } from '../auth/github'
 import {
+  encodePrivateKey,
+  getInstallationInfo,
+  getInstallationRepositories,
+} from '../auth/github-app'
+import {
   createSession,
   createSessionCookie,
   deleteSession,
   updateSelectedTenant,
   validateSession,
 } from '../auth/sessions'
-import {
-  encodePrivateKey,
-  getInstallationInfo,
-  getInstallationRepositories,
-} from '../auth/github-app'
 import { getEnv, getRequiredEnv } from '../middleware/env'
 
 const authRouter = new Hono()
@@ -50,7 +50,7 @@ async function handleGitHubAppInstallation(c: any, installationId: string, setup
     if (setupAction === 'install' || setupAction === 'update') {
       // Get installation info from GitHub
       const installationInfo = await getInstallationInfo(
-        parseInt(installationId),
+        Number.parseInt(installationId),
         appId,
         privateKey
       )
@@ -60,7 +60,7 @@ async function handleGitHubAppInstallation(c: any, installationId: string, setup
         []
       if (installationInfo.repository_selection === 'selected') {
         repositories = await getInstallationRepositories(
-          parseInt(installationId),
+          Number.parseInt(installationId),
           appId,
           privateKey
         )
@@ -95,7 +95,7 @@ async function handleGitHubAppInstallation(c: any, installationId: string, setup
       const existingInstallation = await db
         .select()
         .from(githubAppInstallations)
-        .where(eq(githubAppInstallations.installationId, parseInt(installationId)))
+        .where(eq(githubAppInstallations.installationId, Number.parseInt(installationId)))
         .limit(1)
 
       if (existingInstallation.length > 0) {
@@ -109,7 +109,7 @@ async function handleGitHubAppInstallation(c: any, installationId: string, setup
             permissions: installationInfo.permissions,
             repositorySelection: installationInfo.repository_selection,
             selectedRepositories: repositories.length > 0 ? repositories : null,
-            appId: parseInt(appId),
+            appId: Number.parseInt(appId),
             privateKeyEncrypted: encodedPrivateKey,
             webhookSecret: webhookSecret || null,
             suspendedAt: installationInfo.suspended_at
@@ -117,19 +117,19 @@ async function handleGitHubAppInstallation(c: any, installationId: string, setup
               : null,
             updatedAt: new Date(),
           })
-          .where(eq(githubAppInstallations.installationId, parseInt(installationId)))
+          .where(eq(githubAppInstallations.installationId, Number.parseInt(installationId)))
       } else {
         // Create new installation
         await db.insert(githubAppInstallations).values({
           tenantId: userTenant[0].tenantId,
-          installationId: parseInt(installationId),
+          installationId: Number.parseInt(installationId),
           accountType: installationInfo.account.type.toLowerCase() as 'user' | 'organization',
           accountLogin: installationInfo.account.login,
           targetType: installationInfo.account.type,
           permissions: installationInfo.permissions,
           repositorySelection: installationInfo.repository_selection,
           selectedRepositories: repositories.length > 0 ? repositories : null,
-          appId: parseInt(appId),
+          appId: Number.parseInt(appId),
           privateKeyEncrypted: encodedPrivateKey,
           webhookSecret: webhookSecret || null,
           suspendedAt: installationInfo.suspended_at

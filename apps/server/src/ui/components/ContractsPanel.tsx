@@ -1,6 +1,7 @@
 import type { Contract } from '@entente/types'
 import { Link } from 'react-router-dom'
 import TimestampDisplay from './TimestampDisplay'
+import VersionBadge from './VersionBadge'
 
 interface ContractsPanelProps {
   title: string
@@ -33,18 +34,8 @@ function ContractsPanel({
           <h2 className="card-title">{title}</h2>
           <Link to={viewAllUrl} className="btn btn-ghost btn-sm">
             View All
-            <svg
-              className="w-4 h-4 ml-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
+            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
         </div>
@@ -64,11 +55,13 @@ function ContractsPanel({
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-secondary">
-                  {new Set(
-                    contracts.map(c =>
-                      serviceType === 'provider' ? c.consumerName : c.providerName
-                    )
-                  ).size}
+                  {
+                    new Set(
+                      contracts.map(c =>
+                        serviceType === 'provider' ? c.consumerName : c.providerName
+                      )
+                    ).size
+                  }
                 </div>
                 <div className="text-sm text-base-content/70">{otherServiceLabel}</div>
               </div>
@@ -84,6 +77,9 @@ function ContractsPanel({
               {contracts.slice(0, 5).map(contract => {
                 const otherServiceName =
                   serviceType === 'provider' ? contract.consumerName : contract.providerName
+                const otherServiceVersion =
+                  serviceType === 'provider' ? contract.consumerVersion : contract.providerVersion
+                const otherServiceTypeLabel = serviceType === 'provider' ? 'consumer' : 'provider'
 
                 return (
                   <Link
@@ -94,11 +90,16 @@ function ContractsPanel({
                     <div className="flex justify-between items-center mb-2">
                       <div className="flex items-center gap-2">
                         <div className="font-medium text-sm">{otherServiceName}</div>
-                        <span className="badge badge-outline badge-sm px-2">
-                          v{contract.consumerVersion}
-                        </span>
+                        <VersionBadge
+                          version={otherServiceVersion}
+                          serviceName={otherServiceName}
+                          serviceType={otherServiceTypeLabel as 'consumer' | 'provider'}
+
+                        />
                         <span className="text-xs text-base-content/70">
-                          <TimestampDisplay timestamp={contract.lastInteractionAt || contract.lastSeen} />
+                          <TimestampDisplay
+                            timestamp={contract.lastInteractionAt || contract.lastSeen}
+                          />
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
