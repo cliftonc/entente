@@ -1,6 +1,6 @@
 {
   "name": "@entente/types",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Shared TypeScript types for Entente contract testing",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,7 +11,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -22,5 +24,9 @@
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
-  "keywords": ["contract-testing", "types", "typescript"]
+  "keywords": [
+    "contract-testing",
+    "types",
+    "typescript"
+  ]
 }
