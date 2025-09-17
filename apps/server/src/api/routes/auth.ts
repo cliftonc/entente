@@ -976,7 +976,7 @@ authRouter.get('/invite/details', async c => {
     return c.json({ error: 'Invalid invitation token' }, 404)
   }
 
-  return c.json(invitation[0])
+  return c.json({ invitation: invitation[0] })
 })
 
 // Accept team invitation (API endpoint)

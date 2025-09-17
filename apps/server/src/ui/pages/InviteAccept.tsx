@@ -1,7 +1,7 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useInvitationDetails, useAcceptInvitation } from '../hooks/useInvitations'
 
 interface InvitationDetails {
   id: string
@@ -31,60 +31,29 @@ function InviteAccept() {
 
   // Fetch invitation details
   const {
-    data: invitation,
+    data: invitationData,
     isLoading,
     error: fetchError,
-  } = useQuery({
-    queryKey: ['invitation', token],
-    queryFn: async (): Promise<InvitationDetails> => {
-      if (!token) {
-        throw new Error('No invitation token provided')
-      }
-      const response = await fetch(`/auth/invite/details?token=${encodeURIComponent(token)}`)
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to fetch invitation details')
-      }
-      return response.json()
-    },
-    enabled: !!token,
-  })
+  } = useInvitationDetails(token || '', { enabled: !!token })
+
+  const invitation = invitationData?.invitation
 
   // Accept invitation mutation
-  const acceptMutation = useMutation({
-    mutationFn: async () => {
-      if (!token) {
-        throw new Error('No invitation token provided')
-      }
-      const response = await fetch(`/auth/invite/accept`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token }),
-      })
-
-      const data = await response.json().catch(() => ({}))
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to accept invitation')
-      }
-
-      return data
-    },
+  const acceptMutation = useAcceptInvitation({
     onSuccess: data => {
       if (data.success) {
         // Successfully accepted, refresh auth state and redirect to dashboard
         refresh().then(() => {
-          navigate(data.redirectUrl || '/?invitation-accepted=true')
+          navigate('/?invitation-accepted=true')
         })
       } else if (data.requiresAuth) {
-        // Need to login first, redirect to GitHub OAuth
-        window.location.href = data.loginUrl || '/auth/github'
+        // User needs to authenticate - redirect to GitHub login
+        const loginUrl = data.loginUrl || '/auth/github'
+        window.location.href = loginUrl
       }
     },
-    onError: (error: Error) => {
-      setError(error.message)
+    onError: (error: any) => {
+      setError(error.message || 'An error occurred')
     },
   })
 
@@ -101,7 +70,7 @@ function InviteAccept() {
       token: !!token,
       invitation: !!invitation,
       hasTriedAutoAccept,
-      isPending: acceptMutation.isPending,
+      isPending: acceptMutation.isLoading,
       invitationStatus: invitation?.status,
       invitationEmail: invitation?.email,
       userEmail: user?.email,
@@ -109,7 +78,7 @@ function InviteAccept() {
       isExpired: invitation ? new Date() > new Date(invitation.expiresAt) : null,
     })
 
-    if (authenticated && token && invitation && !hasTriedAutoAccept && !acceptMutation.isPending) {
+    if (authenticated && token && invitation && !hasTriedAutoAccept && !acceptMutation.isLoading) {
       console.log('✅ Prerequisites met for auto-acceptance')
       // Check if invitation is valid and for the correct user
       if (
@@ -119,7 +88,7 @@ function InviteAccept() {
       ) {
         console.log('🚀 Auto-accepting invitation!')
         setHasTriedAutoAccept(true)
-        acceptMutation.mutate()
+        acceptMutation.mutate(token || '')
       } else {
         console.log('❌ Invitation validation failed:', {
           statusPending: invitation.status === 'pending',
@@ -176,7 +145,7 @@ function InviteAccept() {
   }
 
   // Show accepting state if user is authenticated and we're auto-accepting
-  if (authenticated && hasTriedAutoAccept && acceptMutation.isPending) {
+  if (authenticated && hasTriedAutoAccept && acceptMutation.isLoading) {
     return (
       <div className="min-h-screen bg-base-200 flex items-center justify-center">
         <div className="card w-full max-w-md bg-base-100 shadow-xl">
@@ -320,17 +289,17 @@ function InviteAccept() {
                 <div>
                   <div className="font-bold">Email Mismatch</div>
                   <div className="text-sm">
-                    This invitation is for {invitation.email}, but you're logged in as {user.email}.
+                    This invitation is for {invitation.email}, but you're logged in as {user?.email}.
                   </div>
                 </div>
               </div>
             ) : null}
             <button
               className="btn btn-primary"
-              onClick={() => acceptMutation.mutate()}
-              disabled={acceptMutation.isPending}
+              onClick={() => acceptMutation.mutate(token || '')}
+              disabled={acceptMutation.isLoading}
             >
-              {acceptMutation.isPending ? (
+              {acceptMutation.isLoading ? (
                 <>
                   <div className="loading loading-spinner loading-sm"></div>
                   Accepting...
@@ -342,7 +311,7 @@ function InviteAccept() {
             <button
               className="btn btn-ghost"
               onClick={() => navigate('/')}
-              disabled={acceptMutation.isPending}
+              disabled={acceptMutation.isLoading}
             >
               Cancel
             </button>

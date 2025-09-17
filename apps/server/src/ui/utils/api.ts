@@ -6,18 +6,25 @@ import type {
   CreateKeyRequest,
   DeploymentState,
   Fixture,
+  GitHubAppInstallation,
+  GitHubAppInstallationUpdate,
   GitHubServiceConfig,
   GitHubServiceConfigRequest,
   GitHubTriggerWorkflowRequest,
   GitHubWorkflow,
+  InviteTeamMemberRequest,
   OpenAPISpec,
   RevokeKeyRequest,
   Service,
   ServiceDependency,
   ServiceVersion,
+  TeamMember,
+  TenantSettings,
+  TenantSettingsUpdate,
   VerificationResults,
   VerificationTask,
 } from '@entente/types'
+import type { ExtendedVerificationResult } from '../lib/types'
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -32,6 +39,29 @@ export class ApiError extends Error {
 // Base fetch wrapper with authentication
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`/api${endpoint}`, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+    ...options,
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new ApiError(
+      errorText || `Request failed: ${response.status}`,
+      response.status,
+      response.statusText
+    )
+  }
+
+  return response.json()
+}
+
+// Auth fetch wrapper (for auth endpoints)
+async function fetchAuth<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`/auth${endpoint}`, {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
@@ -195,12 +225,12 @@ export const deploymentApi = {
 
 // Verification API functions
 export const verificationApi = {
-  getAll: () => fetchApi<VerificationResults[]>('/verification'),
-  getById: (id: string) => fetchApi<VerificationResults>(`/verification/result/${id}`),
+  getAll: () => fetchApi<ExtendedVerificationResult[]>('/verification'),
+  getById: (id: string) => fetchApi<ExtendedVerificationResult>(`/verification/result/${id}`),
   getByProvider: (provider: string) =>
-    fetchApi<VerificationResults[]>(`/verification/${provider}/history`),
+    fetchApi<ExtendedVerificationResult[]>(`/verification/${provider}/history`),
   getByConsumer: (consumer: string) =>
-    fetchApi<VerificationResults[]>(`/verification/consumer/${consumer}/history`),
+    fetchApi<ExtendedVerificationResult[]>(`/verification/consumer/${consumer}/history`),
   getTasks: (provider: string) => fetchApi<VerificationTask[]>(`/verification/${provider}`),
   getPendingTasks: () => fetchApi<VerificationTask[]>('/verification/pending'),
   getByContract: (contractId: string) =>
@@ -275,9 +305,13 @@ export const statsApi = {
       recentDeployments: DeploymentState[]
       serviceHealth: Array<{
         service: string
+        name: string
+        type?: 'consumer' | 'provider'
         status: 'healthy' | 'warning' | 'critical'
         lastDeployment?: string
         errorRate?: number
+        interactions?: number
+        passRate?: number
       }>
     }>('/stats/dashboard'),
 }
@@ -311,6 +345,30 @@ export const contractApi = {
     fetchApi<Contract>(`/contracts/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
+    }),
+}
+
+// Settings API functions
+export const settingsApi = {
+  get: () => fetchApi<TenantSettings>('/settings'),
+  update: (updates: TenantSettingsUpdate) =>
+    fetchApi<TenantSettings>('/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    }),
+}
+
+// Tenant API functions
+export const tenantApi = {
+  create: (data: { name: string }) =>
+    fetchApi<{ success: boolean }>('/auth/create-tenant', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  delete: (data: { slug: string; confirm: string }) =>
+    fetchApi<{ success: boolean; logout?: boolean }>('/auth/delete-tenant', {
+      method: 'POST',
+      body: JSON.stringify(data),
     }),
 }
 
@@ -401,6 +459,81 @@ export const githubApi = {
     request: GitHubTriggerWorkflowRequest
   ): Promise<{ message: string }> =>
     api.post(`/services/${serviceName}/${serviceType}/github/trigger-workflow`, request),
+}
+
+// GitHub Integration Settings API functions
+export const githubSettingsApi = {
+  // Get GitHub app name
+  getAppName: (): Promise<{ appName: string }> =>
+    fetchApi('/github/app-name'),
+
+  // Get GitHub app installation
+  getInstallation: (): Promise<GitHubAppInstallation | null> =>
+    fetchApi('/settings/github'),
+
+  // Get GitHub manage URL
+  getManageUrl: (): Promise<{ manageUrl: string }> =>
+    fetchApi('/settings/github/manage-url'),
+
+  // Update GitHub installation settings
+  updateInstallation: (updates: GitHubAppInstallationUpdate): Promise<GitHubAppInstallation> =>
+    fetchApi('/settings/github', {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    }),
+
+  // Uninstall GitHub app
+  uninstallApp: (): Promise<{ success: boolean }> =>
+    fetchApi('/settings/github', {
+      method: 'DELETE',
+    }),
+}
+
+// Team Management API functions
+export const teamApi = {
+  // Get team members
+  getMembers: (): Promise<TeamMember[]> =>
+    fetchApi('/settings/team'),
+
+  // Invite team member
+  inviteMember: (invitation: InviteTeamMemberRequest): Promise<{ success: boolean }> =>
+    fetchApi('/settings/team/invite', {
+      method: 'POST',
+      body: JSON.stringify(invitation),
+    }),
+
+  // Update team member role
+  updateMemberRole: (userId: string, role: 'admin' | 'member'): Promise<{ success: boolean }> =>
+    fetchApi(`/settings/team/${userId}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    }),
+
+  // Remove team member
+  removeMember: (userId: string): Promise<{ success: boolean }> =>
+    fetchApi(`/settings/team/${userId}`, {
+      method: 'DELETE',
+    }),
+
+  // Resend invitation
+  resendInvite: (email: string): Promise<{ success: boolean }> =>
+    fetchApi(`/settings/team/resend/${encodeURIComponent(email)}`, {
+      method: 'POST',
+    }),
+}
+
+// Invitation API functions
+export const invitationApi = {
+  // Get invitation details
+  getDetails: (token: string): Promise<{ invitation: any }> =>
+    fetchAuth(`/invite/details?token=${encodeURIComponent(token)}`),
+
+  // Accept invitation
+  accept: (token: string): Promise<{ success: boolean; requiresAuth?: boolean; loginUrl?: string; message?: string }> =>
+    fetchAuth('/invite/accept', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
 }
 
 // Service Version API functions
