@@ -18,16 +18,48 @@ const connections = new Map<string, WebSocketConnection>()
 
 export const websocketRouter = new Hono()
 
-// For Node.js development, create a simple endpoint that returns WebSocket connection info
-// In production, this would be replaced with proper WebSocket upgrade logic
+// WebSocket endpoint:
+// - In development: handled by standalone ws server at ws://localhost:3001/ws (see dev-server.ts)
+// - In production (Workers): proxy upgrade to Durable Object instance for the tenant
 websocketRouter.get('/ws', async (c: Context) => {
-  // In a real implementation with Node.js WebSocket server,
-  // this would handle the WebSocket upgrade
-  return c.json({
-    message: 'WebSocket endpoint - would upgrade in production',
-    timestamp: new Date().toISOString(),
-    status: 'development_mode'
+  const isNode = typeof process !== 'undefined' && process.release?.name === 'node'
+  if (isNode) {
+    return c.json({
+      message: 'WebSocket endpoint (development handled by Node ws server)',
+      timestamp: new Date().toISOString(),
+      status: 'development_mode',
+    })
+  }
+
+  // Workers environment: forward upgrade to Durable Object
+  const env: any = c.env
+  if (!env?.NOTIFICATIONS_HUB) {
+    return c.json({ error: 'Notifications Durable Object not bound' }, 500)
+  }
+
+  const url = new URL(c.req.url)
+  // Derive tenant/user from authenticated session when available (preferred)
+  const session = c.get('session') as { tenantId: string; userId?: string } | undefined
+  const tenantId = session?.tenantId || url.searchParams.get('tenantId') || 'unknown-tenant'
+  const userId = session?.userId || url.searchParams.get('userId') || undefined
+
+  const id = env.NOTIFICATIONS_HUB.idFromName(tenantId)
+  const stub = env.NOTIFICATIONS_HUB.get(id)
+
+  // Build DO connect URL with query params
+  const connectUrl = new URL('/connect', 'https://notifications-hub')
+  connectUrl.searchParams.set('tenantId', tenantId)
+  if (userId) connectUrl.searchParams.set('userId', userId)
+
+  const upgradeHeaders = new Headers(c.req.raw.headers)
+  upgradeHeaders.set('Upgrade', 'websocket')
+
+  const response: Response = await stub.fetch(connectUrl.toString(), {
+    headers: upgradeHeaders,
   })
+
+  // Return the upgraded response directly (Workers runtime handles 101 switching protocol)
+  return response
 })
 
 // WebSocket notification broadcaster
@@ -83,7 +115,9 @@ export const websocketBroadcaster = {
       }
     }
 
-    console.log(`Broadcasted message to ${sentCount} connections in channel ${channel} for tenant ${tenantId}`)
+    console.log(
+      `Broadcasted message to ${sentCount} connections in channel ${channel} for tenant ${tenantId}`
+    )
     return sentCount
   },
 
@@ -92,10 +126,13 @@ export const websocketBroadcaster = {
    */
   getStats: () => {
     const totalConnections = connections.size
-    const tenantCounts = Array.from(connections.values()).reduce((acc, conn) => {
-      acc[conn.tenantId] = (acc[conn.tenantId] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
+    const tenantCounts = Array.from(connections.values()).reduce(
+      (acc, conn) => {
+        acc[conn.tenantId] = (acc[conn.tenantId] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>
+    )
 
     return {
       totalConnections,
@@ -134,4 +171,11 @@ export const websocketBroadcaster = {
 }
 
 // Set up periodic cleanup
-setInterval(websocketBroadcaster.cleanup, 5 * 60 * 1000) // Every 5 minutes
+const isNodeRuntime = typeof process !== 'undefined' && process.release?.name === 'node'
+// In Cloudflare Workers, scheduling timers (setInterval/setTimeout) in global scope is disallowed.
+// We only enable periodic cleanup when running under the Node.js dev server. In the Workers
+// environment we'll rely on per-message operations (broadcasts) to naturally prune closed sockets
+// and can later add a Durable Object with an alarm for maintenance.
+if (isNodeRuntime) {
+  setInterval(websocketBroadcaster.cleanup, 5 * 60 * 1000) // Every 5 minutes
+}

@@ -26,6 +26,7 @@ async function createVerificationTaskFromInteraction(
   consumerName: string,
   consumerVersion: string,
   environment: string,
+  env: any,
   contractId?: string | null
 ) {
   // Only create task if we have both provider and consumer IDs
@@ -90,18 +91,21 @@ async function createVerificationTaskFromInteraction(
     const providerVersion = allInteractions[0]?.providerVersion || 'latest'
 
     try {
-      const [newTask] = await db.insert(verificationTasks).values({
-        tenantId,
-        contractId,
-        providerId,
-        consumerId,
-        provider: providerName,
-        providerVersion, // Use real provider version from interactions
-        consumer: consumerName,
-        consumerVersion,
-        environment,
-        interactions: allInteractions,
-      }).returning()
+      const [newTask] = await db
+        .insert(verificationTasks)
+        .values({
+          tenantId,
+          contractId,
+          providerId,
+          consumerId,
+          provider: providerName,
+          providerVersion, // Use real provider version from interactions
+          consumer: consumerName,
+          consumerVersion,
+          environment,
+          interactions: allInteractions,
+        })
+        .returning()
 
       console.log(
         `✅ Created verification task with ${allInteractions.length} interactions for ${consumerName}@${consumerVersion} -> ${providerName}@${providerVersion}`
@@ -109,15 +113,20 @@ async function createVerificationTaskFromInteraction(
 
       // Broadcast WebSocket event for verification task creation
       try {
-        NotificationService.broadcastVerificationEvent(tenantId, 'create', {
-          id: newTask.id,
-          provider: providerName,
-          consumer: consumerName,
-          contractId: contractId || '',
-          status: 'pending',
-          providerVersion,
-          consumerVersion,
-        })
+        await NotificationService.broadcastVerificationEvent(
+          tenantId,
+          'create',
+          {
+            id: newTask.id,
+            provider: providerName,
+            consumer: consumerName,
+            contractId: contractId || '',
+            status: 'pending',
+            providerVersion,
+            consumerVersion,
+          },
+          { env }
+        )
       } catch (broadcastError) {
         console.error('⚠️  Failed to broadcast verification task creation:', broadcastError)
       }
@@ -128,7 +137,9 @@ async function createVerificationTaskFromInteraction(
           `📋 Race condition detected for verification task: ${consumerName}@${consumerVersion} -> ${providerName}`
         )
       } else {
-        console.error(`⚠️  Failed to create verification task: ${error instanceof Error ? error.message : String(error)}`)
+        console.error(
+          `⚠️  Failed to create verification task: ${error instanceof Error ? error.message : String(error)}`
+        )
       }
     }
   }
@@ -183,7 +194,9 @@ async function createDependencyFromInteraction(
           `📋 Race condition detected for dependency: ${consumerName}@${consumerVersion} -> ${providerName}`
         )
       } else {
-        console.error(`⚠️  Failed to create dependency: ${error instanceof Error ? error.message : String(error)}`)
+        console.error(
+          `⚠️  Failed to create dependency: ${error instanceof Error ? error.message : String(error)}`
+        )
       }
     }
   }
@@ -391,7 +404,7 @@ interactionsRouter.post('/', async c => {
       interaction.consumerVersion,
       {
         gitSha: interaction.consumerGitSha,
-        createdBy: 'interaction-recording'
+        createdBy: 'interaction-recording',
       }
     )
 
@@ -416,7 +429,8 @@ interactionsRouter.post('/', async c => {
         interaction.consumerVersion,
         interaction.consumerGitSha || null,
         interaction.providerVersion,
-        interaction.environment
+        interaction.environment,
+        c.env || c.get('env')
       )
     }
 
@@ -737,7 +751,7 @@ interactionsRouter.post('/batch', async c => {
         interaction.consumerVersion,
         {
           gitSha: interaction.consumerGitSha,
-          createdBy: 'interaction-recording'
+          createdBy: 'interaction-recording',
         }
       )
 
@@ -762,7 +776,8 @@ interactionsRouter.post('/batch', async c => {
           interaction.consumerVersion,
           interaction.consumerGitSha || null,
           interaction.providerVersion,
-          interaction.environment
+          interaction.environment,
+          c.env || c.get('env')
         )
       }
 
@@ -866,6 +881,7 @@ interactionsRouter.post('/batch', async c => {
           consumerData.name,
           consumerVersion,
           incomingInteractions[0].environment, // Use first interaction's environment
+          c.env || c.get('env'),
           contract?.id || null
         )
 

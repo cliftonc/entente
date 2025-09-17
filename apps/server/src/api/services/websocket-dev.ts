@@ -19,7 +19,7 @@ export const devWebSocketBroadcaster = {
   /**
    * Broadcast message to all connections in a tenant
    */
-  broadcastToTenant: (tenantId: string, message: any) => {
+  broadcastToTenant: async (tenantId: string, message: any) => {
     const relevantConnections = Array.from(connections.values()).filter(
       conn => conn.tenantId === tenantId && conn.ws.readyState === WebSocket.OPEN
     )
@@ -45,7 +45,7 @@ export const devWebSocketBroadcaster = {
   /**
    * Broadcast message to specific channel subscribers in a tenant
    */
-  broadcastToChannel: (tenantId: string, channel: string, message: any) => {
+  broadcastToChannel: async (tenantId: string, channel: string, message: any) => {
     const relevantConnections = Array.from(connections.values()).filter(
       conn =>
         conn.tenantId === tenantId &&
@@ -67,7 +67,9 @@ export const devWebSocketBroadcaster = {
       }
     }
 
-    console.log(`📡 [DEV] Broadcasted message to ${sentCount} connections in channel ${channel} for tenant ${tenantId}`)
+    console.log(
+      `📡 [DEV] Broadcasted message to ${sentCount} connections in channel ${channel} for tenant ${tenantId}`
+    )
     return sentCount
   },
 
@@ -76,10 +78,13 @@ export const devWebSocketBroadcaster = {
    */
   getStats: () => {
     const totalConnections = connections.size
-    const tenantCounts = Array.from(connections.values()).reduce((acc, conn) => {
-      acc[conn.tenantId] = (acc[conn.tenantId] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
+    const tenantCounts = Array.from(connections.values()).reduce(
+      (acc, conn) => {
+        acc[conn.tenantId] = (acc[conn.tenantId] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>
+    )
 
     return {
       totalConnections,
@@ -132,8 +137,8 @@ function extractTenantFromRequest(req: IncomingMessage): { tenantId?: string; us
   const userId = query.userId as string
 
   return {
-    tenantId: (tenantId && tenantId !== 'undefined') ? tenantId : 'dev-tenant-1',
-    userId: (userId && userId !== 'undefined') ? userId : 'dev-user-1',
+    tenantId: tenantId && tenantId !== 'undefined' ? tenantId : 'dev-tenant-1',
+    userId: userId && userId !== 'undefined' ? userId : 'dev-user-1',
   }
 }
 
@@ -167,20 +172,24 @@ export function setupWebSocketServer(wss: WebSocketServer) {
     console.log(`🔗 [DEV] WebSocket connected: ${connectionId} for tenant ${tenantId}`)
 
     // Send welcome message
-    ws.send(JSON.stringify({
-      type: 'welcome',
-      connectionId,
-      tenantId,
-      timestamp: new Date().toISOString(),
-    }))
+    ws.send(
+      JSON.stringify({
+        type: 'welcome',
+        connectionId,
+        tenantId,
+        timestamp: new Date().toISOString(),
+      })
+    )
 
     // Set up ping interval
     const pingInterval = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'ping',
-          timestamp: new Date().toISOString(),
-        }))
+        ws.send(
+          JSON.stringify({
+            type: 'ping',
+            timestamp: new Date().toISOString(),
+          })
+        )
         connection.lastPing = new Date()
       } else {
         clearInterval(pingInterval)
@@ -207,7 +216,9 @@ export function setupWebSocketServer(wss: WebSocketServer) {
           case 'unsubscribe':
             if (message.channel) {
               connection.subscriptions.delete(message.channel)
-              console.log(`📭 [DEV] Connection ${connection.id} unsubscribed from ${message.channel}`)
+              console.log(
+                `📭 [DEV] Connection ${connection.id} unsubscribed from ${message.channel}`
+              )
             }
             break
 

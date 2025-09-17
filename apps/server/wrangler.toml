@@ -24,3 +24,13 @@ not_found_handling = "single-page-application"
 # binding = "DB"
 # database_name = "entente-staging"
 # database_id = "your-staging-database-id"
+
+# Durable Object for WebSocket hub per tenant
+[durable_objects]
+bindings = [
+  { name = "NOTIFICATIONS_HUB", class_name = "NotificationsHub" }
+]
+
+[[migrations]]
+tag = "0001_notifications_hub"
+new_classes = ["NotificationsHub"]

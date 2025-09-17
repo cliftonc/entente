@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:ui\"",
-    "dev:api": "tsx watch --clear-screen=false src/api/dev-server.ts",
+    "dev:api": "wrangler dev src/api/index.ts --port 3001",
     "dev:api:worker": "wrangler dev src/api/index.ts --port 3001",
     "dev:ui": "vite",
     "build": "npm run typecheck && npm run build:api && npm run build:ui",
@@ -64,11 +64,5 @@
     "vitest": "^2.1.8",
     "wrangler": "^4.36.0"
   },
-  "keywords": [
-    "contract-testing",
-    "server",
-    "hono",
-    "cloudflare-workers",
-    "react"
-  ]
+  "keywords": ["contract-testing", "server", "hono", "cloudflare-workers", "react"]
 }

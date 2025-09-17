@@ -7,6 +7,7 @@ import { logger } from 'hono/logger'
 
 type CloudflareEnv = {
   ASSETS?: any
+  NOTIFICATIONS_HUB?: any // DurableObjectNamespace binding (Workers)
 }
 import {
   deployments,
@@ -599,4 +600,5 @@ app.get('*', async c => {
 })
 
 // Export for Cloudflare Workers
+export { NotificationsHub } from './durable-objects/notifications-hub.js'
 export default app

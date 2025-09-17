@@ -47,9 +47,12 @@ deploymentsRouter.post('/consumer', async c => {
   )
 
   if (!serviceVersion) {
-    return c.json({
-      error: `Service version not found: ${consumerDeployment.name}@${consumerDeployment.version}. Please register this version first through service registration or interaction recording.`
-    }, 404)
+    return c.json(
+      {
+        error: `Service version not found: ${consumerDeployment.name}@${consumerDeployment.version}. Please register this version first through service registration or interaction recording.`,
+      },
+      404
+    )
   }
 
   // Create deployment record
@@ -89,17 +92,26 @@ deploymentsRouter.post('/consumer', async c => {
   )
 
   // Broadcast WebSocket event
-  NotificationService.broadcastDeploymentEvent(tenantId, 'create', {
-    id: deployment.id,
-    service: consumerDeployment.name,
-    version: consumerDeployment.version,
-    environment: consumerDeployment.environment,
-    type: 'consumer',
-    status: 'successful',
-    deployedAt: deployment.deployedAt,
-    deployedBy: deployment.deployedBy,
-    gitSha: deployment.gitSha || undefined,
-  })
+  try {
+    await NotificationService.broadcastDeploymentEvent(
+      tenantId,
+      'create',
+      {
+        id: deployment.id,
+        service: consumerDeployment.name,
+        version: consumerDeployment.version,
+        environment: consumerDeployment.environment,
+        type: 'consumer',
+        status: 'successful',
+        deployedAt: deployment.deployedAt,
+        deployedBy: deployment.deployedBy,
+        gitSha: deployment.gitSha || undefined,
+      },
+      { env: c.env || c.get('env') }
+    )
+  } catch (err) {
+    console.error('Notification broadcast failed (deployment create consumer):', err)
+  }
 
   return c.json(
     {
@@ -150,9 +162,12 @@ deploymentsRouter.post('/provider', async c => {
   )
 
   if (!serviceVersion) {
-    return c.json({
-      error: `Service version not found: ${providerDeployment.name}@${providerDeployment.version}. Please register this version first through service registration or spec upload.`
-    }, 404)
+    return c.json(
+      {
+        error: `Service version not found: ${providerDeployment.name}@${providerDeployment.version}. Please register this version first through service registration or spec upload.`,
+      },
+      404
+    )
   }
 
   // Create deployment record
@@ -192,17 +207,26 @@ deploymentsRouter.post('/provider', async c => {
   )
 
   // Broadcast WebSocket event
-  NotificationService.broadcastDeploymentEvent(tenantId, 'create', {
-    id: deployment.id,
-    service: providerDeployment.name,
-    version: providerDeployment.version,
-    environment: providerDeployment.environment,
-    type: 'provider',
-    status: 'successful',
-    deployedAt: deployment.deployedAt,
-    deployedBy: deployment.deployedBy,
-    gitSha: deployment.gitSha || undefined,
-  })
+  try {
+    await NotificationService.broadcastDeploymentEvent(
+      tenantId,
+      'create',
+      {
+        id: deployment.id,
+        service: providerDeployment.name,
+        version: providerDeployment.version,
+        environment: providerDeployment.environment,
+        type: 'provider',
+        status: 'successful',
+        deployedAt: deployment.deployedAt,
+        deployedBy: deployment.deployedBy,
+        gitSha: deployment.gitSha || undefined,
+      },
+      { env: c.env || c.get('env') }
+    )
+  } catch (err) {
+    console.error('Notification broadcast failed (deployment create provider):', err)
+  }
 
   return c.json(
     {

@@ -315,11 +315,20 @@ contractsRouter.patch('/:id', async c => {
   console.log(`✅ Updated contract ${id} status to ${updates.status}`)
 
   // Broadcast WebSocket event for contract update
-  NotificationService.broadcastContractEvent(tenantId, 'update', {
-    id: contractWithCount.id,
-    provider: contractWithCount.providerName,
-    consumer: contractWithCount.consumerName,
-  })
+  try {
+    await NotificationService.broadcastContractEvent(
+      tenantId,
+      'update',
+      {
+        id: contractWithCount.id,
+        provider: contractWithCount.providerName,
+        consumer: contractWithCount.consumerName,
+      },
+      { env: c.env || c.get('env') }
+    )
+  } catch (err) {
+    console.error('Notification broadcast failed (contract update):', err)
+  }
 
   return c.json(clientContract)
 })
@@ -356,7 +365,8 @@ export async function createOrUpdateContract(
   consumerVersion: string,
   consumerGitSha: string | null,
   providerVersion: string,
-  environment: string
+  environment: string,
+  env: any
 ): Promise<string> {
   // Try to find existing contract
   const existingContract = await db.query.contracts.findFirst({
@@ -406,11 +416,20 @@ export async function createOrUpdateContract(
   )
 
   // Broadcast WebSocket event for contract creation
-  NotificationService.broadcastContractEvent(tenantId, 'create', {
-    id: newContract.id,
-    provider: providerName,
-    consumer: consumerName,
-  })
+  try {
+    await NotificationService.broadcastContractEvent(
+      tenantId,
+      'create',
+      {
+        id: newContract.id,
+        provider: providerName,
+        consumer: consumerName,
+      },
+      { env }
+    )
+  } catch (err) {
+    console.error('Notification broadcast failed (contract create):', err)
+  }
 
   return newContract.id
 }

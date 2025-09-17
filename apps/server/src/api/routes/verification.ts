@@ -372,34 +372,46 @@ verificationRouter.post('/:provider', async c => {
     return c.json({ error: 'Provider service not found. Register the provider first.' }, 404)
   }
 
-  const [newResult] = await db.insert(verificationResults).values({
-    tenantId,
-    provider,
-    consumerId: consumer.id,
-    providerId: providerService.id,
-    providerVersion: results.providerVersion,
-    providerGitSha: results.providerGitSha || null,
-    consumer: task.consumer,
-    consumerVersion: task.consumerVersion,
-    consumerGitSha: task.consumerGitSha || null,
-    taskId: results.taskId,
-    results: results.results,
-  }).returning()
+  const [newResult] = await db
+    .insert(verificationResults)
+    .values({
+      tenantId,
+      provider,
+      consumerId: consumer.id,
+      providerId: providerService.id,
+      providerVersion: results.providerVersion,
+      providerGitSha: results.providerGitSha || null,
+      consumer: task.consumer,
+      consumerVersion: task.consumerVersion,
+      consumerGitSha: task.consumerGitSha || null,
+      taskId: results.taskId,
+      results: results.results,
+    })
+    .returning()
 
   const passed = results.results.filter(r => r.success).length
   const total = results.results.length
   const allPassed = passed === total
 
   // Broadcast WebSocket event for verification result completion
-  NotificationService.broadcastVerificationEvent(tenantId, 'completed', {
-    id: newResult.id,
-    provider,
-    consumer: task.consumer,
-    contractId: task.contractId || '',
-    status: allPassed ? 'passed' : 'failed',
-    providerVersion: results.providerVersion,
-    consumerVersion: task.consumerVersion,
-  })
+  try {
+    await NotificationService.broadcastVerificationEvent(
+      tenantId,
+      'completed',
+      {
+        id: newResult.id,
+        provider,
+        consumer: task.consumer,
+        contractId: task.contractId || '',
+        status: allPassed ? 'passed' : 'failed',
+        providerVersion: results.providerVersion,
+        consumerVersion: task.consumerVersion,
+      },
+      { env: c.env || c.get('env') }
+    )
+  } catch (err) {
+    console.error('Notification broadcast failed (verification completed):', err)
+  }
 
   // Update dependency status based on verification results
   if (task.dependencyId) {

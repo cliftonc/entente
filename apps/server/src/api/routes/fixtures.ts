@@ -143,13 +143,22 @@ fixturesRouter.post('/', async c => {
     }
 
     // Broadcast WebSocket event for fixture creation
-    NotificationService.broadcastFixtureEvent(tenantId, 'create', {
-      id: newFixture.id,
-      service: newFixture.service,
-      operation: newFixture.operation,
-      status: newFixture.status,
-      version: newFixture.serviceVersion,
-    })
+    try {
+      await NotificationService.broadcastFixtureEvent(
+        tenantId,
+        'create',
+        {
+          id: newFixture.id,
+          service: newFixture.service,
+          operation: newFixture.operation,
+          status: newFixture.status,
+          version: newFixture.serviceVersion,
+        },
+        { env: c.env || c.get('env') }
+      )
+    } catch (err) {
+      console.error('Notification broadcast failed (fixture create):', err)
+    }
 
     return c.json(fixture, 201)
   } catch (error: unknown) {

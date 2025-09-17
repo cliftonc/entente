@@ -1,16 +1,41 @@
-import { websocketBroadcaster } from '../routes/websocket'
 import { devWebSocketBroadcaster } from './websocket-dev'
+import { createWorkerWebSocketBroadcaster } from './websocket-worker'
 
-// Helper to get the appropriate broadcaster based on environment
-function getBroadcaster() {
-  // In development, use the Node.js WebSocket broadcaster
-  // In production, use the Cloudflare Workers WebSocket broadcaster
-  return process.env.NODE_ENV === 'development' ? devWebSocketBroadcaster : websocketBroadcaster
+// Broadcaster interface (sync or async implementations supported)
+export interface Broadcaster {
+  broadcastToTenant: (tenantId: string, message: any) => Promise<number> | number
+  broadcastToChannel: (tenantId: string, channel: string, message: any) => Promise<number> | number
+  getStats: () => any
 }
 
-/**
- * WebSocket event types for different entities
- */
+// No-op broadcaster (used when no env/bindings available)
+const noopBroadcaster: Broadcaster = {
+  broadcastToTenant: async () => 0,
+  broadcastToChannel: async () => 0,
+  getStats: () => ({ totalConnections: 0, tenantCounts: {}, connections: [] }),
+}
+
+// Normalize sync return to Promise for awaiting
+function toPromise(result: Promise<number> | number): Promise<number> {
+  return result instanceof Promise ? result : Promise.resolve(result)
+}
+
+// Resolve broadcaster based on runtime environment
+function resolveBroadcaster(env?: any): Broadcaster {
+  // Prefer Durable Object broadcaster whenever binding exists
+  if (env?.NOTIFICATIONS_HUB) return createWorkerWebSocketBroadcaster(env) as Broadcaster
+  // Fall back to in-memory dev broadcaster in local dev without DO binding
+  if (process.env.NODE_ENV === 'development')
+    return devWebSocketBroadcaster as unknown as Broadcaster
+  return noopBroadcaster
+}
+
+// Helper requiring explicit env (no more global fallback)
+function getResolvedBroadcaster(explicitEnv?: any): Broadcaster {
+  return resolveBroadcaster(explicitEnv)
+}
+
+// WebSocket event types for different entities
 export type WebSocketEventType =
   | 'deployment:created'
   | 'deployment:updated'
@@ -29,9 +54,7 @@ export type WebSocketEventType =
   | 'verification:updated'
   | 'verification:completed'
 
-/**
- * WebSocket event structure
- */
+// Event payload structure
 export interface WebSocketEvent {
   type: WebSocketEventType
   entity: 'deployment' | 'service' | 'contract' | 'fixture' | 'verification'
@@ -41,14 +64,8 @@ export interface WebSocketEvent {
   tenantId: string
 }
 
-/**
- * Notification service for broadcasting real-time events
- */
 export class NotificationService {
-  /**
-   * Broadcast a deployment event
-   */
-  static broadcastDeploymentEvent(
+  static async broadcastDeploymentEvent(
     tenantId: string,
     action: 'create' | 'update' | 'delete',
     deploymentData: {
@@ -61,7 +78,8 @@ export class NotificationService {
       deployedAt: Date
       deployedBy: string
       gitSha?: string
-    }
+    },
+    options?: { env?: any }
   ) {
     const event: WebSocketEvent = {
       type: `deployment:${action}` as WebSocketEventType,
@@ -72,16 +90,12 @@ export class NotificationService {
       tenantId,
     }
 
-    const broadcaster = getBroadcaster()
-
-    // Broadcast to all tenant connections
-    broadcaster.broadcastToTenant(tenantId, event)
-
-    // Also broadcast to specific deployment channel subscribers
+    const broadcaster = getResolvedBroadcaster(options?.env)
+    await toPromise(broadcaster.broadcastToTenant(tenantId, event))
     const channelName = `deployments:${deploymentData.environment}`
-    broadcaster.broadcastToChannel(tenantId, channelName, event)
+    await toPromise(broadcaster.broadcastToChannel(tenantId, channelName, event))
 
-    console.log(`📡 Broadcasted deployment ${action} event:`, {
+    console.log(`📡 Broadcasted deployment ${action} event`, {
       service: deploymentData.service,
       version: deploymentData.version,
       environment: deploymentData.environment,
@@ -89,10 +103,7 @@ export class NotificationService {
     })
   }
 
-  /**
-   * Broadcast a service event
-   */
-  static broadcastServiceEvent(
+  static async broadcastServiceEvent(
     tenantId: string,
     action: 'create' | 'update' | 'delete',
     serviceData: {
@@ -100,7 +111,8 @@ export class NotificationService {
       name: string
       type: 'consumer' | 'provider'
       description?: string
-    }
+    },
+    options?: { env?: any }
   ) {
     const event: WebSocketEvent = {
       type: `service:${action}` as WebSocketEventType,
@@ -111,19 +123,17 @@ export class NotificationService {
       tenantId,
     }
 
-    getBroadcaster().broadcastToTenant(tenantId, event)
+    const broadcaster = getResolvedBroadcaster(options?.env)
+    await toPromise(broadcaster.broadcastToTenant(tenantId, event))
 
-    console.log(`📡 Broadcasted service ${action} event:`, {
+    console.log(`📡 Broadcasted service ${action} event`, {
       name: serviceData.name,
       type: serviceData.type,
       tenantId,
     })
   }
 
-  /**
-   * Broadcast a contract event
-   */
-  static broadcastContractEvent(
+  static async broadcastContractEvent(
     tenantId: string,
     action: 'create' | 'update' | 'delete',
     contractData: {
@@ -131,7 +141,8 @@ export class NotificationService {
       provider: string
       consumer: string
       name?: string
-    }
+    },
+    options?: { env?: any }
   ) {
     const event: WebSocketEvent = {
       type: `contract:${action}` as WebSocketEventType,
@@ -142,9 +153,10 @@ export class NotificationService {
       tenantId,
     }
 
-    getBroadcaster().broadcastToTenant(tenantId, event)
+    const broadcaster = getResolvedBroadcaster(options?.env)
+    await toPromise(broadcaster.broadcastToTenant(tenantId, event))
 
-    console.log(`📡 Broadcasted contract ${action} event:`, {
+    console.log(`📡 Broadcasted contract ${action} event`, {
       id: contractData.id,
       provider: contractData.provider,
       consumer: contractData.consumer,
@@ -152,10 +164,7 @@ export class NotificationService {
     })
   }
 
-  /**
-   * Broadcast a fixture event
-   */
-  static broadcastFixtureEvent(
+  static async broadcastFixtureEvent(
     tenantId: string,
     action: 'create' | 'update' | 'delete' | 'status_change',
     fixtureData: {
@@ -164,10 +173,14 @@ export class NotificationService {
       operation: string
       status: string
       version?: string
-    }
+    },
+    options?: { env?: any }
   ) {
     const event: WebSocketEvent = {
-      type: action === 'status_change' ? 'fixture:status_change' : `fixture:${action}` as WebSocketEventType,
+      type:
+        action === 'status_change'
+          ? 'fixture:status_change'
+          : (`fixture:${action}` as WebSocketEventType),
       entity: 'fixture',
       action,
       data: fixtureData,
@@ -175,9 +188,10 @@ export class NotificationService {
       tenantId,
     }
 
-    getBroadcaster().broadcastToTenant(tenantId, event)
+    const broadcaster = getResolvedBroadcaster(options?.env)
+    await toPromise(broadcaster.broadcastToTenant(tenantId, event))
 
-    console.log(`📡 Broadcasted fixture ${action} event:`, {
+    console.log(`📡 Broadcasted fixture ${action} event`, {
       id: fixtureData.id,
       service: fixtureData.service,
       operation: fixtureData.operation,
@@ -186,10 +200,7 @@ export class NotificationService {
     })
   }
 
-  /**
-   * Broadcast a verification event
-   */
-  static broadcastVerificationEvent(
+  static async broadcastVerificationEvent(
     tenantId: string,
     action: 'create' | 'update' | 'completed',
     verificationData: {
@@ -200,7 +211,8 @@ export class NotificationService {
       status: string
       providerVersion?: string
       consumerVersion?: string
-    }
+    },
+    options?: { env?: any }
   ) {
     const event: WebSocketEvent = {
       type: `verification:${action}` as WebSocketEventType,
@@ -211,9 +223,10 @@ export class NotificationService {
       tenantId,
     }
 
-    getBroadcaster().broadcastToTenant(tenantId, event)
+    const broadcaster = getResolvedBroadcaster(options?.env)
+    await toPromise(broadcaster.broadcastToTenant(tenantId, event))
 
-    console.log(`📡 Broadcasted verification ${action} event:`, {
+    console.log(`📡 Broadcasted verification ${action} event`, {
       id: verificationData.id,
       provider: verificationData.provider,
       consumer: verificationData.consumer,
@@ -222,23 +235,22 @@ export class NotificationService {
     })
   }
 
-  /**
-   * Get WebSocket connection statistics
-   */
-  static getConnectionStats() {
-    return getBroadcaster().getStats()
+  static getConnectionStats(options?: { env?: any }) {
+    const broadcaster = getResolvedBroadcaster(options?.env)
+    return broadcaster.getStats()
   }
 
-  /**
-   * Send a test event (for debugging)
-   */
-  static sendTestEvent(tenantId: string, message: string = 'Hello from Entente!') {
+  static async sendTestEvent(
+    tenantId: string,
+    message: string = 'Hello from Entente!',
+    options?: { env?: any }
+  ) {
     const event = {
       type: 'test',
       message,
       timestamp: new Date().toISOString(),
     }
-
-    return getBroadcaster().broadcastToTenant(tenantId, event)
+    const broadcaster = getResolvedBroadcaster(options?.env)
+    return toPromise(broadcaster.broadcastToTenant(tenantId, event))
   }
 }
