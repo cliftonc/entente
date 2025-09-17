@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import GetStartedButton from '../components/GetStartedButton'
+import ServicesExample from '../components/get-started-examples/ServicesExample'
 import TimestampDisplay from '../components/TimestampDisplay'
 import { useServices } from '../hooks/useServices'
 
@@ -76,11 +78,18 @@ function Services() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-base-content">Services</h1>
-        <p className="text-base-content/70 mt-1">
-          Manage OpenAPI specifications and service contracts
-        </p>
+      <div className="flex justify-between items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-3xl font-bold text-base-content">Services</h1>
+          <p className="text-base-content/70 mt-1">
+            Manage OpenAPI specifications and service contracts
+          </p>
+        </div>
+        <div className="flex-shrink-0">
+          <GetStartedButton>
+            <ServicesExample />
+          </GetStartedButton>
+        </div>
       </div>
 
       {/* Filters */}

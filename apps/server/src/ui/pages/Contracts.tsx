@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import ConsumerFilter from '../components/ConsumerFilter'
+import GetStartedButton from '../components/GetStartedButton'
+import ContractsExample from '../components/get-started-examples/ContractsExample'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
@@ -200,14 +202,21 @@ function Contracts() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-base-content">
-          Contracts
-          <span className="text-lg font-normal text-base-content/70">{getFilterSummary()}</span>
-        </h1>
-        <p className="text-base-content/70 mt-1">
-          View contract relationships between consumers and providers
-        </p>
+      <div className="flex justify-between items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-3xl font-bold text-base-content">
+            Contracts
+            <span className="text-lg font-normal text-base-content/70">{getFilterSummary()}</span>
+          </h1>
+          <p className="text-base-content/70 mt-1">
+            View contract relationships between consumers and providers
+          </p>
+        </div>
+        <div className="flex-shrink-0">
+          <GetStartedButton>
+            <ContractsExample />
+          </GetStartedButton>
+        </div>
       </div>
 
       {/* Filters */}

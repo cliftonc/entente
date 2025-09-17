@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ConsumerFilter from '../components/ConsumerFilter'
+import GetStartedButton from '../components/GetStartedButton'
+import VerificationExample from '../components/get-started-examples/VerificationExample'
 import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
@@ -156,8 +158,8 @@ function Verification() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
+      <div className="flex justify-between items-start gap-4">
+        <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-bold text-base-content">
             Verification
             {providerFilter && (
@@ -176,6 +178,11 @@ function Verification() {
           <p className="text-base-content/70 mt-1">
             Monitor provider verification results and contract compliance
           </p>
+        </div>
+        <div className="flex-shrink-0">
+          <GetStartedButton>
+            <VerificationExample />
+          </GetStartedButton>
         </div>
       </div>
 

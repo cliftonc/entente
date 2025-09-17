@@ -1,6 +1,8 @@
 import type { Fixture } from '@entente/types'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import GetStartedButton from '../components/GetStartedButton'
+import FixturesExample from '../components/get-started-examples/FixturesExample'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
 import { useAuth } from '../hooks/useAuth'
@@ -186,8 +188,8 @@ function Fixtures() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
+      <div className="flex justify-between items-start gap-4">
+        <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-bold text-base-content">
             Fixtures
             {providerFilter && (
@@ -202,25 +204,30 @@ function Fixtures() {
           </h1>
           <p className="text-base-content/70 mt-1">Manage test fixtures and approve proposals</p>
         </div>
-        <button
-          className="btn btn-success"
-          disabled={totalDraftsVisible === 0 || approveAllMutation.isPending}
-          onClick={handleApproveAll}
-        >
-          {approveAllMutation.isPending ? (
-            <span className="loading loading-spinner loading-sm mr-2" />
-          ) : (
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-          )}
-          Approve All ({totalDraftsVisible})
-        </button>
+        <div className="flex-shrink-0 flex items-center gap-2">
+          <GetStartedButton>
+            <FixturesExample />
+          </GetStartedButton>
+          <button
+            className="btn btn-success btn-sm whitespace-nowrap"
+            disabled={totalDraftsVisible === 0 || approveAllMutation.isPending}
+            onClick={handleApproveAll}
+          >
+            {approveAllMutation.isPending ? (
+              <span className="loading loading-spinner loading-sm mr-2" />
+            ) : (
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            )}
+            Approve All ({totalDraftsVisible})
+          </button>
+        </div>
       </div>
 
       {/* Filter Section */}

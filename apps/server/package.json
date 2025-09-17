@@ -33,6 +33,7 @@
     "@octokit/rest": "^22.0.0",
     "@tanstack/react-query": "^5.87.4",
     "@tanstack/react-query-devtools": "^5.87.4",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "@types/ws": "^8.18.1",
     "arctic": "^3.7.0",
     "dotenv": "^17.2.2",
@@ -42,6 +43,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
+    "react-syntax-highlighter": "^15.6.6",
     "ws": "^8.18.3",
     "zod": "^3.25.0",
     "zustand": "^5.0.8"
@@ -64,5 +66,11 @@
     "vitest": "^2.1.8",
     "wrangler": "^4.36.0"
   },
-  "keywords": ["contract-testing", "server", "hono", "cloudflare-workers", "react"]
+  "keywords": [
+    "contract-testing",
+    "server",
+    "hono",
+    "cloudflare-workers",
+    "react"
+  ]
 }

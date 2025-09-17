@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ConsumerFilter from '../components/ConsumerFilter'
+import GetStartedButton from '../components/GetStartedButton'
+import DeploymentsExample from '../components/get-started-examples/DeploymentsExample'
 import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
@@ -247,29 +249,36 @@ function Deployments() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-base-content">
-          Deployments
-          {statusFilter !== 'active-or-blocked' && (
-            <span className="text-lg font-normal text-base-content/70">
-              {' '}
-              • Status: {statusFilter === 'active-or-blocked' ? 'Active or Blocked' : statusFilter}
-            </span>
-          )}
-          {providerFilter && (
-            <span className="text-lg font-normal text-base-content/70">
-              {' '}
-              • Provider: {providerFilter}
-            </span>
-          )}
-          {consumerFilter && (
-            <span className="text-lg font-normal text-base-content/70">
-              {' '}
-              • Consumer: {consumerFilter}
-            </span>
-          )}
-        </h1>
-        <p className="text-base-content/70 mt-1">Track service deployments across environments</p>
+      <div className="flex justify-between items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-3xl font-bold text-base-content">
+            Deployments
+            {statusFilter !== 'active-or-blocked' && (
+              <span className="text-lg font-normal text-base-content/70">
+                {' '}
+                • Status: {statusFilter === 'active-or-blocked' ? 'Active or Blocked' : statusFilter}
+              </span>
+            )}
+            {providerFilter && (
+              <span className="text-lg font-normal text-base-content/70">
+                {' '}
+                • Provider: {providerFilter}
+              </span>
+            )}
+            {consumerFilter && (
+              <span className="text-lg font-normal text-base-content/70">
+                {' '}
+                • Consumer: {consumerFilter}
+              </span>
+            )}
+          </h1>
+          <p className="text-base-content/70 mt-1">Track service deployments across environments</p>
+        </div>
+        <div className="flex-shrink-0">
+          <GetStartedButton>
+            <DeploymentsExample />
+          </GetStartedButton>
+        </div>
       </div>
 
       {/* Filters */}
