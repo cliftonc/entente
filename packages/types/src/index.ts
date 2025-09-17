@@ -454,7 +454,7 @@ export interface RevokeKeyRequest {
 // CLI types
 export interface UploadOptions {
   service: string
-  version: string
+  version?: string
   branch?: string
   environment: string
   spec: string
