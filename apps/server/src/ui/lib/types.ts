@@ -2,7 +2,11 @@
  * Common types and interfaces for data hooks
  */
 
-import type { UseQueryOptions, UseMutationOptions, UseInfiniteQueryOptions } from '@tanstack/react-query'
+import type {
+  UseQueryOptions,
+  UseMutationOptions,
+  UseInfiniteQueryOptions,
+} from '@tanstack/react-query'
 import type { VerificationResults } from '@entente/types'
 
 /**
@@ -193,6 +197,40 @@ export interface MutationHookState<TData, TVariables, TError = ApiError> {
 }
 
 /**
+ * WebSocket event types
+ */
+export type WebSocketEventType =
+  | 'deployment:created'
+  | 'deployment:updated'
+  | 'deployment:deleted'
+  | 'service:created'
+  | 'service:updated'
+  | 'service:deleted'
+  | 'contract:created'
+  | 'contract:updated'
+  | 'contract:deleted'
+  | 'fixture:created'
+  | 'fixture:updated'
+  | 'fixture:status_change'
+  | 'fixture:deleted'
+  | 'verification:created'
+  | 'verification:updated'
+  | 'verification:completed'
+
+/**
+ * WebSocket event structure
+ */
+export interface WebSocketEventBase {
+  type: WebSocketEventType | 'welcome' | 'ping' | 'pong'
+  entity?: 'deployment' | 'service' | 'contract' | 'fixture' | 'verification'
+  action?: 'create' | 'update' | 'delete' | 'status_change'
+  data?: Record<string, any>
+  timestamp?: string
+  tenantId?: string
+  userId?: string
+}
+
+/**
  * Real-time subscription options
  */
 export interface SubscriptionOptions {
@@ -207,15 +245,7 @@ export interface SubscriptionOptions {
 /**
  * WebSocket event types
  */
-export interface WebSocketEvent<T = unknown> {
-  type: string
-  entity: string
-  action: 'create' | 'update' | 'delete' | 'status_change'
-  data: T
-  timestamp: string
-  userId?: string
-  tenantId?: string
-}
+export type WebSocketEvent = WebSocketEventBase
 
 /**
  * Cache invalidation strategy
@@ -247,7 +277,9 @@ export interface HookConfig {
 /**
  * Default hook configuration
  */
-export const DEFAULT_HOOK_CONFIG: Required<Pick<HookConfig, 'staleTime' | 'gcTime' | 'refetchOnWindowFocus' | 'refetchOnReconnect' | 'retry'>> = {
+export const DEFAULT_HOOK_CONFIG: Required<
+  Pick<HookConfig, 'staleTime' | 'gcTime' | 'refetchOnWindowFocus' | 'refetchOnReconnect' | 'retry'>
+> = {
   staleTime: 1000 * 60 * 5, // 5 minutes
   gcTime: 1000 * 60 * 30, // 30 minutes
   refetchOnWindowFocus: false,

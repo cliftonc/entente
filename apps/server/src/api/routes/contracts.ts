@@ -3,6 +3,7 @@ import { and, count, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { contracts, interactions } from '../../db/schema'
 import type { DbConnection } from '../../db/types'
+import { NotificationService } from '../services/notification'
 
 export const contractsRouter = new Hono()
 
@@ -313,6 +314,13 @@ contractsRouter.patch('/:id', async c => {
 
   console.log(`✅ Updated contract ${id} status to ${updates.status}`)
 
+  // Broadcast WebSocket event for contract update
+  NotificationService.broadcastContractEvent(tenantId, 'update', {
+    id: contractWithCount.id,
+    provider: contractWithCount.providerName,
+    consumer: contractWithCount.consumerName,
+  })
+
   return c.json(clientContract)
 })
 
@@ -396,5 +404,13 @@ export async function createOrUpdateContract(
   console.log(
     `✅ Created new contract ${newContract.id} for ${consumerName}@${consumerVersion} -> ${providerName}@${providerVersion}`
   )
+
+  // Broadcast WebSocket event for contract creation
+  NotificationService.broadcastContractEvent(tenantId, 'create', {
+    id: newContract.id,
+    provider: providerName,
+    consumer: consumerName,
+  })
+
   return newContract.id
 }

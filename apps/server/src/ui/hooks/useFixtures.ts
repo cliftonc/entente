@@ -8,7 +8,16 @@ import { useCallback, useMemo } from 'react'
 import { fixtureApi } from '../utils/api'
 import { queryKeys, getInvalidationQueries } from '../lib/queryKeys'
 import { defaultQueryOptions } from '../lib/queryClient'
-import type { FixtureFilters, QueryOptions, MutationOptions, HookState, ListHookState, MutationHookState, HookConfig, ApiError } from '../lib/types'
+import type {
+  FixtureFilters,
+  QueryOptions,
+  MutationOptions,
+  HookState,
+  ListHookState,
+  MutationHookState,
+  HookConfig,
+  ApiError,
+} from '../lib/types'
 import { mergeHookConfig } from '../lib/hookUtils'
 
 /**
@@ -21,13 +30,16 @@ export function useFixtures(
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({
-    queryKey: queryKeys.fixtures.list(filters as Record<string, string | number | boolean | undefined>),
-    queryFn: () => fixtureApi.getAll({
-      service: filters?.service,
-      provider: filters?.provider,
-      consumer: filters?.consumer,
-      status: filters?.status,
-    }),
+    queryKey: queryKeys.fixtures.list(
+      filters as Record<string, string | number | boolean | undefined>
+    ),
+    queryFn: () =>
+      fixtureApi.getAll({
+        service: filters?.service,
+        provider: filters?.provider,
+        consumer: filters?.consumer,
+        status: filters?.status,
+      }),
     ...defaultQueryOptions,
     ...mergedOptions,
   })
@@ -52,10 +64,7 @@ export function useFixtures(
 /**
  * Hook to get pending fixtures (requiring approval)
  */
-export function usePendingFixtures(
-  service?: string,
-  options?: HookConfig
-): ListHookState<Fixture> {
+export function usePendingFixtures(service?: string, options?: HookConfig): ListHookState<Fixture> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({
@@ -83,11 +92,32 @@ export function usePendingFixtures(
 }
 
 /**
+ * Hook to get services fixture summary (counts per status) from API
+ */
+export function useFixtureServicesSummary(options?: HookConfig) {
+  const mergedOptions = mergeHookConfig(options)
+  const query = useQuery({
+    queryKey: queryKeys.fixtures.servicesSummary(),
+    queryFn: () => fixtureApi.getServicesSummary(),
+    ...defaultQueryOptions,
+    ...mergedOptions,
+  })
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error as ApiError | null,
+    isFetching: query.isFetching,
+    isSuccess: query.isSuccess,
+    refetch: query.refetch,
+    isEmpty: !query.data || query.data.length === 0,
+  }
+}
+
+/**
  * Hook to get draft fixtures count (for dashboard/navigation badges)
  */
-export function useDraftFixturesCount(
-  options?: HookConfig
-): HookState<number> {
+export function useDraftFixturesCount(options?: HookConfig): HookState<number> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({
@@ -220,10 +250,7 @@ export function useFixturesByOperation(
 /**
  * Hook to get a single fixture by ID
  */
-export function useFixture(
-  id: string,
-  options?: HookConfig
-): HookState<Fixture> {
+export function useFixture(id: string, options?: HookConfig): HookState<Fixture> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({
@@ -249,7 +276,10 @@ export function useFixture(
  * Hook to approve a fixture
  */
 export function useApproveFixture(
-  options?: MutationOptions<{ success: boolean }, { id: string; approvedBy: string; notes?: string }>
+  options?: MutationOptions<
+    { success: boolean },
+    { id: string; approvedBy: string; notes?: string }
+  >
 ): MutationHookState<{ success: boolean }, { id: string; approvedBy: string; notes?: string }> {
   const queryClient = useQueryClient()
 
@@ -283,7 +313,10 @@ export function useApproveFixture(
  * Hook to reject a fixture
  */
 export function useRejectFixture(
-  options?: MutationOptions<{ success: boolean }, { id: string; rejectedBy: string; notes?: string }>
+  options?: MutationOptions<
+    { success: boolean },
+    { id: string; rejectedBy: string; notes?: string }
+  >
 ): MutationHookState<{ success: boolean }, { id: string; rejectedBy: string; notes?: string }> {
   const queryClient = useQueryClient()
 
@@ -358,9 +391,7 @@ export function useApproveAllFixtures(
   const mutation = useMutation({
     mutationKey: ['fixtures', 'approve-all'] as const,
     mutationFn: async ({ fixtures, approvedBy }) => {
-      const promises = fixtures.map(fixture =>
-        fixtureApi.approve(fixture.id, approvedBy)
-      )
+      const promises = fixtures.map(fixture => fixtureApi.approve(fixture.id, approvedBy))
       return Promise.all(promises)
     },
     onSuccess: () => {
@@ -430,17 +461,26 @@ export function useInvalidateFixtures() {
     queryClient.invalidateQueries({ queryKey: queryKeys.fixtures.all })
   }, [queryClient])
 
-  const invalidateFixture = useCallback((id: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.fixtures.detail(id) })
-  }, [queryClient])
+  const invalidateFixture = useCallback(
+    (id: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.fixtures.detail(id) })
+    },
+    [queryClient]
+  )
 
-  const invalidateByService = useCallback((service: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.fixtures.byService(service) })
-  }, [queryClient])
+  const invalidateByService = useCallback(
+    (service: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.fixtures.byService(service) })
+    },
+    [queryClient]
+  )
 
-  const invalidatePending = useCallback((service?: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.fixtures.pending(service) })
-  }, [queryClient])
+  const invalidatePending = useCallback(
+    (service?: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.fixtures.pending(service) })
+    },
+    [queryClient]
+  )
 
   const invalidateDrafts = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.fixtures.drafts() })
@@ -458,10 +498,7 @@ export function useInvalidateFixtures() {
 /**
  * Hook to get fixture statistics
  */
-export function useFixtureStats(
-  filters?: FixtureFilters,
-  options?: HookConfig
-) {
+export function useFixtureStats(filters?: FixtureFilters, options?: HookConfig) {
   const mergedOptions = mergeHookConfig(options)
 
   // This is a derived query that calculates stats from the fixtures list
@@ -477,18 +514,24 @@ export function useFixtureStats(
     const rejectedFixtures = fixtures.filter(f => f.status === 'rejected').length
 
     const fixturesByStatus = Object.entries(
-      fixtures.reduce((acc, fixture) => {
-        acc[fixture.status] = (acc[fixture.status] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
+      fixtures.reduce(
+        (acc, fixture) => {
+          acc[fixture.status] = (acc[fixture.status] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>
+      )
     ).map(([status, count]) => ({ status, count }))
 
     const fixturesByService = Object.entries(
-      fixtures.reduce((acc, fixture) => {
-        const service = fixture.service || 'Unknown'
-        acc[service] = (acc[service] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
+      fixtures.reduce(
+        (acc, fixture) => {
+          const service = fixture.service || 'Unknown'
+          acc[service] = (acc[service] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>
+      )
     ).map(([service, count]) => ({ service, count }))
 
     return {

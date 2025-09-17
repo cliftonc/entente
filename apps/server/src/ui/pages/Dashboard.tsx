@@ -198,9 +198,9 @@ function Dashboard() {
               {dashboardStats?.recentDeployments?.length === 0 ? (
                 <div className="text-center text-base-content/70 py-8">No recent deployments</div>
               ) : (
-                dashboardStats?.recentDeployments?.slice(0, 5).map(deployment => (
+                dashboardStats?.recentDeployments?.slice(0, 5).map((deployment, index) => (
                   <div
-                    key={`${deployment.service}-${deployment.version}-${deployment.environment}`}
+                    key={`${deployment.service}-${deployment.version}-${deployment.environment}-${index}`}
                     className={`flex items-center justify-between p-3 rounded-lg ${
                       deployment.status === 'failed'
                         ? 'bg-error/10 border border-error/20'

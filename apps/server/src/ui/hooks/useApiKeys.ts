@@ -8,25 +8,31 @@ import { useCallback } from 'react'
 import { keysApi } from '../utils/api'
 import { queryKeys, getInvalidationQueries } from '../lib/queryKeys'
 import { defaultQueryOptions } from '../lib/queryClient'
-import type { QueryOptions, MutationOptions, HookState, ListHookState, MutationHookState, HookConfig, ApiError } from '../lib/types'
+import type {
+  QueryOptions,
+  MutationOptions,
+  HookState,
+  ListHookState,
+  MutationHookState,
+  HookConfig,
+  ApiError,
+} from '../lib/types'
 import { mergeHookConfig } from '../lib/hookUtils'
 
 /**
  * Hook to get all API keys
  */
-export function useApiKeys(
-  includeRevoked?: boolean,
-  options?: HookConfig
-): ListHookState<ApiKey> {
+export function useApiKeys(includeRevoked?: boolean, options?: HookConfig): ListHookState<ApiKey> {
   const mergedOptions = mergeHookConfig(options)
+  const { staleTime: _defaultStaleTime, ...baseQueryOptions } = defaultQueryOptions
+  const { staleTime: _ignoredStaleTime, ...safeMerged } = mergedOptions || {}
 
   const query = useQuery({
     queryKey: queryKeys.apiKeys.list(includeRevoked),
     queryFn: () => keysApi.getAll(includeRevoked),
-    ...defaultQueryOptions,
-    // Override stale time for API keys to ensure immediate updates
-    staleTime: 1000 * 10, // 10 seconds instead of 5 minutes
-    ...mergedOptions,
+    ...baseQueryOptions,
+    staleTime: 1000 * 10,
+    ...safeMerged,
   })
 
   return {
@@ -49,10 +55,7 @@ export function useApiKeys(
 /**
  * Hook to get a single API key by ID
  */
-export function useApiKey(
-  id: string,
-  options?: HookConfig
-): HookState<ApiKey> {
+export function useApiKey(id: string, options?: HookConfig): HookState<ApiKey> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({
@@ -89,7 +92,7 @@ export function useCreateApiKey(
       // Invalidate and refetch all API key queries after successful creation
       queryClient.invalidateQueries({
         queryKey: queryKeys.apiKeys.lists(),
-        refetchType: 'active'
+        refetchType: 'active',
       })
     },
     ...options,
@@ -124,7 +127,7 @@ export function useRotateApiKey(
       // Invalidate and refetch all API key queries after successful rotation
       queryClient.invalidateQueries({
         queryKey: queryKeys.apiKeys.lists(),
-        refetchType: 'active'
+        refetchType: 'active',
       })
     },
     ...options,
@@ -159,7 +162,7 @@ export function useRevokeApiKey(
       // Invalidate and refetch all API key queries after successful revocation
       queryClient.invalidateQueries({
         queryKey: queryKeys.apiKeys.lists(),
-        refetchType: 'active'
+        refetchType: 'active',
       })
     },
     ...options,
@@ -211,9 +214,12 @@ export function useInvalidateApiKeys() {
     queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all })
   }, [queryClient])
 
-  const invalidateApiKey = useCallback((id: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.detail(id) })
-  }, [queryClient])
+  const invalidateApiKey = useCallback(
+    (id: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.detail(id) })
+    },
+    [queryClient]
+  )
 
   return {
     invalidateAll,

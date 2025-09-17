@@ -10,6 +10,7 @@ import { Hono } from 'hono'
 import { and, count, desc, eq, gte, ne } from 'drizzle-orm'
 import { deployments, services } from '../../db/schema'
 import { findServiceVersion } from '../utils/service-versions'
+import { NotificationService } from '../services/notification'
 
 export const deploymentsRouter = new Hono()
 
@@ -86,6 +87,19 @@ deploymentsRouter.post('/consumer', async c => {
   console.log(
     `🚀 Consumer deployed: ${consumerDeployment.name}@${consumerDeployment.version} in ${consumerDeployment.environment}`
   )
+
+  // Broadcast WebSocket event
+  NotificationService.broadcastDeploymentEvent(tenantId, 'create', {
+    id: deployment.id,
+    service: consumerDeployment.name,
+    version: consumerDeployment.version,
+    environment: consumerDeployment.environment,
+    type: 'consumer',
+    status: 'successful',
+    deployedAt: deployment.deployedAt,
+    deployedBy: deployment.deployedBy,
+    gitSha: deployment.gitSha || undefined,
+  })
 
   return c.json(
     {
@@ -176,6 +190,19 @@ deploymentsRouter.post('/provider', async c => {
   console.log(
     `🚀 Provider deployed: ${providerDeployment.name}@${providerDeployment.version} in ${providerDeployment.environment}`
   )
+
+  // Broadcast WebSocket event
+  NotificationService.broadcastDeploymentEvent(tenantId, 'create', {
+    id: deployment.id,
+    service: providerDeployment.name,
+    version: providerDeployment.version,
+    environment: providerDeployment.environment,
+    type: 'provider',
+    status: 'successful',
+    deployedAt: deployment.deployedAt,
+    deployedBy: deployment.deployedBy,
+    gitSha: deployment.gitSha || undefined,
+  })
 
   return c.json(
     {

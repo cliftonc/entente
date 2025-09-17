@@ -7,6 +7,8 @@ interface AdminLayoutProps {
 }
 
 function AdminLayout({ children }: AdminLayoutProps) {
+  // WebSocket connection is now managed at the App level, not here
+
   return (
     <div className="drawer lg:drawer-open">
       <input id="drawer-toggle" type="checkbox" className="drawer-toggle" />

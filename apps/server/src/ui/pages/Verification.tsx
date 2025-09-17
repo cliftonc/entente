@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ConsumerFilter from '../components/ConsumerFilter'
@@ -6,7 +5,7 @@ import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
-import { verificationApi } from '../utils/api'
+import { useVerificationResults, usePendingVerificationTasks } from '../hooks/useVerifications'
 
 function Verification() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -25,19 +24,13 @@ function Verification() {
     data: verificationResults,
     isLoading,
     error,
-  } = useQuery({
-    queryKey: ['verification-all'],
-    queryFn: verificationApi.getAll,
-  })
+  } = useVerificationResults()
 
   const {
     data: pendingTasks,
     isLoading: isPendingLoading,
     error: pendingError,
-  } = useQuery({
-    queryKey: ['verification-pending'],
-    queryFn: verificationApi.getPendingTasks,
-  })
+  } = usePendingVerificationTasks()
 
   // Filter results based on provider and consumer filters
   const filteredResults =

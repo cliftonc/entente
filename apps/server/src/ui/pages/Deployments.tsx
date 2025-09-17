@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ConsumerFilter from '../components/ConsumerFilter'
@@ -6,7 +5,7 @@ import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
-import { deploymentApi } from '../utils/api'
+import { useActiveDeploymentsAllEnvs, useActiveDeployments, useDeploymentSummary, useEnvironments } from '../hooks/useDeployments'
 
 // Modal component for failure details
 function FailureDetailsModal({
@@ -98,27 +97,17 @@ function Deployments() {
     if (consumer) setConsumerFilter(consumer)
   }, [searchParams])
 
-  const { data: environments, isLoading: environmentsLoading } = useQuery({
-    queryKey: ['deployments-environments'],
-    queryFn: deploymentApi.getEnvironments,
-  })
+  const { data: environments, isLoading: environmentsLoading } = useEnvironments()
 
   const {
     data: summary,
     isLoading,
     error,
-  } = useQuery({
-    queryKey: ['deployments-summary'],
-    queryFn: deploymentApi.getSummary,
-  })
+  } = useDeploymentSummary()
 
-  const { data: activeDeployments, isLoading: activeLoading } = useQuery({
-    queryKey: ['deployments-active', selectedEnvironment],
-    queryFn: () =>
-      selectedEnvironment === 'ALL'
-        ? deploymentApi.getActiveForAllEnvs()
-        : deploymentApi.getActive(`${selectedEnvironment}&include_inactive=true`),
-  })
+  const { data: activeDeployments, isLoading: activeLoading } = selectedEnvironment === 'ALL'
+    ? useActiveDeploymentsAllEnvs()
+    : useActiveDeployments(`${selectedEnvironment}&include_inactive=true`)
 
   // Filter deployments by provider, consumer, and status
   const filteredDeployments =

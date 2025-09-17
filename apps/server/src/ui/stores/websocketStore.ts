@@ -75,6 +75,8 @@ interface WebSocketActions {
 type WebSocketStore = WebSocketState & WebSocketActions
 
 let websocketInstance: WebSocket | null = null
+let isConnecting = false
+let connectionId: string | null = null
 
 const initialState: WebSocketState = {
   isConnected: false,
@@ -107,91 +109,23 @@ export const useWebSocketStore = create<WebSocketStore>()(
     (set, get) => ({
       ...initialState,
 
-      // Connection management
+      // Connection management - delegate to singleton (tenant ID provided by WebSocketProvider)
       connect: async () => {
-        const state = get()
-        if (state.isConnected || state.isConnecting) return
-
-        set({ isConnecting: true, connectionError: null }, false, 'connect')
-
-        try {
-          // Determine WebSocket URL based on environment
-          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-          const host = window.location.host
-          const wsUrl = `${protocol}//${host}/ws`
-
-          websocketInstance = new WebSocket(wsUrl)
-
-          websocketInstance.onopen = () => {
-            const { resetReconnectAttempts, setConnectionState, updateLastPingTime } = get()
-            setConnectionState('connected')
-            resetReconnectAttempts()
-            updateLastPingTime()
-
-            // Resubscribe to all previous subscriptions
-            const { subscriptions } = get()
-            subscriptions.forEach(channel => {
-              websocketInstance?.send(JSON.stringify({
-                type: 'subscribe',
-                channel,
-              }))
-            })
-
-            console.log('WebSocket connected')
-          }
-
-          websocketInstance.onmessage = (event) => {
-            try {
-              const data = JSON.parse(event.data) as WebSocketEvent
-              get().handleEvent(data)
-            } catch (error) {
-              console.error('Failed to parse WebSocket message:', error)
-            }
-          }
-
-          websocketInstance.onclose = () => {
-            const { config, reconnectAttempts, maxReconnectAttempts, incrementReconnectAttempts } = get()
-            set({ isConnected: false, isConnecting: false }, false, 'disconnect')
-
-            console.log('WebSocket disconnected')
-
-            // Auto-reconnect if enabled and under retry limit
-            if (config.autoReconnect && reconnectAttempts < maxReconnectAttempts) {
-              incrementReconnectAttempts()
-              setTimeout(() => {
-                get().reconnect()
-              }, config.reconnectDelay * Math.pow(2, reconnectAttempts)) // Exponential backoff
-            }
-          }
-
-          websocketInstance.onerror = (error) => {
-            console.error('WebSocket error:', error)
-            set({ connectionError: 'WebSocket connection failed' }, false, 'connectionError')
-          }
-
-        } catch (error) {
-          set({
-            isConnecting: false,
-            connectionError: error instanceof Error ? error.message : 'Connection failed'
-          }, false, 'connectError')
-        }
+        console.log('WebSocket Store: This should not be called directly, use WebSocketProvider instead')
+        set({ connectionError: 'Connect called without tenant ID' }, false, 'connect.noTenant')
       },
 
-      disconnect: () => {
-        if (websocketInstance) {
-          websocketInstance.close()
-          websocketInstance = null
-        }
-        set({
-          isConnected: false,
-          isConnecting: false,
-          connectionError: null,
-        }, false, 'disconnect')
+      disconnect: async () => {
+        console.log('WebSocket Store: Delegating disconnect to singleton')
+        const { websocketClient } = await import('../lib/websocketClient')
+        websocketClient.disconnect()
       },
 
       reconnect: async () => {
-        get().disconnect()
-        await get().connect()
+        console.log('WebSocket Store: Delegating reconnect to singleton')
+        const { websocketClient } = await import('../lib/websocketClient')
+        websocketClient.disconnect()
+        setTimeout(() => get().connect(), 100)
       },
 
       setConnectionState: (state) => {
@@ -222,32 +156,30 @@ export const useWebSocketStore = create<WebSocketStore>()(
       },
 
       // Subscription management
-      subscribe: (channel) => {
+      subscribe: async (channel) => {
         set(state => ({
           subscriptions: new Set([...state.subscriptions, channel])
         }), false, 'subscribe')
 
-        if (websocketInstance?.readyState === WebSocket.OPEN) {
-          websocketInstance.send(JSON.stringify({
-            type: 'subscribe',
-            channel,
-          }))
-        }
+        const { websocketClient } = await import('../lib/websocketClient')
+        websocketClient.send({
+          type: 'subscribe',
+          channel,
+        })
       },
 
-      unsubscribe: (channel) => {
+      unsubscribe: async (channel) => {
         set(state => {
           const newSubscriptions = new Set(state.subscriptions)
           newSubscriptions.delete(channel)
           return { subscriptions: newSubscriptions }
         }, false, 'unsubscribe')
 
-        if (websocketInstance?.readyState === WebSocket.OPEN) {
-          websocketInstance.send(JSON.stringify({
-            type: 'unsubscribe',
-            channel,
-          }))
-        }
+        const { websocketClient } = await import('../lib/websocketClient')
+        websocketClient.send({
+          type: 'unsubscribe',
+          channel,
+        })
       },
 
       subscribeToEntity: (entityType, entityId) => {
@@ -295,10 +227,25 @@ export const useWebSocketStore = create<WebSocketStore>()(
 
       // Event handling
       handleEvent: (event) => {
+        // Handle system messages (welcome, ping, pong, etc.) - don't update lastEvent for these
+        if (event.type === 'welcome' || event.type === 'ping' || event.type === 'pong') {
+          console.log('WebSocket: Received system message:', event.type)
+          // Still add to history for debugging, but don't update lastEvent
+          get().addEventToHistory(event)
+          return
+        }
+
+        // Only update lastEvent for non-system messages
+        console.log('WebSocket: Received business event:', event.type)
         set({ lastEvent: event }, false, 'handleEvent')
         get().addEventToHistory(event)
 
         // Update TanStack Query cache based on event
+        if (!event.entity) {
+          console.warn('WebSocket: Received event without entity:', event)
+          return
+        }
+
         try {
           switch (event.entity) {
             case 'service':
@@ -329,7 +276,14 @@ export const useWebSocketStore = create<WebSocketStore>()(
               break
 
             case 'deployment':
-              websocketHelpers.invalidateFromWebSocket(getInvalidationQueries.deployments.onDeploymentChange((event.data as { service: string; environment: string }).service, (event.data as { service: string; environment: string }).environment) as readonly (readonly string[])[])
+              const deploymentData = event.data as { service: string; environment: string }
+              console.log('WebSocket: Processing deployment event - service:', deploymentData.service, 'environment:', deploymentData.environment)
+
+              // Use standard query invalidation now that Deployments page uses proper hooks
+              const queriesToInvalidate = getInvalidationQueries.deployments.onDeploymentChange(deploymentData.service, deploymentData.environment)
+              console.log('WebSocket: Invalidating deployment queries:', queriesToInvalidate)
+
+              websocketHelpers.invalidateFromWebSocket(queriesToInvalidate as readonly (readonly string[])[])
               break
 
             case 'verification':
@@ -386,10 +340,15 @@ export function useWebSocket() {
     store.subscribeToEntity('fixtures', fixtureId)
   }
 
+  const subscribeToDeployment = (deploymentId: string) => {
+    store.subscribeToEntity('deployments', deploymentId)
+  }
+
   return {
     ...store,
     subscribeToService,
     subscribeToContract,
     subscribeToFixture,
+    subscribeToDeployment,
   }
 }

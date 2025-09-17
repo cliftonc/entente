@@ -3,6 +3,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { Route, Routes } from 'react-router-dom'
 import AdminLayout from './components/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
+import { WebSocketProvider } from './components/WebSocketProvider'
 import { AuthProvider } from './hooks/useAuth'
 import ConsumerDetail from './pages/ConsumerDetail'
 import ContractDetail from './pages/ContractDetail'
@@ -39,25 +40,27 @@ function App() {
             path="/*"
             element={
               <ProtectedRoute>
-                <AdminLayout>
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/services" element={<Services />} />
-                    <Route path="/services/provider/:name" element={<ProviderDetail />} />
-                    <Route path="/services/consumer/:name" element={<ConsumerDetail />} />
-                    <Route path="/services/:serviceName/versions" element={<ServiceVersions />} />
-                    <Route path="/service-versions/:id" element={<ServiceVersionDetail />} />
-                    <Route path="/contracts" element={<Contracts />} />
-                    <Route path="/contracts/:id" element={<ContractDetail />} />
-                    <Route path="/interactions/:id" element={<InteractionDetails />} />
-                    <Route path="/fixtures" element={<Fixtures />} />
-                    <Route path="/fixtures/:id" element={<FixtureDetails />} />
-                    <Route path="/deployments" element={<Deployments />} />
-                    <Route path="/verification" element={<Verification />} />
-                    <Route path="/verification/:id" element={<VerificationDetail />} />
-                    <Route path="/settings/*" element={<Settings />} />
-                  </Routes>
-                </AdminLayout>
+                <WebSocketProvider>
+                  <AdminLayout>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/services" element={<Services />} />
+                      <Route path="/services/provider/:name" element={<ProviderDetail />} />
+                      <Route path="/services/consumer/:name" element={<ConsumerDetail />} />
+                      <Route path="/services/:serviceName/versions" element={<ServiceVersions />} />
+                      <Route path="/service-versions/:id" element={<ServiceVersionDetail />} />
+                      <Route path="/contracts" element={<Contracts />} />
+                      <Route path="/contracts/:id" element={<ContractDetail />} />
+                      <Route path="/interactions/:id" element={<InteractionDetails />} />
+                      <Route path="/fixtures" element={<Fixtures />} />
+                      <Route path="/fixtures/:id" element={<FixtureDetails />} />
+                      <Route path="/deployments" element={<Deployments />} />
+                      <Route path="/verification" element={<Verification />} />
+                      <Route path="/verification/:id" element={<VerificationDetail />} />
+                      <Route path="/settings/*" element={<Settings />} />
+                    </Routes>
+                  </AdminLayout>
+                </WebSocketProvider>
               </ProtectedRoute>
             }
           />

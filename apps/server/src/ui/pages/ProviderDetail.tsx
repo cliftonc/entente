@@ -1,5 +1,4 @@
 import type { Contract } from '@entente/types'
-import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import ContractsPanel from '../components/ContractsPanel'
 import GitHubIntegrationPanel from '../components/GitHubIntegrationPanel'
@@ -29,9 +28,9 @@ function ProviderDetail() {
     { enabled: !!name }
   )
 
-  const { data: pendingTasks, isLoading: pendingTasksLoading } = usePendingVerificationTasks(
-    { enabled: !!name }
-  )
+  const { data: pendingTasks, isLoading: pendingTasksLoading } = usePendingVerificationTasks({
+    enabled: !!name,
+  })
 
   const { data: deployments, isLoading: deploymentsLoading } = useDeploymentHistory(
     name || '',
@@ -39,20 +38,25 @@ function ProviderDetail() {
     { enabled: !!name }
   )
 
-  const { data: fixtures, isLoading: fixturesLoading } = useFixtures({
-    service: name,
-  }, { enabled: !!name })
-
-  // Fetch contracts for this provider (contracts where this service is the provider)
-  const { data: contracts, isLoading: contractsLoading } = useContractsByProvider(
-    name || '',
+  const { data: fixtures, isLoading: fixturesLoading } = useFixtures(
+    {
+      service: name,
+    },
     { enabled: !!name }
   )
 
+  // Fetch contracts for this provider (contracts where this service is the provider)
+  const { data: contracts, isLoading: contractsLoading } = useContractsByProvider(name || '', {
+    enabled: !!name,
+  })
+
   // Fetch all interactions for this provider to get accurate counts
-  const { data: providerInteractions } = useInteractions({
-    provider: name,
-  }, { enabled: !!name })
+  const { data: providerInteractions } = useInteractions(
+    {
+      provider: name,
+    },
+    { enabled: !!name }
+  )
 
   // Check if tenant has GitHub app installation
   const { data: githubInstallation } = useGitHubInstallation()
@@ -107,7 +111,6 @@ function ProviderDetail() {
     )
   }
 
-  const _recentVerification = verificationResults?.[0]
   const activeDeployments = deployments?.filter(d => d.active === true) || []
   const blockedDeployments = deployments?.filter(d => d.status === 'failed') || []
   const providerPendingTasks = pendingTasks?.filter(task => task.provider === name) || []
@@ -174,7 +177,6 @@ function ProviderDetail() {
               </div>
             </div>
           </div>
-
 
           {/* Pending Verification */}
           {!pendingTasksLoading && providerPendingTasks.length > 0 && (
@@ -419,7 +421,6 @@ function ProviderDetail() {
             </div>
           </div>
 
-
           {/* Draft Fixtures */}
           <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
@@ -445,7 +446,6 @@ function ProviderDetail() {
                               version={fixture.serviceVersion || 'latest'}
                               serviceName={fixture.service}
                               serviceType="provider"
-
                             />
                           </div>
                         </div>

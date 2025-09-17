@@ -15,6 +15,7 @@ import {
   verificationResults,
   verificationTasks,
 } from '../../db/schema'
+import { NotificationService } from '../services/notification'
 
 export const verificationRouter = new Hono()
 
@@ -371,7 +372,7 @@ verificationRouter.post('/:provider', async c => {
     return c.json({ error: 'Provider service not found. Register the provider first.' }, 404)
   }
 
-  await db.insert(verificationResults).values({
+  const [newResult] = await db.insert(verificationResults).values({
     tenantId,
     provider,
     consumerId: consumer.id,
@@ -383,11 +384,22 @@ verificationRouter.post('/:provider', async c => {
     consumerGitSha: task.consumerGitSha || null,
     taskId: results.taskId,
     results: results.results,
-  })
+  }).returning()
 
   const passed = results.results.filter(r => r.success).length
   const total = results.results.length
   const allPassed = passed === total
+
+  // Broadcast WebSocket event for verification result completion
+  NotificationService.broadcastVerificationEvent(tenantId, 'completed', {
+    id: newResult.id,
+    provider,
+    consumer: task.consumer,
+    contractId: task.contractId || '',
+    status: allPassed ? 'passed' : 'failed',
+    providerVersion: results.providerVersion,
+    consumerVersion: task.consumerVersion,
+  })
 
   // Update dependency status based on verification results
   if (task.dependencyId) {

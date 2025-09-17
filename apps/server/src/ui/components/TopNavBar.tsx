@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { WebSocketStatus } from './WebSocketStatus'
 
 function TopNavBar() {
   return (
@@ -36,6 +37,14 @@ function TopNavBar() {
           </div>
           <span className="text-xl font-bold">ntente</span>
         </Link>
+      </div>
+
+      {/* Right side of navbar */}
+      <div className="flex-none">
+        <div className="flex items-center space-x-4">
+          {/* WebSocket Status Indicator */}
+          <WebSocketStatus />
+        </div>
       </div>
     </div>
   )

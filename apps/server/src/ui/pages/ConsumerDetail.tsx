@@ -1,5 +1,4 @@
 import type { Contract } from '@entente/types'
-import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import ContractsPanel from '../components/ContractsPanel'
 import GitHubIntegrationPanel from '../components/GitHubIntegrationPanel'

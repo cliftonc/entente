@@ -8,24 +8,30 @@ import { useCallback } from 'react'
 import { settingsApi, tenantApi } from '../utils/api'
 import { queryKeys, getInvalidationQueries } from '../lib/queryKeys'
 import { createOptimisticMutationOptions, defaultQueryOptions } from '../lib/queryClient'
-import type { QueryOptions, MutationOptions, HookState, MutationHookState, HookConfig, ApiError } from '../lib/types'
+import type {
+  QueryOptions,
+  MutationOptions,
+  HookState,
+  MutationHookState,
+  HookConfig,
+  ApiError,
+} from '../lib/types'
 import { mergeHookConfig } from '../lib/hookUtils'
 
 /**
  * Hook to get tenant settings
  */
-export function useSettings(
-  options?: HookConfig
-): HookState<TenantSettings> {
+export function useSettings(options?: HookConfig): HookState<TenantSettings> {
   const mergedOptions = mergeHookConfig(options)
+  const { staleTime: _defaultStaleTime, ...baseQueryOptions } = defaultQueryOptions
+  const { staleTime: _ignoredStaleTime, ...safeMerged } = mergedOptions || {}
 
   const query = useQuery({
     queryKey: queryKeys.settings.detail(),
     queryFn: settingsApi.get,
-    ...defaultQueryOptions,
-    // Override stale time for settings to ensure immediate updates
-    staleTime: 1000 * 10, // 10 seconds instead of 5 minutes
-    ...mergedOptions,
+    ...baseQueryOptions,
+    staleTime: 1000 * 10,
+    ...safeMerged,
   })
 
   return {
@@ -51,7 +57,10 @@ export function useUpdateSettings(
     mutationFn: settingsApi.update,
     onSuccess: () => {
       // Invalidate and refetch settings queries on success
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.detail(), refetchType: 'active' })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.settings.detail(),
+        refetchType: 'active',
+      })
 
       // If tenant name was updated, we need to refresh the auth context
       // to pick up the updated tenant information without a page reload
@@ -124,7 +133,10 @@ export function useCreateTenant(
  * Hook to delete a tenant
  */
 export function useDeleteTenant(
-  options?: MutationOptions<{ success: boolean; logout?: boolean }, { slug: string; confirm: string }>
+  options?: MutationOptions<
+    { success: boolean; logout?: boolean },
+    { slug: string; confirm: string }
+  >
 ): MutationHookState<{ success: boolean; logout?: boolean }, { slug: string; confirm: string }> {
   const queryClient = useQueryClient()
 

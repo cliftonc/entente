@@ -179,6 +179,10 @@ export const fixtureApi = {
   getByOperation: (operation: string, service: string, version: string) =>
     fetchApi<Fixture[]>(`/fixtures/${operation}?service=${service}&version=${version}`),
   getById: (id: string) => fetchApi<Fixture>(`/fixtures/by-id/${id}`),
+  getServicesSummary: () =>
+    fetchApi<
+      Array<{ service: string; total: number; draft: number; approved: number; rejected: number }>
+    >('/fixtures/services/summary'),
   approve: (id: string, approvedBy: string, notes?: string) =>
     fetchApi<{ success: boolean }>(`/fixtures/${id}/approve`, {
       method: 'POST',
@@ -464,16 +468,13 @@ export const githubApi = {
 // GitHub Integration Settings API functions
 export const githubSettingsApi = {
   // Get GitHub app name
-  getAppName: (): Promise<{ appName: string }> =>
-    fetchApi('/github/app-name'),
+  getAppName: (): Promise<{ appName: string }> => fetchApi('/github/app-name'),
 
   // Get GitHub app installation
-  getInstallation: (): Promise<GitHubAppInstallation | null> =>
-    fetchApi('/settings/github'),
+  getInstallation: (): Promise<GitHubAppInstallation | null> => fetchApi('/settings/github'),
 
   // Get GitHub manage URL
-  getManageUrl: (): Promise<{ manageUrl: string }> =>
-    fetchApi('/settings/github/manage-url'),
+  getManageUrl: (): Promise<{ manageUrl: string }> => fetchApi('/settings/github/manage-url'),
 
   // Update GitHub installation settings
   updateInstallation: (updates: GitHubAppInstallationUpdate): Promise<GitHubAppInstallation> =>
@@ -492,8 +493,7 @@ export const githubSettingsApi = {
 // Team Management API functions
 export const teamApi = {
   // Get team members
-  getMembers: (): Promise<TeamMember[]> =>
-    fetchApi('/settings/team'),
+  getMembers: (): Promise<TeamMember[]> => fetchApi('/settings/team'),
 
   // Invite team member
   inviteMember: (invitation: InviteTeamMemberRequest): Promise<{ success: boolean }> =>
@@ -529,7 +529,9 @@ export const invitationApi = {
     fetchAuth(`/invite/details?token=${encodeURIComponent(token)}`),
 
   // Accept invitation
-  accept: (token: string): Promise<{ success: boolean; requiresAuth?: boolean; loginUrl?: string; message?: string }> =>
+  accept: (
+    token: string
+  ): Promise<{ success: boolean; requiresAuth?: boolean; loginUrl?: string; message?: string }> =>
     fetchAuth('/invite/accept', {
       method: 'POST',
       body: JSON.stringify({ token }),

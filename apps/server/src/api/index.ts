@@ -36,6 +36,7 @@ import settingsRouter from './routes/settings.js'
 import { specsRouter } from './routes/specs.js'
 import { statsRouter } from './routes/stats.js'
 import { verificationRouter } from './routes/verification.js'
+import { websocketRouter } from './routes/websocket.js'
 
 const app = new Hono<{ Bindings: CloudflareEnv }>()
 
@@ -96,6 +97,9 @@ app.route('/api/dependencies', dependenciesRouter)
 app.route('/api/stats', statsRouter)
 app.route('/api/settings', settingsRouter)
 app.route('/api/github', githubRoutes)
+
+// WebSocket route (no auth middleware - auth handled in the WebSocket handler)
+app.route('/', websocketRouter)
 
 // Serve static files (favicon, manifest, etc.)
 // Handle both Cloudflare Workers and Node.js development

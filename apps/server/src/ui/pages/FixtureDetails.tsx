@@ -1,24 +1,19 @@
 import type { HTTPRequest, HTTPResponse } from '@entente/types'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
 import { useAuth } from '../hooks/useAuth'
 import {
   useFixture,
   useApproveFixture,
   useRejectFixture,
-  useRevokeFixture
+  useRevokeFixture,
 } from '../hooks/useFixtures'
 
 function FixtureDetails() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
-  const _navigate = useNavigate()
 
-  const {
-    data: fixture,
-    isLoading,
-    error,
-  } = useFixture(id || '')
+  const { data: fixture, isLoading, error } = useFixture(id || '')
 
   // Mutation hooks with optimistic updates
   const approveMutation = useApproveFixture()
@@ -29,7 +24,7 @@ function FixtureDetails() {
     if (!id) return
     approveMutation.mutate({
       id,
-      approvedBy: user?.username || 'unknown'
+      approvedBy: user?.username || 'unknown',
     })
   }
 
@@ -38,7 +33,7 @@ function FixtureDetails() {
     if (window.confirm('Are you sure you want to reject this fixture?')) {
       rejectMutation.mutate({
         id,
-        rejectedBy: user?.username || 'unknown'
+        rejectedBy: user?.username || 'unknown',
       })
     }
   }
@@ -48,7 +43,7 @@ function FixtureDetails() {
     if (window.confirm('Are you sure you want to reject this approved fixture?')) {
       revokeMutation.mutate({
         id,
-        revokedBy: user?.username || 'unknown'
+        revokedBy: user?.username || 'unknown',
       })
     }
   }
@@ -154,7 +149,10 @@ function FixtureDetails() {
             <Link to="/fixtures">Fixtures</Link>
           </li>
           <li>
-            {fixture.service} • {fixture.operation}
+            <Link to={`/services/provider/${fixture.service}`} className="link link-primary">
+              {fixture.service}
+            </Link>{' '}
+            • {fixture.operation}
           </li>
         </ul>
       </div>
@@ -267,7 +265,10 @@ function FixtureDetails() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <div>
-                <strong>Service:</strong> {fixture.service}
+                <strong>Service:</strong>{' '}
+                <Link to={`/services/provider/${fixture.service}`} className="link link-primary">
+                  {fixture.service}
+                </Link>
               </div>
               <div>
                 <strong>Service Versions:</strong>

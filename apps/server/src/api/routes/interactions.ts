@@ -12,6 +12,7 @@ import {
 import type { DbConnection } from '../../db/types'
 import { ensureServiceVersion } from '../utils/service-versions'
 import { createOrUpdateContract } from './contracts'
+import { NotificationService } from '../services/notification'
 
 export const interactionsRouter = new Hono()
 
@@ -89,7 +90,7 @@ async function createVerificationTaskFromInteraction(
     const providerVersion = allInteractions[0]?.providerVersion || 'latest'
 
     try {
-      await db.insert(verificationTasks).values({
+      const [newTask] = await db.insert(verificationTasks).values({
         tenantId,
         contractId,
         providerId,
@@ -100,11 +101,26 @@ async function createVerificationTaskFromInteraction(
         consumerVersion,
         environment,
         interactions: allInteractions,
-      })
+      }).returning()
 
       console.log(
         `✅ Created verification task with ${allInteractions.length} interactions for ${consumerName}@${consumerVersion} -> ${providerName}@${providerVersion}`
       )
+
+      // Broadcast WebSocket event for verification task creation
+      try {
+        NotificationService.broadcastVerificationEvent(tenantId, 'create', {
+          id: newTask.id,
+          provider: providerName,
+          consumer: consumerName,
+          contractId: contractId || '',
+          status: 'pending',
+          providerVersion,
+          consumerVersion,
+        })
+      } catch (broadcastError) {
+        console.error('⚠️  Failed to broadcast verification task creation:', broadcastError)
+      }
     } catch (error: unknown) {
       // Handle unique constraint violation (race condition)
       if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {

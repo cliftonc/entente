@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useDraftFixturesCount } from '../hooks/useFixtures'
 import TenantSelector from './TenantSelector'
+import { WebSocketStatus as WebSocketStatusCompact } from './WebSocketStatus'
 
 interface NavItem {
   path: string
@@ -82,23 +83,29 @@ function SideNav() {
           <span className="text-xl font-bold">ntente</span>
         </Link>
 
-        <a
-          href="https://docs.entente.dev"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 px-2 py-1 text-sm text-base-content/70 hover:text-base-content hover:bg-base-200 rounded transition-colors"
-          title="Documentation"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.832 18.477 19.246 18 17.5 18c-1.746 0-3.332.477-4.5 1.253"
-            />
-          </svg>
-          Docs
-        </a>
+        <div className="flex items-center gap-2">
+          {/* WebSocket Status */}
+          <WebSocketStatusCompact />
+
+          {/* Documentation Link */}
+          <a
+            href="https://docs.entente.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-1 text-sm text-base-content/70 hover:text-base-content hover:bg-base-200 rounded transition-colors"
+            title="Documentation"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.832 18.477 19.246 18 17.5 18c-1.746 0-3.332.477-4.5 1.253"
+              />
+            </svg>
+            Docs
+          </a>
+        </div>
       </div>
 
       {/* Tenant Selector */}

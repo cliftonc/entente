@@ -9,7 +9,8 @@ import {
   useApproveFixture,
   useRejectFixture,
   useRevokeFixture,
-  useApproveAllFixtures
+  useApproveAllFixtures,
+  useFixtureServicesSummary,
 } from '../hooks/useFixtures'
 
 function Fixtures() {
@@ -33,15 +34,34 @@ function Fixtures() {
     isLoading,
     error,
     isEmpty,
-  } = useFixtures({
-    provider: providerFilter || undefined,
-    status: statusFilter !== 'all' ? statusFilter as 'draft' | 'approved' | 'rejected' : undefined,
-  }, {
-    enabled: Boolean(authenticated),
-  })
+  } = useFixtures(
+    {
+      provider: providerFilter || undefined,
+      status:
+        statusFilter !== 'all' ? (statusFilter as 'draft' | 'approved' | 'rejected') : undefined,
+    },
+    {
+      enabled: Boolean(authenticated),
+    }
+  )
 
   const displayedFixtures = fixtures || []
   const draftFixtures = fixtures?.filter(f => f.status === 'draft') || []
+
+  // Service summary (counts without fetching all fixture data)
+  const { data: servicesSummary, isLoading: summaryLoading } = useFixtureServicesSummary({
+    enabled: Boolean(authenticated),
+  })
+
+  const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({})
+  const toggleService = (service: string) => {
+    setExpandedServices(prev => ({ ...prev, [service]: !prev[service] }))
+  }
+
+  const filteredServicesSummary =
+    servicesSummary?.filter(s => (providerFilter ? s.service === providerFilter : true)) || []
+
+  const totalDraftsVisible = filteredServicesSummary.reduce((acc, s) => acc + s.draft, 0)
 
   // Handle filter changes
   const handleProviderFilterChange = (provider: string) => {
@@ -82,30 +102,38 @@ function Fixtures() {
   const handleApprove = (fixture: Fixture) => {
     approveMutation.mutate({
       id: fixture.id,
-      approvedBy: user?.username || 'unknown'
+      approvedBy: user?.username || 'unknown',
     })
   }
 
   const handleReject = (fixture: Fixture) => {
     rejectMutation.mutate({
       id: fixture.id,
-      rejectedBy: user?.username || 'unknown'
+      rejectedBy: user?.username || 'unknown',
     })
   }
 
   const handleRevoke = (fixture: Fixture) => {
     revokeMutation.mutate({
       id: fixture.id,
-      revokedBy: user?.username || 'unknown'
+      revokedBy: user?.username || 'unknown',
     })
   }
 
   const handleApproveAll = () => {
-    if (draftFixtures.length > 0) {
-      approveAllMutation.mutate({
-        fixtures: draftFixtures,
-        approvedBy: user?.username || 'unknown'
-      })
+    if (displayedFixtures.length > 0) {
+      const visibleDrafts = displayedFixtures.filter(
+        f =>
+          (providerFilter ? f.service === providerFilter : true) &&
+          f.status === 'draft' &&
+          (statusFilter === 'all' || f.status === statusFilter)
+      )
+      if (visibleDrafts.length > 0) {
+        approveAllMutation.mutate({
+          fixtures: visibleDrafts,
+          approvedBy: user?.username || 'unknown',
+        })
+      }
     }
   }
 
@@ -176,7 +204,7 @@ function Fixtures() {
         </div>
         <button
           className="btn btn-success"
-          disabled={draftFixtures.length === 0 || approveAllMutation.isPending}
+          disabled={totalDraftsVisible === 0 || approveAllMutation.isPending}
           onClick={handleApproveAll}
         >
           {approveAllMutation.isPending ? (
@@ -191,7 +219,7 @@ function Fixtures() {
               />
             </svg>
           )}
-          Approve All ({draftFixtures.length})
+          Approve All ({totalDraftsVisible})
         </button>
       </div>
 
@@ -224,173 +252,244 @@ function Fixtures() {
 
       <div className="card bg-base-100 shadow-xl">
         <div className="card-body">
-          <h2 className="card-title">
-            {statusFilter === 'draft'
-              ? 'Draft Fixtures'
-              : statusFilter === 'approved'
-                ? 'Approved Fixtures'
-                : 'All Fixtures'}
-            {providerFilter && (
-              <span className="text-sm font-normal">• Provider: {providerFilter}</span>
-            )}
+          <h2 className="card-title flex justify-between items-center w-full">
+            <span>Services with Fixtures</span>
+            <span className="text-sm font-normal text-base-content/60">
+              {filteredServicesSummary.length} services
+            </span>
           </h2>
-          <div className="overflow-x-auto">
-            <table className="table table-zebra">
-              <thead>
-                <tr>
-                  <th>Service</th>
-                  <th>Operation</th>
-                  <th>Status</th>
-                  <th>Source</th>
-                  <th>Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayedFixtures.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center text-base-content/70 py-8">
-                      {providerFilter
-                        ? 'No fixtures found with current filters'
-                        : statusFilter === 'draft'
-                          ? 'No draft fixtures'
-                          : statusFilter === 'approved'
-                            ? 'No approved fixtures'
-                            : 'No fixtures available'}
-                    </td>
-                  </tr>
-                ) : (
-                  displayedFixtures.map(fixture => (
-                    <tr key={fixture.id}>
-                      <td>
-                        {fixture.source === 'manual' ? (
-                          fixture.service
-                        ) : (
-                          <Link
-                            to={`/services/provider/${fixture.service}`}
-                            className="text-primary hover:underline"
-                          >
-                            {fixture.service}
-                          </Link>
-                        )}
-                      </td>
-                      <td>
-                        <code className="bg-base-200 px-2 py-1 rounded text-sm">
-                          {fixture.operation}
-                        </code>
-                      </td>
-                      <td>
+          {summaryLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="skeleton h-10 w-full" />
+              ))}
+            </div>
+          ) : filteredServicesSummary.length === 0 ? (
+            <div className="text-center py-8 text-base-content/70">
+              {providerFilter ? 'No services match current filter' : 'No fixtures available yet'}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredServicesSummary.map(service => {
+                const isExpanded = expandedServices[service.service]
+                const serviceFixtures = displayedFixtures.filter(
+                  f =>
+                    f.service === service.service &&
+                    (statusFilter === 'all' || f.status === statusFilter)
+                )
+                const draftCount = service.draft
+                const approveAllDisabled = draftCount === 0 || approveAllMutation.isPending
+                const handleApproveAllService = () => {
+                  const serviceDrafts = serviceFixtures.filter(f => f.status === 'draft')
+                  if (serviceDrafts.length > 0) {
+                    approveAllMutation.mutate({
+                      fixtures: serviceDrafts,
+                      approvedBy: user?.username || 'unknown',
+                    })
+                  }
+                }
+                return (
+                  <div key={service.service} className="border border-base-300 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => toggleService(service.service)}
+                      className="w-full flex items-center justify-between px-3 py-2 hover:bg-base-200/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
                         <span
-                          className={`badge ${
-                            fixture.status === 'draft'
-                              ? 'badge-warning'
-                              : fixture.status === 'approved'
-                                ? 'badge-success'
-                                : fixture.status === 'rejected'
-                                  ? 'badge-error'
-                                  : 'badge-info'
-                          }`}
+                          className={`transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                         >
-                          {fixture.status}
+                          ▶
                         </span>
-                      </td>
-                      <td>
-                        <span
-                          className={`badge ${
-                            fixture.source === 'consumer' ? 'badge-primary' : 'badge-secondary'
-                          }`}
-                        >
-                          {fixture.source}
-                        </span>
-                      </td>
-                      <td>
-                        <TimestampDisplay
-                          timestamp={
-                            fixture.status === 'approved'
-                              ? fixture.approvedAt || fixture.createdAt
-                              : fixture.createdAt
-                          }
-                        />
-                      </td>
-                      <td>
+                        <span className="font-medium">{service.service}</span>
                         <div className="flex gap-2">
-                          {fixture.status === 'draft' ? (
-                            <>
-                              <button
-                                className="btn btn-success btn-sm"
-                                onClick={() => handleApprove(fixture)}
-                                disabled={
-                                  approveMutation.isPending &&
-                                  approveMutation.variables?.id === fixture.id
-                                }
-                              >
-                                {approveMutation.isPending &&
-                                approveMutation.variables?.id === fixture.id ? (
-                                  <span className="loading loading-spinner loading-xs" />
-                                ) : (
-                                  'Approve'
-                                )}
-                              </button>
-                              <button
-                                className="btn btn-error btn-sm"
-                                onClick={() => handleReject(fixture)}
-                                disabled={
-                                  rejectMutation.isPending &&
-                                  rejectMutation.variables?.id === fixture.id
-                                }
-                              >
-                                {rejectMutation.isPending &&
-                                rejectMutation.variables?.id === fixture.id ? (
-                                  <span className="loading loading-spinner loading-xs" />
-                                ) : (
-                                  'Reject'
-                                )}
-                              </button>
-                            </>
-                          ) : fixture.status === 'approved' ? (
-                            <button
-                              className="btn btn-error btn-sm"
-                              onClick={() => handleRevoke(fixture)}
-                              disabled={
-                                revokeMutation.isPending &&
-                                revokeMutation.variables?.id === fixture.id
-                              }
-                            >
-                              {revokeMutation.isPending &&
-                              revokeMutation.variables?.id === fixture.id ? (
-                                <span className="loading loading-spinner loading-xs" />
-                              ) : (
-                                'Reject'
-                              )}
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn-success btn-sm"
-                              onClick={() => handleApprove(fixture)}
-                              disabled={
-                                approveMutation.isPending &&
-                                approveMutation.variables?.id === fixture.id
-                              }
-                            >
-                              {approveMutation.isPending &&
-                              approveMutation.variables?.id === fixture.id ? (
-                                <span className="loading loading-spinner loading-xs" />
-                              ) : (
-                                'Approve'
-                              )}
-                            </button>
-                          )}
-                          <Link to={`/fixtures/${fixture.id}`} className="btn btn-ghost btn-sm">
-                            View
-                          </Link>
+                          <span
+                            className="badge badge-warning"
+                            aria-label={`${service.draft} draft`}
+                          >
+                            {service.draft}
+                            <span className="hidden sm:inline ml-1">draft</span>
+                          </span>
+                          <span
+                            className="badge badge-success"
+                            aria-label={`${service.approved} approved`}
+                          >
+                            {service.approved}
+                            <span className="hidden sm:inline ml-1">approved</span>
+                          </span>
+                          <span
+                            className="badge badge-error"
+                            aria-label={`${service.rejected} rejected`}
+                          >
+                            {service.rejected}
+                            <span className="hidden sm:inline ml-1">rejected</span>
+                          </span>
+                          <span
+                            className="badge badge-neutral"
+                            aria-label={`${service.total} total`}
+                          >
+                            {service.total}
+                            <span className="hidden sm:inline ml-1">total</span>
+                          </span>
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {draftCount > 0 && (
+                          <button
+                            onClick={e => {
+                              e.stopPropagation()
+                              handleApproveAllService()
+                            }}
+                            className="btn btn-success btn-xs"
+                            disabled={approveAllDisabled}
+                          >
+                            {approveAllMutation.isPending ? (
+                              <span className="loading loading-spinner loading-xs" />
+                            ) : (
+                              `Approve ${draftCount}`
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </button>
+                    {isExpanded && (
+                      <div className="px-3 pb-3">
+                        {serviceFixtures.length === 0 ? (
+                          <div className="text-sm text-base-content/60 py-2">
+                            No fixtures matching status filter
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto mt-2 bg-base-200 rounded-md p-2">
+                            <table className="table table-compact text-sm">
+                              <thead>
+                                <tr>
+                                  <th className="w-1/4">Operation</th>
+                                  <th className="w-16">Status</th>
+                                  <th className="w-20">Source</th>
+                                  <th className="w-32">Date</th>
+                                  <th className="w-40">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {serviceFixtures.map(fixture => (
+                                  <tr key={fixture.id}>
+                                    <td>
+                                      <code className="font-mono text-sm text-base-content/80">
+                                        {fixture.operation}
+                                      </code>
+                                    </td>
+                                    <td>
+                                      <span
+                                        className={`badge ${fixture.status === 'draft' ? 'badge-warning' : fixture.status === 'approved' ? 'badge-success' : fixture.status === 'rejected' ? 'badge-error' : 'badge-info'}`}
+                                      >
+                                        {fixture.status}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span
+                                        className={`badge ${fixture.source === 'consumer' ? 'badge-primary' : 'badge-secondary'}`}
+                                      >
+                                        {fixture.source}
+                                      </span>
+                                    </td>
+                                    <td className="text-xs">
+                                      <TimestampDisplay
+                                        timestamp={
+                                          fixture.status === 'approved'
+                                            ? fixture.approvedAt || fixture.createdAt
+                                            : fixture.createdAt
+                                        }
+                                      />
+                                    </td>
+                                    <td>
+                                      <div className="flex gap-1 flex-wrap">
+                                        {fixture.status === 'draft' ? (
+                                          <>
+                                            <button
+                                              className="btn btn-success btn-xs"
+                                              onClick={() => handleApprove(fixture)}
+                                              disabled={
+                                                approveMutation.isPending &&
+                                                approveMutation.variables?.id === fixture.id
+                                              }
+                                            >
+                                              {approveMutation.isPending &&
+                                              approveMutation.variables?.id === fixture.id ? (
+                                                <span className="loading loading-spinner loading-xs" />
+                                              ) : (
+                                                'Approve'
+                                              )}
+                                            </button>
+                                            <button
+                                              className="btn btn-error btn-xs"
+                                              onClick={() => handleReject(fixture)}
+                                              disabled={
+                                                rejectMutation.isPending &&
+                                                rejectMutation.variables?.id === fixture.id
+                                              }
+                                            >
+                                              {rejectMutation.isPending &&
+                                              rejectMutation.variables?.id === fixture.id ? (
+                                                <span className="loading loading-spinner loading-xs" />
+                                              ) : (
+                                                'Reject'
+                                              )}
+                                            </button>
+                                          </>
+                                        ) : fixture.status === 'approved' ? (
+                                          <button
+                                            className="btn btn-error btn-xs"
+                                            onClick={() => handleRevoke(fixture)}
+                                            disabled={
+                                              revokeMutation.isPending &&
+                                              revokeMutation.variables?.id === fixture.id
+                                            }
+                                          >
+                                            {revokeMutation.isPending &&
+                                            revokeMutation.variables?.id === fixture.id ? (
+                                              <span className="loading loading-spinner loading-xs" />
+                                            ) : (
+                                              'Reject'
+                                            )}
+                                          </button>
+                                        ) : (
+                                          <button
+                                            className="btn btn-success btn-xs"
+                                            onClick={() => handleApprove(fixture)}
+                                            disabled={
+                                              approveMutation.isPending &&
+                                              approveMutation.variables?.id === fixture.id
+                                            }
+                                          >
+                                            {approveMutation.isPending &&
+                                            approveMutation.variables?.id === fixture.id ? (
+                                              <span className="loading loading-spinner loading-xs" />
+                                            ) : (
+                                              'Approve'
+                                            )}
+                                          </button>
+                                        )}
+                                        <Link
+                                          to={`/fixtures/${fixture.id}`}
+                                          className="btn btn-ghost btn-xs"
+                                        >
+                                          View
+                                        </Link>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

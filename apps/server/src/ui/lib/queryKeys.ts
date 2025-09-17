@@ -21,8 +21,7 @@ export const queryKeys = {
     details: () => ['services', 'detail'] as const,
     detail: (name: string, type: 'consumer' | 'provider') =>
       ['services', 'detail', name, type] as const,
-    versions: (serviceName: string) =>
-      ['services', serviceName, 'versions'] as const,
+    versions: (serviceName: string) => ['services', serviceName, 'versions'] as const,
     interactions: (serviceName: string, filters?: QueryKeyFilters) =>
       ['services', serviceName, 'interactions', filters] as const,
     stats: (serviceName: string, version?: string) =>
@@ -40,8 +39,7 @@ export const queryKeys = {
     byConsumer: (consumer: string) => ['contracts', 'consumer', consumer] as const,
     interactions: (contractId: string, filters?: QueryKeyFilters) =>
       ['contracts', contractId, 'interactions', filters] as const,
-    verification: (contractId: string) =>
-      ['contracts', contractId, 'verification'] as const,
+    verification: (contractId: string) => ['contracts', contractId, 'verification'] as const,
   },
 
   // Fixtures
@@ -57,6 +55,7 @@ export const queryKeys = {
     byOperation: (operation: string, service: string, version: string) =>
       ['fixtures', 'operation', operation, service, version] as const,
     drafts: () => ['fixtures', 'status', 'draft'] as const,
+    servicesSummary: () => ['fixtures', 'services', 'summary'] as const,
   },
 
   // Interactions
@@ -99,8 +98,7 @@ export const queryKeys = {
     byConsumer: (consumer: string) => ['verification', 'consumer', consumer] as const,
     tasks: (provider: string) => ['verification', 'tasks', provider] as const,
     pendingTasks: () => ['verification', 'tasks', 'pending'] as const,
-    byContract: (contractId: string) =>
-      ['verification', 'contract', contractId] as const,
+    byContract: (contractId: string) => ['verification', 'contract', contractId] as const,
     stats: (provider: string) => ['verification', 'stats', provider] as const,
   },
 
@@ -108,8 +106,7 @@ export const queryKeys = {
   specs: {
     all: ['specs'] as const,
     lists: () => ['specs', 'list'] as const,
-    detail: (service: string, version?: string) =>
-      ['specs', 'detail', service, version] as const,
+    detail: (service: string, version?: string) => ['specs', 'detail', service, version] as const,
     versions: (service: string) => ['specs', service, 'versions'] as const,
   },
 
@@ -185,16 +182,18 @@ export const getInvalidationQueries = {
     onServiceChange: (serviceName?: string) => [
       queryKeys.services.all,
       queryKeys.stats.dashboard(),
-      ...(serviceName ? [
-        queryKeys.services.detail(serviceName, 'consumer'),
-        queryKeys.services.detail(serviceName, 'provider'),
-        queryKeys.contracts.byProvider(serviceName),
-        queryKeys.contracts.byConsumer(serviceName),
-        queryKeys.fixtures.byService(serviceName),
-        queryKeys.interactions.byService(serviceName),
-        queryKeys.verification.byProvider(serviceName),
-        queryKeys.verification.byConsumer(serviceName),
-      ] : [])
+      ...(serviceName
+        ? [
+            queryKeys.services.detail(serviceName, 'consumer'),
+            queryKeys.services.detail(serviceName, 'provider'),
+            queryKeys.contracts.byProvider(serviceName),
+            queryKeys.contracts.byConsumer(serviceName),
+            queryKeys.fixtures.byService(serviceName),
+            queryKeys.interactions.byService(serviceName),
+            queryKeys.verification.byProvider(serviceName),
+            queryKeys.verification.byConsumer(serviceName),
+          ]
+        : []),
     ],
   },
 
@@ -213,6 +212,7 @@ export const getInvalidationQueries = {
       queryKeys.fixtures.all,
       queryKeys.fixtures.pending(),
       queryKeys.fixtures.drafts(),
+      queryKeys.fixtures.servicesSummary(),
       queryKeys.stats.dashboard(),
       ...(fixtureId ? [queryKeys.fixtures.detail(fixtureId)] : []),
       ...(service ? [queryKeys.fixtures.byService(service)] : []),
@@ -245,32 +245,26 @@ export const getInvalidationQueries = {
       queryKeys.verification.all,
       queryKeys.verification.pendingTasks(),
       queryKeys.stats.dashboard(),
-      ...(provider ? [
-        queryKeys.verification.byProvider(provider),
-        queryKeys.verification.tasks(provider),
-        queryKeys.verification.stats(provider),
-      ] : []),
+      ...(provider
+        ? [
+            queryKeys.verification.byProvider(provider),
+            queryKeys.verification.tasks(provider),
+            queryKeys.verification.stats(provider),
+          ]
+        : []),
       ...(consumer ? [queryKeys.verification.byConsumer(consumer)] : []),
       ...(contractId ? [queryKeys.verification.byContract(contractId)] : []),
     ],
   },
 
   apiKeys: {
-    onCreate: () => [
-      queryKeys.apiKeys.all,
-    ],
-    onUpdate: () => [
-      queryKeys.apiKeys.all,
-    ],
-    onDelete: () => [
-      queryKeys.apiKeys.all,
-    ],
+    onCreate: () => [queryKeys.apiKeys.all],
+    onUpdate: () => [queryKeys.apiKeys.all],
+    onDelete: () => [queryKeys.apiKeys.all],
   },
 
   settings: {
-    onUpdate: () => [
-      queryKeys.settings.all,
-    ],
+    onUpdate: () => [queryKeys.settings.all],
     onTenantChange: () => [
       // Invalidate everything when tenant context changes
       'ALL',
@@ -278,27 +272,16 @@ export const getInvalidationQueries = {
   },
 
   github: {
-    onUpdate: () => [
-      queryKeys.github.all,
-    ],
-    onUninstall: () => [
-      queryKeys.github.all,
-    ],
+    onUpdate: () => [queryKeys.github.all],
+    onUninstall: () => [queryKeys.github.all],
   },
 
   team: {
-    onMemberChange: () => [
-      queryKeys.team.all,
-    ],
-    onInviteChange: () => [
-      queryKeys.team.all,
-    ],
+    onMemberChange: () => [queryKeys.team.all],
+    onInviteChange: () => [queryKeys.team.all],
   },
 
   invitations: {
-    onAccept: () => [
-      queryKeys.invitations.all,
-      queryKeys.team.all,
-    ],
+    onAccept: () => [queryKeys.invitations.all, queryKeys.team.all],
   },
 }

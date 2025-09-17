@@ -149,7 +149,6 @@ function VerificationDetail() {
               version={verification.providerVersion}
               serviceName={verification.provider}
               serviceType="provider"
-
             />
           </li>
         </ul>
@@ -162,7 +161,13 @@ function VerificationDetail() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <div>
-                <strong>Provider:</strong> {verification.provider}
+                <strong>Provider:</strong>{' '}
+                <Link
+                  to={`/services/provider/${verification.provider}`}
+                  className="font-medium hover:underline text-primary"
+                >
+                  {verification.provider}
+                </Link>
               </div>
               <div className="flex items-center gap-2">
                 <strong>Provider Version:</strong>
@@ -170,11 +175,20 @@ function VerificationDetail() {
                   version={verification.providerVersion}
                   serviceName={verification.provider}
                   serviceType="provider"
-                  
                 />
               </div>
               <div>
-                <strong>Consumer:</strong> {verification.consumer || 'N/A'}
+                <strong>Consumer:</strong>{' '}
+                {verification.consumer ? (
+                  <Link
+                    to={`/services/consumer/${verification.consumer}`}
+                    className="font-medium hover:underline text-primary"
+                  >
+                    {verification.consumer}
+                  </Link>
+                ) : (
+                  'N/A'
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <strong>Consumer Version:</strong>
@@ -183,7 +197,6 @@ function VerificationDetail() {
                     version={verification.consumerVersion || 'N/A'}
                     serviceName={verification.consumer}
                     serviceType="consumer"
-                    
                   />
                 ) : (
                   <span>N/A</span>
@@ -273,9 +286,7 @@ function VerificationDetail() {
                     <tr key={result.interactionId || `result-${index}`}>
                       <td>#{index + 1}</td>
                       <td>
-                        <span className="badge badge-outline">
-                          {'N/A'}
-                        </span>
+                        <span className="badge badge-outline">{'N/A'}</span>
                       </td>
                       <td className="font-mono text-sm">{result.interactionId || 'N/A'}</td>
                       <td className="text-sm">{'N/A'}</td>
@@ -340,8 +351,7 @@ function VerificationDetail() {
                       </div>
                       <div className="text-sm mt-1">
                         Operation: {'N/A'} • Response Status:{' '}
-                        {result.actualResponse?.status || 'Unknown'} • Service:{' '}
-                        Unknown
+                        {result.actualResponse?.status || 'Unknown'} • Service: Unknown
                       </div>
                       {result.actualResponse?.body != null && (
                         <div className="bg-base-300/20 p-2 rounded mt-2">
