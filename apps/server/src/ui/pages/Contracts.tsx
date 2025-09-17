@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Link } from 'react-router-dom'
@@ -6,7 +5,7 @@ import ConsumerFilter from '../components/ConsumerFilter'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
-import { contractApi } from '../utils/api'
+import { useContracts } from '../hooks/useContracts'
 
 function Contracts() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -32,15 +31,11 @@ function Contracts() {
     data: contracts,
     isLoading: contractsLoading,
     error: contractsError,
-  } = useQuery({
-    queryKey: ['contracts', selectedProvider, selectedConsumer, selectedStatus],
-    queryFn: () =>
-      contractApi.getAll({
-        provider: selectedProvider || undefined,
-        consumer: selectedConsumer || undefined,
-        status: selectedStatus || undefined,
-        limit: 200,
-      }),
+  } = useContracts({
+    provider: selectedProvider || undefined,
+    consumer: selectedConsumer || undefined,
+    status: selectedStatus as 'active' | 'archived' | 'deprecated' | undefined,
+    limit: 200,
   })
 
   // Handle filter changes

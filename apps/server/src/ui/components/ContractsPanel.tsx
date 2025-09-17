@@ -98,7 +98,7 @@ function ContractsPanel({
                         />
                         <span className="text-xs text-base-content/70">
                           <TimestampDisplay
-                            timestamp={contract.lastInteractionAt || contract.lastSeen}
+                            timestamp={contract.lastSeen}
                           />
                         </span>
                       </div>

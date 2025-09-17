@@ -30,3 +30,4 @@ export interface DbFixtureWithTypes
 
 // Database connection type
 export type DbConnection = ReturnType<typeof createDatabase>
+export type Database = DbConnection

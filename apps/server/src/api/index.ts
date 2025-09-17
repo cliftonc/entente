@@ -4,6 +4,10 @@ import { alias } from 'drizzle-orm/pg-core'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
+
+type CloudflareEnv = {
+  ASSETS?: any
+}
 import {
   deployments,
   interactions,
@@ -33,7 +37,7 @@ import { specsRouter } from './routes/specs.js'
 import { statsRouter } from './routes/stats.js'
 import { verificationRouter } from './routes/verification.js'
 
-const app = new Hono()
+const app = new Hono<{ Bindings: CloudflareEnv }>()
 
 // Middleware
 app.use('*', performanceMiddleware)
@@ -367,6 +371,11 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
       )
 
       for (const consumer of deployedDependencies) {
+        // Skip consumers with null consumerId
+        if (!consumer.consumerId) {
+          continue
+        }
+
         // Get the latest verification status
         const verificationQuery = await db
           .select({

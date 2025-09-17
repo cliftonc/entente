@@ -12,7 +12,7 @@ import { zValidator } from '@hono/zod-validator'
 import { and, eq, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import type { Env } from '..'
+// Remove unused Env import
 import {
   githubAppInstallations,
   teamInvitations,
@@ -24,7 +24,7 @@ import {
 import { getEnv } from '../middleware/env'
 import { createInvitationEmailTemplate, sendEmail } from '../services/email'
 
-const settings = new Hono<Env>()
+const settings = new Hono()
 
 // Get tenant settings
 settings.get('/', async c => {
@@ -60,7 +60,7 @@ settings.get('/', async c => {
       dataRetentionDays: 90,
       notificationsEnabled: true,
       updatedAt: new Date(),
-      updatedBy: user.id,
+      updatedBy: user?.id || 'anonymous',
     })
   }
 
@@ -132,7 +132,7 @@ settings.patch('/', zValidator('json', updateSettingsSchema), async c => {
         autoCleanupDays: settingsUpdates.autoCleanupDays ?? 30,
         dataRetentionDays: settingsUpdates.dataRetentionDays ?? 90,
         notificationsEnabled: settingsUpdates.notificationsEnabled ?? true,
-        updatedBy: user.id,
+        updatedBy: user?.id || 'anonymous',
         updatedAt: new Date(),
       })
       .returning()
@@ -154,7 +154,7 @@ settings.patch('/', zValidator('json', updateSettingsSchema), async c => {
       .update(tenantSettings)
       .set({
         ...settingsUpdates,
-        updatedBy: user.id,
+        updatedBy: user?.id || 'anonymous',
         updatedAt: new Date(),
       })
       .where(eq(tenantSettings.tenantId, tenantId))
@@ -216,11 +216,13 @@ settings.get('/team', async c => {
   const allMembers: TeamMember[] = [
     ...members.map(member => ({
       ...member,
+      avatarUrl: member.avatarUrl ?? undefined,
       role: member.role as 'owner' | 'admin' | 'member',
       status: 'active' as const,
     })),
     ...invitations.map(invitation => ({
       ...invitation,
+      avatarUrl: invitation.avatarUrl ?? undefined,
       role: invitation.role as 'admin' | 'member',
       status: 'pending' as const,
     })),
@@ -280,7 +282,7 @@ settings.post('/team/invite', zValidator('json', inviteSchema), async c => {
       tenantId: tenantId,
       email,
       role,
-      invitedBy: user.id,
+      invitedBy: user?.id || 'anonymous',
       expiresAt,
     })
     .returning()
@@ -299,7 +301,7 @@ settings.post('/team/invite', zValidator('json', inviteSchema), async c => {
     const inviteUrl = `${appUrl}/invite/accept?token=${invitation[0].id}`
 
     const tenantName = tenant[0]?.name || 'the team'
-    const inviterName = user.name || user.username
+    const inviterName = user?.name || user?.username || 'Unknown'
 
     const emailTemplate = createInvitationEmailTemplate(tenantName, inviterName, inviteUrl)
 
@@ -367,7 +369,7 @@ settings.post('/team/resend/:email', async c => {
     const inviteUrl = `${appUrl}/invite/accept?token=${invitation[0].id}`
 
     const tenantName = tenant[0]?.name || 'the team'
-    const inviterName = user.name || user.username
+    const inviterName = user?.name || user?.username || 'Unknown'
 
     const emailTemplate = createInvitationEmailTemplate(tenantName, inviterName, inviteUrl)
 

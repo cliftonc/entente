@@ -1,11 +1,12 @@
-import type { VerificationResults, VerificationTask } from '@entente/types'
+import type { VerificationTask } from '@entente/types'
+import type { ExtendedVerificationResult } from '../lib/types'
 import { Link } from 'react-router-dom'
 import TimestampDisplay from './TimestampDisplay'
 import VersionBadge from './VersionBadge'
 
 interface VerificationPanelProps {
   title: string
-  verificationResults?: VerificationResults[]
+  verificationResults?: ExtendedVerificationResult[]
   pendingTasks?: VerificationTask[]
   isLoading: boolean
   serviceName: string
@@ -97,18 +98,16 @@ function VerificationPanel({
                   <div className="flex items-center gap-2">
                     <div
                       className={`badge ${
-                        verification.summary &&
-                        verification.summary.passed === verification.summary.total
+                        verification.passed === verification.total
                           ? 'badge-success'
-                          : verification.summary && verification.summary.failed > 0
+                          : verification.failed > 0
                             ? 'badge-error'
                             : 'badge-warning'
                       }`}
                     >
-                      {verification.summary &&
-                      verification.summary.passed === verification.summary.total
+                      {verification.passed === verification.total
                         ? 'passed'
-                        : verification.summary && verification.summary.failed > 0
+                        : verification.failed > 0
                           ? 'failed'
                           : 'pending'}
                     </div>
@@ -144,7 +143,7 @@ function VerificationPanel({
                     </span>
                   </div>
                   <span className="text-sm font-medium">
-                    {verification.summary?.passed || 0}/{verification.summary?.total || 0} tests
+                    {verification.passed || 0}/{verification.total || 0} tests
                   </span>
                 </div>
               </Link>

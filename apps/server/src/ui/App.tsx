@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { Route, Routes } from 'react-router-dom'
 import AdminLayout from './components/AdminLayout'
@@ -21,18 +21,9 @@ import ServiceVersions from './pages/ServiceVersions'
 import Settings from './pages/Settings'
 import Verification from './pages/Verification'
 import VerificationDetail from './pages/VerificationDetail'
+import { initializeQueryClient } from './lib/queryClient'
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 30, // 30 seconds - fresher data, faster perceived performance
-      gcTime: 1000 * 60 * 10, // 10 minutes - shorter garbage collection
-      retry: 1, // Fail faster instead of long retries
-      retryDelay: 1000, // 1 second between retries
-      refetchOnWindowFocus: false, // Avoid unnecessary refetches
-    },
-  },
-})
+const queryClient = initializeQueryClient()
 
 function App() {
   return (

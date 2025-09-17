@@ -8,7 +8,7 @@ import { zValidator } from '@hono/zod-validator'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import type { Env } from '..'
+// Remove unused Env import
 import { services, serviceVersions } from '../../db/schema'
 import type { DbService } from '../../db/types'
 import { ensureServiceVersion } from '../utils/service-versions'
@@ -20,7 +20,7 @@ import {
   triggerWorkflow,
 } from '../utils/github-client'
 
-export const servicesRouter = new Hono<Env>()
+export const servicesRouter = new Hono()
 
 // Register a new service (consumer or provider)
 servicesRouter.post('/', async c => {

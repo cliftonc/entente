@@ -1,78 +1,55 @@
 import type { HTTPRequest, HTTPResponse } from '@entente/types'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
 import { useAuth } from '../hooks/useAuth'
-import { fixtureApi } from '../utils/api'
+import {
+  useFixture,
+  useApproveFixture,
+  useRejectFixture,
+  useRevokeFixture
+} from '../hooks/useFixtures'
 
 function FixtureDetails() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
-  const queryClient = useQueryClient()
   const _navigate = useNavigate()
 
   const {
     data: fixture,
     isLoading,
     error,
-  } = useQuery({
-    queryKey: ['fixture', id],
-    queryFn: () => {
-      if (!id) throw new Error('Fixture ID is required')
-      return fixtureApi.getById(id)
-    },
-    enabled: !!id,
-  })
+  } = useFixture(id || '')
 
-  // Approve fixture mutation
-  const approveMutation = useMutation({
-    mutationFn: ({ notes }: { notes?: string }) => {
-      if (!id) throw new Error('Fixture ID is required')
-      return fixtureApi.approve(id, user?.username || 'unknown', notes)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fixture', id] })
-      queryClient.invalidateQueries({ queryKey: ['fixtures'] })
-    },
-  })
-
-  // Reject fixture mutation
-  const rejectMutation = useMutation({
-    mutationFn: ({ notes }: { notes?: string }) => {
-      if (!id) throw new Error('Fixture ID is required')
-      return fixtureApi.reject(id, user?.username || 'unknown', notes)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fixture', id] })
-      queryClient.invalidateQueries({ queryKey: ['fixtures'] })
-    },
-  })
-
-  // Revoke fixture mutation
-  const revokeMutation = useMutation({
-    mutationFn: ({ notes }: { notes?: string }) => {
-      if (!id) throw new Error('Fixture ID is required')
-      return fixtureApi.revoke(id, user?.username || 'unknown', notes)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fixture', id] })
-      queryClient.invalidateQueries({ queryKey: ['fixtures'] })
-    },
-  })
+  // Mutation hooks with optimistic updates
+  const approveMutation = useApproveFixture()
+  const rejectMutation = useRejectFixture()
+  const revokeMutation = useRevokeFixture()
 
   const handleApprove = () => {
-    approveMutation.mutate({})
+    if (!id) return
+    approveMutation.mutate({
+      id,
+      approvedBy: user?.username || 'unknown'
+    })
   }
 
   const handleReject = () => {
+    if (!id) return
     if (window.confirm('Are you sure you want to reject this fixture?')) {
-      rejectMutation.mutate({})
+      rejectMutation.mutate({
+        id,
+        rejectedBy: user?.username || 'unknown'
+      })
     }
   }
 
   const handleRevoke = () => {
+    if (!id) return
     if (window.confirm('Are you sure you want to reject this approved fixture?')) {
-      revokeMutation.mutate({})
+      revokeMutation.mutate({
+        id,
+        revokedBy: user?.username || 'unknown'
+      })
     }
   }
 

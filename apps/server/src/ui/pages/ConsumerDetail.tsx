@@ -6,14 +6,13 @@ import GitHubIntegrationPanel from '../components/GitHubIntegrationPanel'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VerificationPanel from '../components/VerificationPanel'
 import VersionBadge from '../components/VersionBadge'
-import {
-  consumerApi,
-  contractApi,
-  deploymentApi,
-  interactionApi,
-  serviceVersionApi,
-  verificationApi,
-} from '../utils/api'
+import { useService } from '../hooks/useServices'
+import { useServiceVersions } from '../hooks/useServices'
+import { useDeploymentHistory } from '../hooks/useDeployments'
+import { useVerificationsByConsumer, usePendingVerificationTasks } from '../hooks/useVerifications'
+import { useContractsByConsumer } from '../hooks/useContracts'
+import { useInteractions } from '../hooks/useInteractions'
+import { useGitHubInstallation } from '../hooks/useGitHubIntegration'
 
 function ConsumerDetail() {
   const { name } = useParams<{ name: string }>()
@@ -22,81 +21,42 @@ function ConsumerDetail() {
     data: consumer,
     isLoading: consumerLoading,
     error: consumerError,
-  } = useQuery({
-    queryKey: ['consumer', name],
-    queryFn: () => {
-      if (!name) throw new Error('Consumer name is required')
-      return consumerApi.getOne(name)
-    },
-    enabled: !!name,
-  })
+  } = useService(name || '', 'consumer', { enabled: !!name })
 
-  const { data: deployments, isLoading: deploymentsLoading } = useQuery({
-    queryKey: ['deployments', name],
-    queryFn: () => {
-      if (!name) throw new Error('Consumer name is required')
-      return deploymentApi.getHistory(name)
-    },
-    enabled: !!name,
-  })
+  const { data: deployments, isLoading: deploymentsLoading } = useDeploymentHistory(
+    name || '',
+    undefined,
+    { enabled: !!name }
+  )
 
-  const { data: verificationResults, isLoading: verificationLoading } = useQuery({
-    queryKey: ['verification', 'consumer', name],
-    queryFn: () => {
-      if (!name) throw new Error('Consumer name is required')
-      return verificationApi.getByConsumer(name)
-    },
-    enabled: !!name,
-  })
+  const { data: verificationResults, isLoading: verificationLoading } = useVerificationsByConsumer(
+    name || '',
+    { enabled: !!name }
+  )
 
-  const { data: pendingTasks, isLoading: pendingTasksLoading } = useQuery({
-    queryKey: ['verification', 'pending', name],
-    queryFn: () => verificationApi.getPendingTasks(),
-    enabled: !!name,
-  })
+  const { data: pendingTasks, isLoading: pendingTasksLoading } = usePendingVerificationTasks(
+    { enabled: !!name }
+  )
 
   // Fetch contracts for this consumer (contracts where this service is the consumer)
-  const { data: contracts, isLoading: contractsLoading } = useQuery({
-    queryKey: ['contracts', 'consumer', name],
-    queryFn: () => {
-      if (!name) throw new Error('Consumer name is required')
-      return contractApi.getAll({ consumer: name })
-    },
-    enabled: !!name,
-  })
+  const { data: contracts, isLoading: contractsLoading } = useContractsByConsumer(
+    name || '',
+    { enabled: !!name }
+  )
 
   // Fetch all interactions for this consumer to get accurate counts
-  const { data: consumerInteractions } = useQuery({
-    queryKey: ['interactions', 'consumer', name],
-    queryFn: () => {
-      if (!name) throw new Error('Consumer name is required')
-      return interactionApi.getAll({ consumer: name })
-    },
-    enabled: !!name,
-  })
+  const { data: consumerInteractions } = useInteractions({
+    consumer: name,
+  }, { enabled: !!name })
 
   // Check if tenant has GitHub app installation
-  const { data: githubInstallation } = useQuery({
-    queryKey: ['github-installation'],
-    queryFn: async () => {
-      const response = await fetch('/api/settings/github')
-      if (!response.ok) {
-        if (response.status === 404) return null
-        throw new Error('Failed to fetch GitHub installation')
-      }
-      return response.json()
-    },
-  })
+  const { data: githubInstallation } = useGitHubInstallation()
 
   // Fetch service versions
-  const { data: serviceVersions, isLoading: serviceVersionsLoading } = useQuery({
-    queryKey: ['service-versions', name],
-    queryFn: () => {
-      if (!name) throw new Error('Consumer name is required')
-      return serviceVersionApi.getByService(name)
-    },
-    enabled: !!name,
-  })
+  const { data: serviceVersions, isLoading: serviceVersionsLoading } = useServiceVersions(
+    name || '',
+    { enabled: !!name }
+  )
 
   // Interaction counts are now calculated dynamically by the API
   const getContractInteractionCount = (contract: Contract): number => {

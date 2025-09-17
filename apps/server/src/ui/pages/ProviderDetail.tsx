@@ -6,15 +6,14 @@ import GitHubIntegrationPanel from '../components/GitHubIntegrationPanel'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VerificationPanel from '../components/VerificationPanel'
 import VersionBadge from '../components/VersionBadge'
-import {
-  contractApi,
-  deploymentApi,
-  fixtureApi,
-  interactionApi,
-  providerApi,
-  serviceVersionApi,
-  verificationApi,
-} from '../utils/api'
+import { useService } from '../hooks/useServices'
+import { useServiceVersions } from '../hooks/useServices'
+import { useDeploymentHistory } from '../hooks/useDeployments'
+import { useVerificationsByProvider, usePendingVerificationTasks } from '../hooks/useVerifications'
+import { useContractsByProvider } from '../hooks/useContracts'
+import { useInteractions } from '../hooks/useInteractions'
+import { useFixtures } from '../hooks/useFixtures'
+import { useGitHubInstallation } from '../hooks/useGitHubIntegration'
 
 function ProviderDetail() {
   const { name } = useParams<{ name: string }>()
@@ -23,90 +22,46 @@ function ProviderDetail() {
     data: provider,
     isLoading: providerLoading,
     error: providerError,
-  } = useQuery({
-    queryKey: ['provider', name],
-    queryFn: () => {
-      if (!name) throw new Error('Provider name is required')
-      return providerApi.getOne(name)
-    },
-    enabled: !!name,
-  })
+  } = useService(name || '', 'provider', { enabled: !!name })
 
-  const { data: verificationResults, isLoading: verificationLoading } = useQuery({
-    queryKey: ['verification', 'history', name],
-    queryFn: () => {
-      if (!name) throw new Error('Provider name is required')
-      return verificationApi.getByProvider(name)
-    },
-    enabled: !!name,
-  })
+  const { data: verificationResults, isLoading: verificationLoading } = useVerificationsByProvider(
+    name || '',
+    { enabled: !!name }
+  )
 
-  const { data: pendingTasks, isLoading: pendingTasksLoading } = useQuery({
-    queryKey: ['verification', 'pending', name],
-    queryFn: () => verificationApi.getPendingTasks(),
-    enabled: !!name,
-  })
+  const { data: pendingTasks, isLoading: pendingTasksLoading } = usePendingVerificationTasks(
+    { enabled: !!name }
+  )
 
-  const { data: deployments, isLoading: deploymentsLoading } = useQuery({
-    queryKey: ['deployments', name],
-    queryFn: () => {
-      if (!name) throw new Error('Provider name is required')
-      return deploymentApi.getHistory(name)
-    },
-    enabled: !!name,
-  })
+  const { data: deployments, isLoading: deploymentsLoading } = useDeploymentHistory(
+    name || '',
+    undefined,
+    { enabled: !!name }
+  )
 
-  const { data: fixtures, isLoading: fixturesLoading } = useQuery({
-    queryKey: ['fixtures', 'all', name],
-    queryFn: () => {
-      if (!name) throw new Error('Provider name is required')
-      return fixtureApi.getAllByService(name)
-    },
-    enabled: !!name,
-  })
+  const { data: fixtures, isLoading: fixturesLoading } = useFixtures({
+    service: name,
+  }, { enabled: !!name })
 
   // Fetch contracts for this provider (contracts where this service is the provider)
-  const { data: contracts, isLoading: contractsLoading } = useQuery({
-    queryKey: ['contracts', 'provider', name],
-    queryFn: () => {
-      if (!name) throw new Error('Provider name is required')
-      return contractApi.getByProvider(name)
-    },
-    enabled: !!name,
-  })
+  const { data: contracts, isLoading: contractsLoading } = useContractsByProvider(
+    name || '',
+    { enabled: !!name }
+  )
 
   // Fetch all interactions for this provider to get accurate counts
-  const { data: providerInteractions } = useQuery({
-    queryKey: ['interactions', 'provider', name],
-    queryFn: () => {
-      if (!name) throw new Error('Provider name is required')
-      return interactionApi.getAll({ provider: name })
-    },
-    enabled: !!name,
-  })
+  const { data: providerInteractions } = useInteractions({
+    provider: name,
+  }, { enabled: !!name })
 
   // Check if tenant has GitHub app installation
-  const { data: githubInstallation } = useQuery({
-    queryKey: ['github-installation'],
-    queryFn: async () => {
-      const response = await fetch('/api/settings/github')
-      if (!response.ok) {
-        if (response.status === 404) return null
-        throw new Error('Failed to fetch GitHub installation')
-      }
-      return response.json()
-    },
-  })
+  const { data: githubInstallation } = useGitHubInstallation()
 
   // Fetch service versions
-  const { data: serviceVersions, isLoading: serviceVersionsLoading } = useQuery({
-    queryKey: ['service-versions', name],
-    queryFn: () => {
-      if (!name) throw new Error('Provider name is required')
-      return serviceVersionApi.getByService(name)
-    },
-    enabled: !!name,
-  })
+  const { data: serviceVersions, isLoading: serviceVersionsLoading } = useServiceVersions(
+    name || '',
+    { enabled: !!name }
+  )
 
   // Interaction counts are now calculated dynamically by the API
   const getContractInteractionCount = (contract: Contract): number => {

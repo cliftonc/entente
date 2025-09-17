@@ -112,7 +112,7 @@ async function createVerificationTaskFromInteraction(
           `📋 Race condition detected for verification task: ${consumerName}@${consumerVersion} -> ${providerName}`
         )
       } else {
-        console.error(`⚠️  Failed to create verification task: ${error.message}`)
+        console.error(`⚠️  Failed to create verification task: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
   }
@@ -154,9 +154,6 @@ async function createDependencyFromInteraction(
         tenantId,
         providerId,
         consumerId,
-        provider: providerName,
-        providerVersion, // Use real provider version from interactions
-        consumer: consumerName,
         consumerVersion,
       })
 
@@ -170,7 +167,7 @@ async function createDependencyFromInteraction(
           `📋 Race condition detected for dependency: ${consumerName}@${consumerVersion} -> ${providerName}`
         )
       } else {
-        console.error(`⚠️  Failed to create dependency: ${error.message}`)
+        console.error(`⚠️  Failed to create dependency: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
   }
@@ -225,9 +222,9 @@ interactionsRouter.get('/', async c => {
     service: interaction.service,
     consumer: interaction.consumer,
     consumerVersion: interaction.consumerVersion,
-    consumerGitSha: interaction.consumerGitSha,
+    consumerGitSha: interaction.consumerGitSha ?? undefined,
     providerVersion: interaction.providerVersion,
-    consumerGitRepositoryUrl: interaction.consumerGitRepositoryUrl,
+    consumerGitRepositoryUrl: interaction.consumerGitRepositoryUrl ?? undefined,
     environment: interaction.environment,
     operation: interaction.operation,
     request: interaction.request as HTTPRequest,
@@ -264,7 +261,7 @@ interactionsRouter.get('/by-id/:id', async c => {
     service: interaction.service,
     consumer: interaction.consumer,
     consumerVersion: interaction.consumerVersion,
-    consumerGitSha: interaction.consumerGitSha,
+    consumerGitSha: interaction.consumerGitSha ?? undefined,
     providerVersion: interaction.providerVersion,
     environment: interaction.environment,
     operation: interaction.operation,
@@ -354,7 +351,7 @@ interactionsRouter.post('/', async c => {
       service: existingInteraction.service,
       consumer: existingInteraction.consumer,
       consumerVersion: existingInteraction.consumerVersion,
-      consumerGitSha: existingInteraction.consumerGitSha,
+      consumerGitSha: existingInteraction.consumerGitSha ?? undefined,
       providerVersion: existingInteraction.providerVersion,
       environment: existingInteraction.environment,
       operation: existingInteraction.operation,
@@ -462,6 +459,7 @@ interactionsRouter.post('/', async c => {
           service: existingInteraction.service,
           consumer: existingInteraction.consumer,
           consumerVersion: existingInteraction.consumerVersion,
+          providerVersion: existingInteraction.providerVersion,
           environment: existingInteraction.environment,
           operation: existingInteraction.operation,
           request: existingInteraction.request as HTTPRequest,
@@ -508,6 +506,7 @@ interactionsRouter.get('/:service', async c => {
     service: interaction.service,
     consumer: interaction.consumer,
     consumerVersion: interaction.consumerVersion,
+    providerVersion: interaction.providerVersion,
     environment: interaction.environment,
     operation: interaction.operation,
     request: interaction.request as HTTPRequest,
@@ -624,6 +623,7 @@ interactionsRouter.get('/consumer/:consumer', async c => {
     service: interaction.service,
     consumer: interaction.consumer,
     consumerVersion: interaction.consumerVersion,
+    providerVersion: interaction.providerVersion,
     environment: interaction.environment,
     operation: interaction.operation,
     request: interaction.request as HTTPRequest,

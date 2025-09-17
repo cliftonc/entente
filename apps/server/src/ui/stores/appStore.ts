@@ -1,149 +1,165 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
-interface Service {
-  id: string
-  name: string
-  version: string
-  status: 'active' | 'inactive' | 'deploying'
-  lastDeployment?: string
-  environment: string
-}
-
-interface Interaction {
-  id: string
-  consumer: string
-  provider: string
-  method: string
-  path: string
-  timestamp: string
-  status: 'success' | 'failure'
-}
-
-interface Fixture {
-  id: string
-  service: string
-  path: string
-  method: string
-  status: 'pending' | 'approved' | 'rejected'
-  createdAt: string
-}
+/**
+ * Application store for client-side state management
+ *
+ * Note: Server state (services, fixtures, interactions, etc.) is now managed
+ * by TanStack Query through custom hooks. This store only contains UI state
+ * and application-level client state.
+ */
 
 interface AppState {
-  services: Service[]
-  interactions: Interaction[]
-  fixtures: Fixture[]
+  // Navigation and selection state
   selectedService: string | null
-  loading: {
-    services: boolean
-    interactions: boolean
-    fixtures: boolean
+  selectedContract: string | null
+  selectedEnvironment: string | null
+
+  // Global UI preferences
+  globalFilters: {
+    environment?: string
+    timeRange?: {
+      start: string
+      end: string
+    }
   }
-  errors: {
-    services: string | null
-    interactions: string | null
-    fixtures: string | null
+
+  // Feature flags and settings
+  features: {
+    enableRealTimeUpdates: boolean
+    enableAdvancedFiltering: boolean
+    enableBulkOperations: boolean
   }
+
+  // Application state
+  isOnline: boolean
+  lastSyncTime: string | null
 }
 
 interface AppActions {
-  setServices: (services: Service[]) => void
-  setInteractions: (interactions: Interaction[]) => void
-  setFixtures: (fixtures: Fixture[]) => void
+  // Selection actions
   setSelectedService: (serviceId: string | null) => void
-  setLoading: (key: keyof AppState['loading'], value: boolean) => void
-  setError: (key: keyof AppState['errors'], error: string | null) => void
-  addService: (service: Service) => void
-  updateService: (id: string, updates: Partial<Service>) => void
-  removeService: (id: string) => void
-  addInteraction: (interaction: Interaction) => void
-  addFixture: (fixture: Fixture) => void
-  updateFixture: (id: string, updates: Partial<Fixture>) => void
-  clearErrors: () => void
+  setSelectedContract: (contractId: string | null) => void
+  setSelectedEnvironment: (environment: string | null) => void
+
+  // Global filter actions
+  setGlobalEnvironment: (environment: string | undefined) => void
+  setGlobalTimeRange: (start: string, end: string) => void
+  clearGlobalTimeRange: () => void
+
+  // Feature flag actions
+  toggleFeature: (feature: keyof AppState['features']) => void
+  setFeature: (feature: keyof AppState['features'], enabled: boolean) => void
+
+  // Application state actions
+  setOnlineStatus: (isOnline: boolean) => void
+  updateLastSyncTime: () => void
+
+  // Utility actions
+  resetState: () => void
 }
 
 type AppStore = AppState & AppActions
 
+const initialState: AppState = {
+  selectedService: null,
+  selectedContract: null,
+  selectedEnvironment: null,
+  globalFilters: {},
+  features: {
+    enableRealTimeUpdates: false, // Will be enabled when WebSocket is implemented
+    enableAdvancedFiltering: true,
+    enableBulkOperations: true,
+  },
+  isOnline: navigator.onLine,
+  lastSyncTime: null,
+}
+
 export const useAppStore = create<AppStore>()(
   devtools(
-    (set, _get) => ({
-      // Initial state
-      services: [],
-      interactions: [],
-      fixtures: [],
-      selectedService: null,
-      loading: {
-        services: false,
-        interactions: false,
-        fixtures: false,
-      },
-      errors: {
-        services: null,
-        interactions: null,
-        fixtures: null,
-      },
+    (set, get) => ({
+      ...initialState,
 
-      // Actions
-      setServices: services => set({ services }, false, 'setServices'),
-
-      setInteractions: interactions => set({ interactions }, false, 'setInteractions'),
-
-      setFixtures: fixtures => set({ fixtures }, false, 'setFixtures'),
-
+      // Selection actions
       setSelectedService: serviceId =>
         set({ selectedService: serviceId }, false, 'setSelectedService'),
 
-      setLoading: (key, value) =>
-        set(state => ({ loading: { ...state.loading, [key]: value } }), false, `setLoading.${key}`),
+      setSelectedContract: contractId =>
+        set({ selectedContract: contractId }, false, 'setSelectedContract'),
 
-      setError: (key, error) =>
-        set(state => ({ errors: { ...state.errors, [key]: error } }), false, `setError.${key}`),
+      setSelectedEnvironment: environment =>
+        set({ selectedEnvironment: environment }, false, 'setSelectedEnvironment'),
 
-      addService: service =>
-        set(state => ({ services: [...state.services, service] }), false, 'addService'),
-
-      updateService: (id, updates) =>
+      // Global filter actions
+      setGlobalEnvironment: environment =>
         set(
           state => ({
-            services: state.services.map(s => (s.id === id ? { ...s, ...updates } : s)),
+            globalFilters: { ...state.globalFilters, environment },
           }),
           false,
-          'updateService'
+          'setGlobalEnvironment'
         ),
 
-      removeService: id =>
-        set(
-          state => ({ services: state.services.filter(s => s.id !== id) }),
-          false,
-          'removeService'
-        ),
-
-      addInteraction: interaction =>
-        set(
-          state => ({ interactions: [interaction, ...state.interactions] }),
-          false,
-          'addInteraction'
-        ),
-
-      addFixture: fixture =>
-        set(state => ({ fixtures: [fixture, ...state.fixtures] }), false, 'addFixture'),
-
-      updateFixture: (id, updates) =>
+      setGlobalTimeRange: (start, end) =>
         set(
           state => ({
-            fixtures: state.fixtures.map(f => (f.id === id ? { ...f, ...updates } : f)),
+            globalFilters: { ...state.globalFilters, timeRange: { start, end } },
           }),
           false,
-          'updateFixture'
+          'setGlobalTimeRange'
         ),
 
-      clearErrors: () =>
+      clearGlobalTimeRange: () =>
         set(
-          { errors: { services: null, interactions: null, fixtures: null } },
+          state => {
+            const { timeRange, ...restFilters } = state.globalFilters
+            return { globalFilters: restFilters }
+          },
           false,
-          'clearErrors'
+          'clearGlobalTimeRange'
         ),
+
+      // Feature flag actions
+      toggleFeature: feature =>
+        set(
+          state => ({
+            features: { ...state.features, [feature]: !state.features[feature] },
+          }),
+          false,
+          `toggleFeature.${feature}`
+        ),
+
+      setFeature: (feature, enabled) =>
+        set(
+          state => ({
+            features: { ...state.features, [feature]: enabled },
+          }),
+          false,
+          `setFeature.${feature}`
+        ),
+
+      // Application state actions
+      setOnlineStatus: isOnline =>
+        set({ isOnline }, false, 'setOnlineStatus'),
+
+      updateLastSyncTime: () =>
+        set({ lastSyncTime: new Date().toISOString() }, false, 'updateLastSyncTime'),
+
+      // Utility actions
+      resetState: () =>
+        set(initialState, false, 'resetState'),
     }),
     { name: 'app-store' }
   )
 )
+
+// Subscribe to online/offline events
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    useAppStore.getState().setOnlineStatus(true)
+  })
+
+  window.addEventListener('offline', () => {
+    useAppStore.getState().setOnlineStatus(false)
+  })
+}

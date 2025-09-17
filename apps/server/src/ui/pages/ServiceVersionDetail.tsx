@@ -64,9 +64,9 @@ function ServiceVersionDetail() {
   // Filter contracts to only show those with matching versions
   const versionContracts = contracts?.filter(contract => {
     if (serviceVersion?.serviceType === 'consumer') {
-      return contract.consumerVersion === serviceVersion.version
+      return contract.consumerVersion === serviceVersion?.version
     } else {
-      return contract.providerVersion === serviceVersion.version
+      return contract.providerVersion === serviceVersion?.version
     }
   })
 

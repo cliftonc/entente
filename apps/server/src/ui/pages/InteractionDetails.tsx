@@ -239,14 +239,14 @@ function InteractionDetails() {
                   </div>
                 )}
 
-                {interaction.request.body && (
+                {interaction.request.body != null && (
                   <div>
                     <h4 className="font-medium text-sm text-base-content/70 mb-2">Body</h4>
                     <div className="bg-base-200 p-3 rounded">
                       <pre className="text-xs overflow-x-auto">
                         {typeof interaction.request.body === 'string'
                           ? interaction.request.body
-                          : JSON.stringify(interaction.request.body, null, 2)}
+                          : JSON.stringify(interaction.request.body, null, 2) || ''}
                       </pre>
                     </div>
                   </div>
@@ -288,14 +288,14 @@ function InteractionDetails() {
                   </div>
                 </div>
 
-                {interaction.response.body && (
+                {interaction.response.body != null && (
                   <div>
                     <h4 className="font-medium text-sm text-base-content/70 mb-2">Body</h4>
                     <div className="bg-base-200 p-3 rounded">
                       <pre className="text-xs overflow-x-auto">
                         {typeof interaction.response.body === 'string'
                           ? interaction.response.body
-                          : JSON.stringify(interaction.response.body, null, 2)}
+                          : JSON.stringify(interaction.response.body, null, 2) || ''}
                       </pre>
                     </div>
                   </div>

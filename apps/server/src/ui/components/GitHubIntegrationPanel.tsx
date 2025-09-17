@@ -52,7 +52,7 @@ function GitHubIntegrationPanel({
 
   // Update configuration mutation
   const updateConfigMutation = useMutation({
-    mutationFn: (newConfig: { verifyWorkflowId?: string; verifyWorkflowName?: string }) =>
+    mutationFn: (newConfig: { verifyWorkflowId?: string; verifyWorkflowName?: string; verifyWorkflowPath?: string }) =>
       githubApi.updateServiceConfig(serviceName, serviceType, newConfig),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['github-config', serviceName, serviceType] })

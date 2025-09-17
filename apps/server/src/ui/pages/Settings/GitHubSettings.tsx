@@ -1,76 +1,25 @@
 import type { GitHubAppInstallation, GitHubAppInstallationUpdate } from '@entente/types'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+  useGitHubAppName,
+  useGitHubInstallation,
+  useGitHubManageUrl,
+  useUpdateGitHubInstallation,
+  useUninstallGitHubApp
+} from '../../hooks/useGitHubIntegration'
 
 function GitHubSettings() {
   const queryClient = useQueryClient()
-  const [githubAppName, setGithubAppName] = useState('')
 
-  // Fetch GitHub app name from backend
-  useEffect(() => {
-    fetch('/api/github/app-name')
-      .then(res => res.json())
-      .then(data => setGithubAppName(data.appName))
-      .catch(() => setGithubAppName('entente-dev')) // fallback
-  }, [])
+  // Use the new hooks for data fetching
+  const { data: appNameData } = useGitHubAppName()
+  const githubAppName = appNameData?.appName || 'entente-dev'
 
-  const { data: installation, isLoading } = useQuery({
-    queryKey: ['github-installation'],
-    queryFn: async (): Promise<GitHubAppInstallation | null> => {
-      const response = await fetch('/api/settings/github')
-      if (!response.ok) {
-        throw new Error('Failed to fetch GitHub installation')
-      }
-      const data = await response.json()
-      return data || null
-    },
-  })
+  const { data: installation, isLoading } = useGitHubInstallation()
+  const { data: manageInfo } = useGitHubManageUrl({ enabled: !!installation })
 
-  const { data: manageInfo } = useQuery({
-    queryKey: ['github-manage-url'],
-    queryFn: async () => {
-      const response = await fetch('/api/settings/github/manage-url')
-      if (!response.ok) {
-        throw new Error('Failed to fetch GitHub manage URL')
-      }
-      return response.json()
-    },
-    enabled: !!installation, // Only fetch if installation exists
-  })
-
-  const updateMutation = useMutation({
-    mutationFn: async (updates: GitHubAppInstallationUpdate) => {
-      const response = await fetch('/api/settings/github', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updates),
-      })
-      if (!response.ok) {
-        throw new Error('Failed to update GitHub installation')
-      }
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['github-installation'] })
-    },
-  })
-
-  const uninstallMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch('/api/settings/github', {
-        method: 'DELETE',
-      })
-      if (!response.ok) {
-        throw new Error('Failed to uninstall GitHub app')
-      }
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['github-installation'] })
-    },
-  })
+  const updateMutation = useUpdateGitHubInstallation()
+  const uninstallMutation = useUninstallGitHubApp()
 
   if (isLoading) {
     return (
@@ -171,9 +120,9 @@ function GitHubSettings() {
                 <button
                   className="btn btn-error btn-sm text-error-content"
                   onClick={handleUninstall}
-                  disabled={uninstallMutation.isPending}
+                  disabled={uninstallMutation.isLoading}
                 >
-                  {uninstallMutation.isPending ? (
+                  {uninstallMutation.isLoading ? (
                     <>
                       <div className="loading loading-spinner loading-sm"></div>
                       Uninstalling...
@@ -199,7 +148,7 @@ function GitHubSettings() {
                         repositorySelection: e.target.value as 'all' | 'selected',
                       })
                     }
-                    disabled={updateMutation.isPending}
+                    disabled={updateMutation.isLoading}
                   >
                     <option value="selected">Selected repositories</option>
                     <option value="all">All repositories</option>

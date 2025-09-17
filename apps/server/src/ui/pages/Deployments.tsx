@@ -135,15 +135,8 @@ function Deployments() {
       return true
     }) || []
 
-  // Use environment breakdown from summary or calculate from filtered deployments
+  // Calculate deployment counts by environment from filtered deployments
   const deploymentsByEnv =
-    summary?.environmentBreakdown?.reduce(
-      (acc, env) => {
-        acc[env.environment] = env.count
-        return acc
-      },
-      {} as Record<string, number>
-    ) ||
     filteredDeployments?.reduce(
       (acc, deployment) => {
         acc[deployment.environment] = (acc[deployment.environment] || 0) + 1
@@ -154,7 +147,7 @@ function Deployments() {
     {}
 
   // Calculate total deployments across all environments
-  const totalDeployments = Object.values(deploymentsByEnv).reduce((sum, count) => sum + count, 0)
+  const totalDeployments = Object.values(deploymentsByEnv).reduce((sum: number, count: number) => sum + count, 0)
 
   // Calculate blocked deployments by environment
   const blockedDeploymentsByEnv =
@@ -170,7 +163,7 @@ function Deployments() {
 
   // Calculate total blocked deployments
   const totalBlockedDeployments = Object.values(blockedDeploymentsByEnv).reduce(
-    (sum, count) => sum + count,
+    (sum: number, count: number) => sum + count,
     0
   )
 

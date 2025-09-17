@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { useDraftFixturesCount } from '../hooks/useQueries'
+import { useDraftFixturesCount } from '../hooks/useFixtures'
 import TenantSelector from './TenantSelector'
 
 interface NavItem {

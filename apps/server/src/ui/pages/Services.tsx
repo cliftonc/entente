@@ -1,8 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
-import { interactionApi, serviceApi } from '../utils/api'
+import { useServices } from '../hooks/useServices'
 
 function Services() {
   const [typeFilter, setTypeFilter] = useState('all')
@@ -12,22 +11,18 @@ function Services() {
     data: services,
     isLoading,
     error,
-  } = useQuery({
-    queryKey: ['services'],
-    queryFn: () => serviceApi.getAll(),
+    isEmpty,
+  } = useServices({
+    type: typeFilter === 'all' ? undefined : (typeFilter as 'consumer' | 'provider')
   })
 
-  // Services are already unified with type included
-  const allServices = services || []
-
-  // Apply filters
-  const filteredServices = allServices.filter(service => {
+  // Apply search filter (type filter is already handled by the hook)
+  const filteredServices = services?.filter(service => {
     const matchesSearch =
       service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (service.description || '').toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesType = typeFilter === 'all' || service.type === typeFilter
-    return matchesSearch && matchesType
-  })
+    return matchesSearch
+  }) || []
 
   if (isLoading) {
     return (
@@ -124,7 +119,9 @@ function Services() {
           <div className="col-span-full text-center text-base-content/70 py-12">
             {searchTerm || typeFilter !== 'all'
               ? 'No services match your filters'
-              : 'No services found'}
+              : isEmpty
+              ? 'No services found'
+              : 'Loading services...'}
           </div>
         ) : (
           filteredServices.map(service => (

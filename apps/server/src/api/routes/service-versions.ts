@@ -1,9 +1,9 @@
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import type { Env } from '..'
+// Remove unused Env import
 import { services, serviceVersions } from '../../db/schema'
 
-export const serviceVersionsRouter = new Hono<Env>()
+export const serviceVersionsRouter = new Hono()
 
 // Get a specific service version by ID
 serviceVersionsRouter.get('/:id', async c => {
@@ -31,8 +31,8 @@ serviceVersionsRouter.get('/:id', async c => {
       id: version.id,
       tenantId: version.tenantId,
       serviceId: version.serviceId,
-      serviceName: version.service.name,
-      serviceType: version.service.type,
+      serviceName: (version as any).service?.name || 'Unknown',
+      serviceType: (version as any).service?.type || 'unknown',
       version: version.version,
       spec: version.spec,
       gitSha: version.gitSha,

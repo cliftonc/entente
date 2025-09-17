@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import type { Context } from 'hono'
 import { services } from '../../db/schema'
-import type { Database } from '../db/database'
+import type { Database } from '../../db/types'
 import { findRepositoryByName, getInstallationConfig, parseRepositoryUrl } from './github-client'
 import * as GitHubClient from './github-client'
 
@@ -318,10 +318,3 @@ export function withGitHub() {
   }
 }
 
-// Type augmentation for Hono context
-declare module 'hono' {
-  interface Context {
-    set(key: 'github', value: GitHubHelper | null): void
-    get(key: 'github'): GitHubHelper | null
-  }
-}

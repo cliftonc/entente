@@ -1,6 +1,13 @@
 import type { InviteTeamMemberRequest, TeamMember } from '@entente/types'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import {
+  useTeamMembers,
+  useInviteTeamMember,
+  useUpdateTeamMemberRole,
+  useRemoveTeamMember,
+  useResendTeamInvite
+} from '../../hooks/useTeamMembers'
 import InviteForm from './components/InviteForm'
 import TeamMemberRow from './components/TeamMemberRow'
 
@@ -8,88 +15,19 @@ function TeamSettings() {
   const queryClient = useQueryClient()
   const [showInviteForm, setShowInviteForm] = useState(false)
 
-  const { data: members = [], isLoading } = useQuery({
-    queryKey: ['team-members'],
-    queryFn: async (): Promise<TeamMember[]> => {
-      const response = await fetch('/api/settings/team')
-      if (!response.ok) {
-        throw new Error('Failed to fetch team members')
-      }
-      return response.json()
-    },
-  })
+  const { data: members = [], isLoading } = useTeamMembers()
 
-  const inviteMutation = useMutation({
-    mutationFn: async (invitation: InviteTeamMemberRequest) => {
-      const response = await fetch('/api/settings/team/invite', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(invitation),
-      })
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to send invitation')
-      }
-      return response.json()
-    },
+  const inviteMutation = useInviteTeamMember({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-members'] })
       setShowInviteForm(false)
     },
   })
 
-  const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: 'admin' | 'member' }) => {
-      const response = await fetch(`/api/settings/team/${userId}/role`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ role }),
-      })
-      if (!response.ok) {
-        throw new Error('Failed to update role')
-      }
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-members'] })
-    },
-  })
+  const updateRoleMutation = useUpdateTeamMemberRole()
 
-  const removeMemberMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const response = await fetch(`/api/settings/team/${userId}`, {
-        method: 'DELETE',
-      })
-      if (!response.ok) {
-        throw new Error('Failed to remove member')
-      }
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-members'] })
-    },
-  })
+  const removeMemberMutation = useRemoveTeamMember()
 
-  const resendInviteMutation = useMutation({
-    mutationFn: async (email: string) => {
-      const response = await fetch(`/api/settings/team/resend/${encodeURIComponent(email)}`, {
-        method: 'POST',
-      })
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to resend invitation')
-      }
-      return response.json()
-    },
-    onSuccess: () => {
-      // Optionally show a success message
-      console.log('Invitation resent successfully')
-    },
-  })
+  const resendInviteMutation = useResendTeamInvite()
 
   const activeMembers = members.filter(m => m.status === 'active')
   const pendingInvitations = members.filter(m => m.status === 'pending')
@@ -145,7 +83,7 @@ function TeamSettings() {
             <InviteForm
               onInvite={invitation => inviteMutation.mutate(invitation)}
               onCancel={() => setShowInviteForm(false)}
-              loading={inviteMutation.isPending}
+              loading={inviteMutation.isLoading}
               error={inviteMutation.error?.message}
             />
           </div>
@@ -163,8 +101,8 @@ function TeamSettings() {
                   member={member}
                   onUpdateRole={role => updateRoleMutation.mutate({ userId: member.userId, role })}
                   onRemove={() => removeMemberMutation.mutate(member.userId)}
-                  updating={updateRoleMutation.isPending}
-                  removing={removeMemberMutation.isPending}
+                  updating={updateRoleMutation.isLoading}
+                  removing={removeMemberMutation.isLoading}
                 />
               ))}
             </div>
@@ -184,8 +122,8 @@ function TeamSettings() {
                     onRemove={() => removeMemberMutation.mutate(invitation.userId)}
                     onResendInvite={() => resendInviteMutation.mutate(invitation.email)}
                     updating={false}
-                    removing={removeMemberMutation.isPending}
-                    resending={resendInviteMutation.isPending}
+                    removing={removeMemberMutation.isLoading}
+                    resending={resendInviteMutation.isLoading}
                     isPending
                   />
                 ))}

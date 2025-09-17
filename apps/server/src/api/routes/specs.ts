@@ -50,8 +50,8 @@ specsRouter.post('/:service', async c => {
     metadata.version,
     {
       spec: spec,
-      gitSha: metadata.gitSha,
-      packageJson: metadata.packageJson,
+      gitSha: undefined,
+      packageJson: undefined,
       createdBy: user?.name || 'spec-upload'
     }
   )
@@ -145,7 +145,7 @@ specsRouter.get('/:service', async c => {
     return c.json({ error: 'Spec not found' }, 404)
   }
 
-  return c.json(spec.spec)
+  return c.json(spec.spec as any)
 })
 
 // List available versions for a service
@@ -239,14 +239,14 @@ specsRouter.get('/:service/by-provider-version', async c => {
 
   // Return spec from ServiceVersion
   return c.json({
-    spec: selectedVersion.spec || {}, // Return empty spec if none stored
+    spec: (selectedVersion as any).spec || {}, // Return empty spec if none stored
     metadata: {
       providerVersion: selectedVersion.version, // Return actual version used
       serviceVersionId: selectedVersion.id,
       environment,
       branch,
-      hasSpec: !!selectedVersion.spec,
-      createdAt: selectedVersion.createdAt,
+      hasSpec: !!(selectedVersion as any).spec,
+      createdAt: (selectedVersion as any).createdAt,
       resolvedFromLatest: requestedVersion === 'latest',
       isDeployed: !!deployment, // Indicates if this version is actually deployed
     },

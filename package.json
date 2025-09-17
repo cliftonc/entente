@@ -18,6 +18,9 @@
     "docs:build": "pnpm --filter @entente/docs build",
     "docs:deploy": "pnpm --filter @entente/docs deploy",
     "cli": "pnpm --filter @entente/cli build && node packages/cli/dist/cli.js",
+    "tunnel:setup": "node scripts/setup-tunnel.js",
+    "tunnel:start": "node scripts/start-tunnel.js",
+    "tunnel:quick": "node scripts/quick-tunnel.js",
     "version-and-publish": "./scripts/version-and-publish.sh",
     "version-and-publish:dry-run": "./scripts/version-and-publish-dry-run.sh"
   },

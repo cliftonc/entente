@@ -1,5 +1,5 @@
 import { createInstallationToken, getInstallationForTenant } from '../auth/github-app'
-import type { Database } from '../db/database'
+import type { Database } from '../../db/types'
 
 export interface GitHubRepository {
   id: number

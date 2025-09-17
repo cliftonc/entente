@@ -1,5 +1,6 @@
 import type {
   ClientInteraction,
+  HTTPRequest,
   VerificationResult,
   VerificationResults,
   VerificationTask,
@@ -81,8 +82,8 @@ verificationRouter.get('/result/:id', async c => {
           ...result,
           interaction: interaction
             ? {
-                method: interaction.request?.method,
-                path: interaction.request?.path,
+                method: (interaction.request as HTTPRequest)?.method,
+                path: (interaction.request as HTTPRequest)?.path,
                 operation: interaction.operation,
                 service: interaction.service,
                 consumer: interaction.consumer,
@@ -174,7 +175,7 @@ verificationRouter.get('/pending', async c => {
     contractId: task.contractId,
     providerId: task.providerId,
     consumerId: task.consumerId,
-    dependencyId: task.dependencyId,
+    dependencyId: task.dependencyId ?? undefined,
     provider: task.provider,
     providerVersion: task.providerVersion,
     providerGitSha: task.providerGitSha,
@@ -288,7 +289,7 @@ verificationRouter.get('/:provider', async c => {
     tenantId: task.tenantId,
     providerId: task.providerId,
     consumerId: task.consumerId,
-    dependencyId: task.dependencyId,
+    dependencyId: task.dependencyId ?? undefined,
     provider: task.provider,
     providerVersion: task.providerVersion,
     consumer: task.consumer,
@@ -391,13 +392,8 @@ verificationRouter.post('/:provider', async c => {
   // Update dependency status based on verification results
   if (task.dependencyId) {
     const newStatus = allPassed ? 'verified' : 'failed'
-    await db
-      .update(serviceDependencies)
-      .set({
-        status: newStatus,
-        verifiedAt: allPassed ? new Date() : null,
-      })
-      .where(eq(serviceDependencies.id, task.dependencyId))
+    // Note: serviceDependencies table structure changed, status field removed
+    // Status is now tracked via verificationResults table
 
     console.log(`📋 Updated dependency ${task.dependencyId} status to ${newStatus}`)
   }

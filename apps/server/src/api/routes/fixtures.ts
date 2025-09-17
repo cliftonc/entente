@@ -476,6 +476,7 @@ fixturesRouter.post('/:id/approve', async c => {
     id: updatedFixture.id,
     service: updatedFixture.service,
     serviceVersion: updatedFixture.serviceVersion,
+    serviceVersions: updatedFixture.serviceVersions as string[] || [updatedFixture.serviceVersion],
     operation: updatedFixture.operation,
     status: updatedFixture.status as 'draft' | 'approved' | 'rejected',
     source: updatedFixture.source as 'consumer' | 'provider' | 'manual',
@@ -505,7 +506,7 @@ fixturesRouter.put('/:id', async c => {
   const { tenantId } = c.get('session')
 
   const updateData: Partial<{
-    status: 'draft' | 'approved' | 'deprecated'
+    status: 'draft' | 'approved' | 'rejected'
     priority: number
     data: FixtureData
     notes: string
@@ -529,6 +530,7 @@ fixturesRouter.put('/:id', async c => {
     id: updatedFixture.id,
     service: updatedFixture.service,
     serviceVersion: updatedFixture.serviceVersion,
+    serviceVersions: updatedFixture.serviceVersions as string[] || [updatedFixture.serviceVersion],
     operation: updatedFixture.operation,
     status: updatedFixture.status as 'draft' | 'approved' | 'rejected',
     source: updatedFixture.source as 'consumer' | 'provider' | 'manual',
@@ -577,6 +579,7 @@ fixturesRouter.post('/:id/reject', async c => {
     id: updatedFixture.id,
     service: updatedFixture.service,
     serviceVersion: updatedFixture.serviceVersion,
+    serviceVersions: updatedFixture.serviceVersions as string[] || [updatedFixture.serviceVersion],
     operation: updatedFixture.operation,
     status: updatedFixture.status as 'draft' | 'approved' | 'rejected',
     source: updatedFixture.source as 'consumer' | 'provider' | 'manual',
@@ -629,6 +632,7 @@ fixturesRouter.post('/:id/revoke', async c => {
     id: updatedFixture.id,
     service: updatedFixture.service,
     serviceVersion: updatedFixture.serviceVersion,
+    serviceVersions: updatedFixture.serviceVersions as string[] || [updatedFixture.serviceVersion],
     operation: updatedFixture.operation,
     status: updatedFixture.status as 'draft' | 'approved' | 'rejected',
     source: updatedFixture.source as 'consumer' | 'provider' | 'manual',
@@ -780,6 +784,7 @@ fixturesRouter.post('/batch', async c => {
           tenantId,
           service: proposal.service,
           serviceVersion: proposal.serviceVersion,
+          serviceVersions: [proposal.serviceVersion], // Initialize with current version
           operation: proposal.operation,
           source: proposal.source,
           status: 'draft',

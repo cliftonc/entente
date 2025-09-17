@@ -12,6 +12,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    allowedHosts: ["cliftonc.entente.dev", "localhost"],
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

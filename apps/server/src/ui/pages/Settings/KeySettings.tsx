@@ -5,9 +5,8 @@ import {
   KeyIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { api } from '../../utils/api'
+import { useApiKeys, useCreateApiKey, useRotateApiKey, useRevokeApiKey } from '../../hooks/useApiKeys'
 
 function KeySettings() {
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -17,17 +16,10 @@ function KeySettings() {
     expiresAt: '',
   })
 
-  const queryClient = useQueryClient()
+  const { data: keys = [], isLoading } = useApiKeys()
 
-  const { data: keys = [], isLoading } = useQuery({
-    queryKey: ['keys'],
-    queryFn: () => api.get('/keys') as Promise<ApiKey[]>,
-  })
-
-  const createKeyMutation = useMutation({
-    mutationFn: (data: CreateKeyRequest) => api.post('/keys', data) as Promise<ApiKey>,
+  const createKeyMutation = useCreateApiKey({
     onSuccess: newKey => {
-      queryClient.invalidateQueries({ queryKey: ['keys'] })
       setShowCreateModal(false)
       setCreateForm({ name: '', expiresAt: '' })
       if (newKey.fullKey) {
@@ -36,22 +28,15 @@ function KeySettings() {
     },
   })
 
-  const rotateKeyMutation = useMutation({
-    mutationFn: (keyId: string) => api.post(`/keys/${keyId}/rotate`, {}) as Promise<ApiKey>,
+  const rotateKeyMutation = useRotateApiKey({
     onSuccess: rotatedKey => {
-      queryClient.invalidateQueries({ queryKey: ['keys'] })
       if (rotatedKey.fullKey) {
         setShowRotatedKey({ key: rotatedKey.fullKey, name: rotatedKey.name })
       }
     },
   })
 
-  const revokeKeyMutation = useMutation({
-    mutationFn: (keyId: string) => api.delete(`/keys/${keyId}`, { revokedBy: 'user' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['keys'] })
-    },
-  })
+  const revokeKeyMutation = useRevokeApiKey()
 
   const handleCreateKey = () => {
     if (!createForm.name.trim()) return
@@ -80,7 +65,7 @@ function KeySettings() {
 
   const handleRevokeKey = (keyId: string, keyName: string) => {
     if (confirm(`Are you sure you want to delete "${keyName}"? This action cannot be undone.`)) {
-      revokeKeyMutation.mutate(keyId)
+      revokeKeyMutation.mutate({ id: keyId, revokedBy: 'user' })
     }
   }
 
@@ -116,7 +101,7 @@ function KeySettings() {
         <button
           onClick={() => setShowCreateModal(true)}
           className="btn btn-primary text-primary-content"
-          disabled={createKeyMutation.isPending}
+          disabled={createKeyMutation.isLoading}
         >
           Create New Key
         </button>
@@ -268,16 +253,16 @@ function KeySettings() {
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="btn btn-ghost"
-                disabled={createKeyMutation.isPending}
+                disabled={createKeyMutation.isLoading}
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateKey}
                 className="btn btn-primary text-primary-content"
-                disabled={createKeyMutation.isPending || !createForm.name.trim()}
+                disabled={createKeyMutation.isLoading || !createForm.name.trim()}
               >
-                {createKeyMutation.isPending ? (
+                {createKeyMutation.isLoading ? (
                   <>
                     <span className="loading loading-spinner loading-sm"></span>
                     Creating...

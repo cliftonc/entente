@@ -54,6 +54,7 @@ Thumbs.db
 # Local development
 *.local
 .wrangler/
+.cloudflared
 
 # Database
 *.db

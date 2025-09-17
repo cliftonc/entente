@@ -2,6 +2,7 @@ import type {
   ActiveVersion,
   ConsumerDeployment,
   DeploymentState,
+  DeploymentStatus,
   ProviderDeployment,
 } from '@entente/types'
 import { Hono } from 'hono'
@@ -248,8 +249,8 @@ deploymentsRouter.get('/active', async c => {
     deployedAt: d.deployedAt,
     deployedBy: d.deployedBy,
     active: d.active,
-    status: d.status,
-    failureReason: d.failureReason,
+    status: d.status as DeploymentStatus,
+    failureReason: d.failureReason || undefined,
     failureDetails: d.failureDetails,
   }))
 
@@ -285,8 +286,8 @@ deploymentsRouter.get('/:service/history', async c => {
     deployedAt: d.deployedAt,
     deployedBy: d.deployedBy,
     active: d.active,
-    status: d.status,
-    failureReason: d.failureReason,
+    status: d.status as DeploymentStatus,
+    failureReason: d.failureReason || undefined,
     failureDetails: d.failureDetails,
   }))
 

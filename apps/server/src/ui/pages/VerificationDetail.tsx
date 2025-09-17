@@ -274,18 +274,18 @@ function VerificationDetail() {
                       <td>#{index + 1}</td>
                       <td>
                         <span className="badge badge-outline">
-                          {result.interaction?.method || 'N/A'}
+                          {'N/A'}
                         </span>
                       </td>
-                      <td className="font-mono text-sm">{result.interaction?.path || 'N/A'}</td>
-                      <td className="text-sm">{result.interaction?.operation || 'N/A'}</td>
+                      <td className="font-mono text-sm">{result.interactionId || 'N/A'}</td>
+                      <td className="text-sm">{'N/A'}</td>
                       <td>
                         <span
                           className={`badge ${
-                            result.actualResponse?.status >= 200 &&
-                            result.actualResponse?.status < 300
+                            (result.actualResponse?.status ?? 0) >= 200 &&
+                            (result.actualResponse?.status ?? 0) < 300
                               ? 'badge-success'
-                              : result.actualResponse?.status >= 500
+                              : (result.actualResponse?.status ?? 0) >= 500
                                 ? 'badge-error'
                                 : 'badge-warning'
                           }`}
@@ -336,21 +336,20 @@ function VerificationDetail() {
                   >
                     <div className="card-body">
                       <div className="font-semibold">
-                        {result.interaction?.method || 'Unknown'}{' '}
-                        {result.interaction?.path || 'Unknown'}
+                        Interaction: {result.interactionId || 'Unknown'}
                       </div>
                       <div className="text-sm mt-1">
-                        Operation: {result.interaction?.operation || 'N/A'} • Response Status:{' '}
+                        Operation: {'N/A'} • Response Status:{' '}
                         {result.actualResponse?.status || 'Unknown'} • Service:{' '}
-                        {result.interaction?.service || 'N/A'}
+                        Unknown
                       </div>
-                      {result.actualResponse?.body && (
+                      {result.actualResponse?.body != null && (
                         <div className="bg-base-300/20 p-2 rounded mt-2">
                           <div className="text-xs font-semibold mb-1">Response Body:</div>
                           <pre className="text-xs overflow-x-auto">
                             {typeof result.actualResponse.body === 'string'
                               ? result.actualResponse.body
-                              : JSON.stringify(result.actualResponse.body, null, 2)}
+                              : JSON.stringify(result.actualResponse.body, null, 2) || ''}
                           </pre>
                         </div>
                       )}
@@ -382,13 +381,13 @@ function VerificationDetail() {
               <div className="bg-base-200 p-3 rounded">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <strong>Method:</strong> {selectedResult.interaction?.method || 'N/A'}
+                    <strong>Method:</strong> N/A
                   </div>
                   <div>
-                    <strong>Path:</strong> {selectedResult.interaction?.path || 'N/A'}
+                    <strong>Path:</strong> N/A
                   </div>
                   <div>
-                    <strong>Operation:</strong> {selectedResult.interaction?.operation || 'N/A'}
+                    <strong>Operation:</strong> N/A
                   </div>
                   <div>
                     <strong>Success:</strong>

@@ -180,9 +180,12 @@ export interface ClientInteraction {
   id: string
   contractId?: string // Optional link to contract
   service: string
+  serviceVersion?: string // Service version information
+  provider?: string // Alias for service for backward compatibility
   consumer: string
   consumerVersion: string
   consumerGitSha?: string
+  consumerGitRepositoryUrl?: string // Consumer git repository URL
   // Provider information
   providerVersion: string
   environment: string
@@ -196,6 +199,7 @@ export interface ClientInteraction {
   timestamp: Date
   duration: number
   clientInfo: ClientInfo
+  status?: 'success' | 'failure' // Derived from response status
 }
 
 export interface HTTPRequest {
@@ -225,14 +229,17 @@ export interface DeploymentState {
   type: 'provider' | 'consumer'
   providerId?: string
   consumerId?: string
+  consumer?: string // Backward compatibility alias for service name
   service: string // Keep for backward compatibility
   version: string
   gitSha?: string
+  gitRepositoryUrl?: string // Git repository URL
   environment: string
   deployedAt: Date
   deployedBy: string
   active: boolean
   status: DeploymentStatus
+  serviceType?: 'consumer' | 'provider' // Alias for type
   failureReason?: string
   failureDetails?: any // Can store CanIDeployResult or other failure information
 }
@@ -316,6 +323,7 @@ export interface FixtureCreation {
   testRun?: string
   timestamp: Date
   generatedBy?: string
+  consumer?: string // Consumer service that created this fixture
 }
 
 export interface FixtureProposal {

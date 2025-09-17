@@ -1,15 +1,19 @@
 import type { Fixture } from '@entente/types'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
 import { useAuth } from '../hooks/useAuth'
-import { fixtureApi } from '../utils/api'
+import {
+  useFixtures,
+  useApproveFixture,
+  useRejectFixture,
+  useRevokeFixture,
+  useApproveAllFixtures
+} from '../hooks/useFixtures'
 
 function Fixtures() {
   const { authenticated, user } = useAuth()
-  const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const [providerFilter, setProviderFilter] = useState(
     searchParams.get('provider') || searchParams.get('service') || ''
@@ -28,17 +32,12 @@ function Fixtures() {
     data: fixtures,
     isLoading,
     error,
-  } = useQuery({
-    queryKey: ['fixtures', providerFilter, statusFilter],
-    queryFn: () => {
-      const params: { provider?: string; status?: string } = {}
-      if (providerFilter) params.provider = providerFilter
-      if (statusFilter !== 'all') params.status = statusFilter
-      return fixtureApi.getAll(params)
-    },
+    isEmpty,
+  } = useFixtures({
+    provider: providerFilter || undefined,
+    status: statusFilter !== 'all' ? statusFilter as 'draft' | 'approved' | 'rejected' : undefined,
+  }, {
     enabled: Boolean(authenticated),
-    staleTime: 1000 * 30,
-    retry: 1,
   })
 
   const displayedFixtures = fixtures || []
@@ -74,61 +73,39 @@ function Fixtures() {
     setSearchParams(Object.keys(newParams).length > 0 ? newParams : {})
   }
 
-  // Approve fixture mutation
-  const approveMutation = useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
-      fixtureApi.approve(id, user?.username || 'unknown', notes),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fixtures'] })
-    },
-  })
-
-  // Reject fixture mutation
-  const rejectMutation = useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
-      fixtureApi.reject(id, user?.username || 'unknown', notes),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fixtures'] })
-    },
-  })
-
-  // Revoke fixture mutation
-  const revokeMutation = useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
-      fixtureApi.revoke(id, user?.username || 'unknown', notes),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fixtures'] })
-    },
-  })
-
-  // Approve all mutations
-  const approveAllMutation = useMutation({
-    mutationFn: async (fixtures: Fixture[]) => {
-      const promises = fixtures.map(fixture =>
-        fixtureApi.approve(fixture.id, user?.username || 'unknown')
-      )
-      return Promise.all(promises)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fixtures'] })
-    },
-  })
+  // Mutation hooks with optimistic updates
+  const approveMutation = useApproveFixture()
+  const rejectMutation = useRejectFixture()
+  const revokeMutation = useRevokeFixture()
+  const approveAllMutation = useApproveAllFixtures()
 
   const handleApprove = (fixture: Fixture) => {
-    approveMutation.mutate({ id: fixture.id })
+    approveMutation.mutate({
+      id: fixture.id,
+      approvedBy: user?.username || 'unknown'
+    })
   }
 
   const handleReject = (fixture: Fixture) => {
-    rejectMutation.mutate({ id: fixture.id })
+    rejectMutation.mutate({
+      id: fixture.id,
+      rejectedBy: user?.username || 'unknown'
+    })
   }
 
   const handleRevoke = (fixture: Fixture) => {
-    revokeMutation.mutate({ id: fixture.id })
+    revokeMutation.mutate({
+      id: fixture.id,
+      revokedBy: user?.username || 'unknown'
+    })
   }
 
   const handleApproveAll = () => {
     if (draftFixtures.length > 0) {
-      approveAllMutation.mutate(draftFixtures)
+      approveAllMutation.mutate({
+        fixtures: draftFixtures,
+        approvedBy: user?.username || 'unknown'
+      })
     }
   }
 

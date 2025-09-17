@@ -1,8 +1,7 @@
 import { App } from '@octokit/app'
-import type { Octokit } from '@octokit/rest'
 import { eq } from 'drizzle-orm'
 import { githubAppInstallations } from '../../db/schema'
-import type { Database } from '../db/database'
+import type { DbConnection as Database } from '../../db/types'
 
 interface GitHubInstallationInfo {
   id: number
@@ -23,7 +22,7 @@ interface GitHubInstallationInfo {
 }
 
 // In-memory cache for Octokit instances
-const octokitCache = new Map<string, { octokit: Octokit; expiresAt: Date }>()
+const octokitCache = new Map<string, { octokit: any; expiresAt: Date }>()
 
 export function createGitHubApp(appId: string, privateKey: string): App {
   return new App({
@@ -54,7 +53,7 @@ export async function getInstallationOctokit(
   installationId: number,
   appId: string,
   privateKey: string
-): Promise<Octokit> {
+) {
   const cacheKey = `${appId}-${installationId}`
   const cached = octokitCache.get(cacheKey)
 
@@ -87,13 +86,20 @@ export async function getInstallationInfo(
     }
   )
 
+  const account = installationData.account
+  const accountInfo = account && 'login' in account ? {
+    id: account.id,
+    login: account.login,
+    type: account.type as 'User' | 'Organization',
+  } : {
+    id: 0,
+    login: '',
+    type: 'User' as const,
+  }
+
   return {
     id: installationData.id,
-    account: {
-      id: installationData.account?.id || 0,
-      login: installationData.account?.login || '',
-      type: installationData.account?.type as 'User' | 'Organization',
-    },
+    account: accountInfo,
     repository_selection: installationData.repository_selection as 'all' | 'selected',
     permissions: installationData.permissions,
     suspended_at: installationData.suspended_at || undefined,
@@ -111,7 +117,7 @@ export async function getInstallationRepositories(
     per_page: 100,
   })
 
-  return data.repositories.map(repo => ({
+  return data.repositories.map((repo: any) => ({
     id: repo.id,
     name: repo.name,
     full_name: repo.full_name,

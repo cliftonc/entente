@@ -42,7 +42,7 @@ function Verification() {
   // Filter results based on provider and consumer filters
   const filteredResults =
     verificationResults?.filter(result => {
-      if (providerFilter && (result.provider || result.providerName || '') !== providerFilter)
+      if (providerFilter && (result.provider || result.provider || '') !== providerFilter)
         return false
       if (consumerFilter) {
         // For now, this would need additional data from the backend to filter by consumer
@@ -365,37 +365,37 @@ function Verification() {
                     <tr key={result.id || index}>
                       <td>
                         <Link
-                          to={`/services/provider/${result.providerName || result.provider}`}
+                          to={`/services/provider/${result.provider || result.provider}`}
                           className="font-medium hover:underline text-primary"
                         >
-                          {result.providerName || result.provider}
+                          {result.provider || result.provider}
                         </Link>
                       </td>
                       <td>
                         <VersionBadge
                           version={result.providerVersion || result.version || '1.0.0'}
-                          serviceName={result.providerName || result.provider}
+                          serviceName={result.provider || result.provider}
                           serviceType="provider"
                           
                         />
                       </td>
                       <td>
-                        {result.consumerName || result.consumer ? (
+                        {result.consumer || result.consumer ? (
                           <Link
-                            to={`/services/consumer/${result.consumerName || result.consumer}`}
+                            to={`/services/consumer/${result.consumer || result.consumer}`}
                             className="font-medium hover:underline text-primary"
                           >
-                            {result.consumerName || result.consumer}
+                            {result.consumer || result.consumer}
                           </Link>
                         ) : (
                           'N/A'
                         )}
                       </td>
                       <td>
-                        {result.consumerName || result.consumer ? (
+                        {result.consumer || result.consumer ? (
                           <VersionBadge
                             version={result.consumerVersion || 'N/A'}
-                            serviceName={result.consumerName || result.consumer}
+                            serviceName={result.consumer || result.consumer}
                             serviceType="consumer"
                             
                           />
@@ -422,7 +422,7 @@ function Verification() {
                         </span>
                       </td>
                       <td>
-                        <TimestampDisplay timestamp={result.createdAt || result.lastRun} />
+                        <TimestampDisplay timestamp={result.createdAt || result.lastRun || new Date().toISOString()} />
                       </td>
                       <td>
                         <div className="flex gap-1">

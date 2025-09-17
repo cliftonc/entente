@@ -1,10 +1,10 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
 import { useAuth } from '../hooks/useAuth'
-import { statsApi } from '../utils/api'
+import { useDashboardStats } from '../hooks/useStats'
 
 function Dashboard() {
   const location = useLocation()
@@ -16,10 +16,7 @@ function Dashboard() {
     data: dashboardStats,
     isLoading,
     error,
-  } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: statsApi.getDashboard,
-  })
+  } = useDashboardStats()
 
   // Handle invitation acceptance
   useEffect(() => {
@@ -324,7 +321,7 @@ function Dashboard() {
                         to={`/verification?provider=${service.name}`}
                         className="block font-medium hover:text-primary transition-colors"
                       >
-                        {Math.round(service.passRate * 10) / 10}%
+                        {Math.round((service.passRate ?? 0) * 10) / 10}%
                       </Link>
                       <div className="text-sm text-base-content/70">pass rate</div>
                     </div>

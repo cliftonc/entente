@@ -235,10 +235,12 @@ contractsRouter.patch('/:id', async c => {
 
   for (const [key, value] of Object.entries(updates)) {
     if (allowedUpdates.includes(key)) {
-      if (key === 'status' && !['active', 'archived', 'deprecated'].includes(value)) {
+      if (key === 'status' && !['active', 'archived', 'deprecated'].includes(value as string)) {
         return c.json({ error: 'Invalid status. Must be active, archived, or deprecated' }, 400)
       }
-      updateData[key as keyof typeof updateData] = value
+      if (key === 'status') {
+        updateData.status = value as string
+      }
     }
   }
 

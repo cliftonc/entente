@@ -1,48 +1,16 @@
 import type { TenantSettings, TenantSettingsUpdate } from '@entente/types'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
 import SettingToggle from './components/SettingToggle'
+import { useSettings, useUpdateSettings, useCreateTenant, useDeleteTenant } from '../../hooks/useSettings'
+import { useAuth } from '../../hooks/useAuth'
 
 function DeleteTenantSection() {
   const [slugInput, setSlugInput] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [currentSlug, setCurrentSlug] = useState<string | null>(null)
+  const { tenants, currentTenantId } = useAuth()
 
-  useEffect(() => {
-    // Fetch session to get current tenant slug list
-    const load = async () => {
-      try {
-        const res = await fetch('/auth/session')
-        if (!res.ok) return
-        const data = await res.json()
-        if (data?.tenants && data.currentTenantId) {
-          const t = data.tenants.find((t: any) => t.tenant.id === data.currentTenantId)
-          if (t) setCurrentSlug(t.tenant.slug)
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-    load()
-  }, [])
-
-  const disabled = !currentSlug || slugInput !== currentSlug || isDeleting
-
-  const handleDelete = async () => {
-    if (disabled || !currentSlug) return
-    setIsDeleting(true)
-    setError(null)
-    try {
-      const res = await fetch('/auth/delete-tenant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: currentSlug, confirm: slugInput }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to delete tenant')
-      }
+  const { mutate: deleteTenant, isLoading: isDeleting, error, reset } = useDeleteTenant({
+    onSuccess: (data) => {
       if (data.logout) {
         // No remaining tenants: force logout UI state (session cleared of tenant); redirect home or reload
         window.location.href = '/'
@@ -50,11 +18,18 @@ function DeleteTenantSection() {
         // Switched to another tenant; reload to refresh context
         window.location.href = '/'
       }
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setIsDeleting(false)
-    }
+    },
+  })
+
+  // Get current tenant slug from auth context
+  const currentSlug = tenants.find(t => t.tenant.id === currentTenantId)?.tenant.slug || null
+
+  const disabled = !currentSlug || slugInput !== currentSlug || isDeleting
+
+  const handleDelete = () => {
+    if (disabled || !currentSlug) return
+    reset() // Clear any previous errors
+    deleteTenant({ slug: currentSlug, confirm: slugInput })
   }
 
   return (
@@ -83,7 +58,7 @@ function DeleteTenantSection() {
           {isDeleting && <span className="loading loading-spinner loading-sm"></span>}
           Delete Tenant
         </button>
-        {error && <div className="text-sm text-error">{error}</div>}
+        {error && <div className="text-sm text-error">{error.message}</div>}
       </div>
     </div>
   )
@@ -148,30 +123,18 @@ function LocalSettingInput({
 
 function CreateTenantSection() {
   const [name, setName] = useState('')
-  const [isCreating, setIsCreating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  const handleCreate = async () => {
-    if (!name.trim()) return
-    setIsCreating(true)
-    setError(null)
-    try {
-      const res = await fetch('/auth/create-tenant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim() }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to create tenant')
-      }
+  const { mutate: createTenant, isLoading: isCreating, error, reset } = useCreateTenant({
+    onSuccess: () => {
       // Backend switches session to new tenant; trigger hard redirect to root to load new context
       window.location.href = '/'
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setIsCreating(false)
-    }
+    },
+  })
+
+  const handleCreate = () => {
+    if (!name.trim()) return
+    reset() // Clear any previous errors
+    createTenant({ name: name.trim() })
   }
 
   return (
@@ -199,24 +162,20 @@ function CreateTenantSection() {
           Create New
         </button>
       </div>
-      {error && <div className="mt-3 text-sm text-error">{error}</div>}
+      {error && <div className="mt-3 text-sm text-error">{error.message}</div>}
     </div>
   )
 }
 
 function GeneralSettings() {
-  const queryClient = useQueryClient()
   const [localSettings, setLocalSettings] = useState<TenantSettings | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
 
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ['settings'],
-    queryFn: async (): Promise<TenantSettings> => {
-      const response = await fetch('/api/settings')
-      if (!response.ok) {
-        throw new Error('Failed to fetch settings')
-      }
-      return response.json()
+  const { data: settings, isLoading } = useSettings()
+
+  const updateMutation = useUpdateSettings({
+    onSuccess: () => {
+      setHasChanges(false)
     },
   })
 
@@ -227,26 +186,6 @@ function GeneralSettings() {
       setHasChanges(false)
     }
   }, [settings, localSettings])
-
-  const updateMutation = useMutation({
-    mutationFn: async (updates: TenantSettingsUpdate) => {
-      const response = await fetch('/api/settings', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updates),
-      })
-      if (!response.ok) {
-        throw new Error('Failed to update settings')
-      }
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings'] })
-      setHasChanges(false)
-    },
-  })
 
   const handleLocalUpdate = (field: keyof TenantSettingsUpdate, value: any) => {
     if (!localSettings) return
@@ -424,7 +363,7 @@ function GeneralSettings() {
               type="button"
               className="btn btn-outline"
               onClick={handleReset}
-              disabled={!hasChanges || updateMutation.isPending}
+              disabled={!hasChanges || updateMutation.isLoading}
             >
               Reset
             </button>
@@ -432,9 +371,9 @@ function GeneralSettings() {
               type="button"
               className="btn btn-primary"
               onClick={handleSave}
-              disabled={!hasChanges || updateMutation.isPending}
+              disabled={!hasChanges || updateMutation.isLoading}
             >
-              {updateMutation.isPending && (
+              {updateMutation.isLoading && (
                 <div className="loading loading-spinner loading-sm"></div>
               )}
               Save Settings
