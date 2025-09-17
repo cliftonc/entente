@@ -24,6 +24,8 @@ export function useApiKeys(
     queryKey: queryKeys.apiKeys.list(includeRevoked),
     queryFn: () => keysApi.getAll(includeRevoked),
     ...defaultQueryOptions,
+    // Override stale time for API keys to ensure immediate updates
+    staleTime: 1000 * 10, // 10 seconds instead of 5 minutes
     ...mergedOptions,
   })
 
@@ -85,8 +87,9 @@ export function useCreateApiKey(
     mutationFn: keysApi.create,
     onSuccess: () => {
       // Invalidate and refetch all API key queries after successful creation
-      getInvalidationQueries.apiKeys.onCreate().forEach(queryKey => {
-        queryClient.invalidateQueries({ queryKey, refetchType: 'active' })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.apiKeys.lists(),
+        refetchType: 'active'
       })
     },
     ...options,
@@ -119,8 +122,9 @@ export function useRotateApiKey(
     mutationFn: keysApi.rotate,
     onSuccess: () => {
       // Invalidate and refetch all API key queries after successful rotation
-      getInvalidationQueries.apiKeys.onUpdate().forEach(queryKey => {
-        queryClient.invalidateQueries({ queryKey, refetchType: 'active' })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.apiKeys.lists(),
+        refetchType: 'active'
       })
     },
     ...options,
@@ -153,8 +157,9 @@ export function useRevokeApiKey(
     mutationFn: ({ id, revokedBy }) => keysApi.revoke(id, revokedBy),
     onSuccess: () => {
       // Invalidate and refetch all API key queries after successful revocation
-      getInvalidationQueries.apiKeys.onUpdate().forEach(queryKey => {
-        queryClient.invalidateQueries({ queryKey, refetchType: 'active' })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.apiKeys.lists(),
+        refetchType: 'active'
       })
     },
     ...options,

@@ -206,7 +206,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Listen for auth refresh events from settings updates
+    const handleAuthRefresh = (event: CustomEvent) => {
+      const data = event.detail
+      if (data.authenticated) {
+        setAuthState({
+          authenticated: true,
+          user: data.user,
+          tenants: data.tenants,
+          currentTenantId: data.currentTenantId,
+          loading: false,
+          error: null,
+        })
+      }
+    }
+
     checkSessionFast()
+
+    // Add event listener for auth refresh
+    window.addEventListener('auth-refresh', handleAuthRefresh as EventListener)
+
+    // Cleanup event listener
+    return () => {
+      window.removeEventListener('auth-refresh', handleAuthRefresh as EventListener)
+    }
   }, [])
 
   const contextValue: AuthContextType = {

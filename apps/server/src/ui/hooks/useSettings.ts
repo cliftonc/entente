@@ -23,6 +23,8 @@ export function useSettings(
     queryKey: queryKeys.settings.detail(),
     queryFn: settingsApi.get,
     ...defaultQueryOptions,
+    // Override stale time for settings to ensure immediate updates
+    staleTime: 1000 * 10, // 10 seconds instead of 5 minutes
     ...mergedOptions,
   })
 
@@ -52,9 +54,22 @@ export function useUpdateSettings(
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.detail(), refetchType: 'active' })
 
       // If tenant name was updated, we need to refresh the auth context
-      // This will trigger a hard refresh to ensure all UI reflects the new tenant name
+      // to pick up the updated tenant information without a page reload
       if (mutation.variables?.tenantName) {
-        window.location.reload()
+        // Refresh the auth session to get updated tenant info
+        fetch('/auth/session', {
+          credentials: 'include',
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (data.authenticated) {
+              // Trigger a custom event that the auth context can listen to
+              window.dispatchEvent(new CustomEvent('auth-refresh', { detail: data }))
+            }
+          })
+          .catch(error => {
+            console.error('Failed to refresh auth session:', error)
+          })
       }
     },
     ...options,
