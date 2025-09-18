@@ -504,6 +504,14 @@ interface MockServer {
   port: number
   close: () => Promise<void>
   onRequest: (handler: (req: MockRequest, res: MockResponse) => Promise<void>) => void
+  getOperations: () => SpecOperation[]
+}
+
+// OpenAPI operation from spec
+interface SpecOperation {
+  method: string
+  path: string
+  operationId?: string
 }
 
 interface MockRequest {
@@ -557,6 +565,24 @@ const createSchemaMockServer = async (spec: OpenAPISpec, port: number): Promise<
   return await createBasicMockServer(spec, [], port)
 }
 
+const extractOperationsFromSpec = (spec: OpenAPISpec): SpecOperation[] => {
+  const operations: SpecOperation[] = []
+
+  for (const [path, pathItem] of Object.entries(spec.paths)) {
+    for (const [method, operation] of Object.entries(pathItem as any)) {
+      if (typeof operation === 'object' && operation) {
+        operations.push({
+          method: method.toUpperCase(),
+          path,
+          operationId: (operation as any).operationId
+        })
+      }
+    }
+  }
+
+  return operations
+}
+
 const createBasicMockServer = async (
   spec: OpenAPISpec,
   fixtures: Fixture[],
@@ -564,6 +590,9 @@ const createBasicMockServer = async (
 ): Promise<MockServer> => {
   const { createServer } = await import('node:http')
   const actualPort = port || 3000 + Math.floor(Math.random() * 1000)
+
+  // Extract operations from OpenAPI spec
+  const operations: SpecOperation[] = extractOperationsFromSpec(spec)
 
   // Create mock handlers using the fixtures package
   const mockHandlers = createOpenAPIMockHandler(spec, fixtures)
@@ -700,7 +729,8 @@ const createBasicMockServer = async (
     },
     onRequest: handler => {
       handlers.push(handler)
-    }
+    },
+    getOperations: () => operations
   }
 }
 
@@ -805,7 +835,7 @@ const createEntenteMock = (mockConfig: {
   if (mockConfig.recorder) {
     mockConfig.mockServer.onRequest(async (request, response) => {
       // Get operations from the mock server for spec-based operation extraction
-      const operations = (mockConfig.mockServer as any)._getOperations?.() || []
+      const operations = mockConfig.mockServer.getOperations()
       const operation = extractOperationFromSpec(request.method, request.path, operations)
 
       await mockConfig.recorder?.record({
@@ -838,7 +868,7 @@ const createEntenteMock = (mockConfig: {
       // Only collect fixtures for successful responses
       if (response.status >= 200 && response.status < 300) {
         // Get operations from the mock server for spec-based operation extraction
-        const operations = (mockConfig.mockServer as any)._getOperations?.() || []
+        const operations = mockConfig.mockServer.getOperations()
         const operation = extractOperationFromSpec(request.method, request.path, operations)
 
         await fixtureCollector.collect(operation, {
