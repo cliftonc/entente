@@ -6,7 +6,12 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline'
 import { useState } from 'react'
-import { useApiKeys, useCreateApiKey, useRotateApiKey, useRevokeApiKey } from '../../hooks/useApiKeys'
+import {
+  useApiKeys,
+  useCreateApiKey,
+  useRevokeApiKey,
+  useRotateApiKey,
+} from '../../hooks/useApiKeys'
 
 function KeySettings() {
   const [showCreateModal, setShowCreateModal] = useState(false)

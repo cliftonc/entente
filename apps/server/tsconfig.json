@@ -9,5 +9,5 @@
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "build", ".wrangler"],
-  "references": [{ "path": "../../packages/types" }, { "path": "../../packages/fixtures" }]
+  "references": [{ "path": "../../packages/types" }, { "path": "../../packages/fixtures" }, { "path": "../../packages/consumer" }]
 }

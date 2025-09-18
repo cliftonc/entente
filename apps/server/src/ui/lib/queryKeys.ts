@@ -85,13 +85,30 @@ export const queryKeys = {
     summary: () => ['deployments', 'summary'] as const,
     environments: () => ['deployments', 'environments'] as const,
     activeForAllEnvs: () => ['deployments', 'active', 'all-environments'] as const,
+    paginated: (
+      limit?: number,
+      offset?: number,
+      filters?: { status?: string; provider?: string; consumer?: string; environment?: string }
+    ) => {
+      // Normalize filters to ensure consistent cache keys
+      const normalizedFilters = {
+        limit: limit || 10,
+        offset: offset || 0,
+        status: filters?.status || 'active-or-blocked',
+        provider: filters?.provider || null,
+        consumer: filters?.consumer || null,
+        environment: filters?.environment || 'ALL',
+      }
+      return ['deployments', 'paginated', normalizedFilters] as const
+    },
   },
 
   // Verification
   verification: {
     all: ['verification'] as const,
     lists: () => ['verification', 'list'] as const,
-    list: () => ['verification', 'list'] as const,
+    list: (limit?: number, offset?: number, startDate?: string, endDate?: string) =>
+      ['verification', 'list', { limit, offset, startDate, endDate }] as const,
     details: () => ['verification', 'detail'] as const,
     detail: (id: string) => ['verification', 'detail', id] as const,
     byProvider: (provider: string) => ['verification', 'provider', provider] as const,
@@ -100,6 +117,7 @@ export const queryKeys = {
     pendingTasks: () => ['verification', 'tasks', 'pending'] as const,
     byContract: (contractId: string) => ['verification', 'contract', contractId] as const,
     stats: (provider: string) => ['verification', 'stats', provider] as const,
+    recent: (days?: number, limit?: number) => ['verification', 'recent', { days, limit }] as const,
   },
 
   // Specs (OpenAPI specifications)
@@ -244,6 +262,7 @@ export const getInvalidationQueries = {
     onVerificationChange: (provider?: string, consumer?: string, contractId?: string) => [
       queryKeys.verification.all,
       queryKeys.verification.pendingTasks(),
+      queryKeys.verification.recent(),
       queryKeys.stats.dashboard(),
       ...(provider
         ? [

@@ -12,9 +12,9 @@ import type {
 import { Hono } from 'hono'
 
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
-import { fixtures, fixtureServiceVersions } from '../../db/schema'
-import { ensureServiceVersion } from '../utils/service-versions'
+import { fixtureServiceVersions, fixtures } from '../../db/schema'
 import { addServiceVersionToFixture } from '../utils/fixture-service-versions'
+import { ensureServiceVersion } from '../utils/service-versions'
 
 export const fixturesRouter = new Hono()
 
@@ -735,7 +735,7 @@ fixturesRouter.post('/batch', async c => {
       if (!validateFixtureData(proposal.data)) {
         results.push({
           status: 'error',
-          error: 'Invalid fixture data'
+          error: 'Invalid fixture data',
         })
         errors++
         continue
@@ -744,7 +744,7 @@ fixturesRouter.post('/batch', async c => {
       if (!proposal.service || !proposal.operation) {
         results.push({
           status: 'error',
-          error: 'Missing required fields'
+          error: 'Missing required fields',
         })
         errors++
         continue
@@ -767,7 +767,7 @@ fixturesRouter.post('/batch', async c => {
       if (existing) {
         results.push({
           fixtureId: existing.id,
-          status: 'duplicate'
+          status: 'duplicate',
         })
         duplicates++
         continue
@@ -787,26 +787,35 @@ fixturesRouter.post('/batch', async c => {
           data: proposal.data,
           createdFrom: proposal.createdFrom,
           hash,
-          notes: proposal.notes || `Batch uploaded fixture for ${proposal.service}@${proposal.serviceVersion}`,
+          notes:
+            proposal.notes ||
+            `Batch uploaded fixture for ${proposal.service}@${proposal.serviceVersion}`,
         })
         .returning()
 
       // Add service version association
-      await addServiceVersionToFixture(db, newFixture.id, tenantId, proposal.service, proposal.serviceVersion)
+      await addServiceVersionToFixture(
+        db,
+        newFixture.id,
+        tenantId,
+        proposal.service,
+        proposal.serviceVersion
+      )
 
       results.push({
         fixtureId: newFixture.id,
-        status: 'created'
+        status: 'created',
       })
       created++
 
-      console.log(`📋 Batch created fixture ${newFixture.id} for ${proposal.service}@${proposal.serviceVersion}:${proposal.operation}`)
-
+      console.log(
+        `📋 Batch created fixture ${newFixture.id} for ${proposal.service}@${proposal.serviceVersion}:${proposal.operation}`
+      )
     } catch (error) {
       console.error('Error creating fixture:', error)
       results.push({
         status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       })
       errors++
     }
@@ -817,10 +826,12 @@ fixturesRouter.post('/batch', async c => {
     created,
     duplicates,
     errors,
-    results
+    results,
   }
 
-  console.log(`✅ Batch fixture upload completed: ${created} created, ${duplicates} duplicates, ${errors} errors`)
+  console.log(
+    `✅ Batch fixture upload completed: ${created} created, ${duplicates} duplicates, ${errors} errors`
+  )
 
   return c.json(result)
 })
@@ -832,7 +843,7 @@ fixturesRouter.post('/repair-service-versions', async c => {
 
   // Get all fixtures that don't have service version relationships
   const fixturesWithoutRelations = await db.query.fixtures.findMany({
-    where: eq(fixtures.tenantId, tenantId)
+    where: eq(fixtures.tenantId, tenantId),
   })
 
   let repaired = 0
@@ -842,7 +853,7 @@ fixturesRouter.post('/repair-service-versions', async c => {
     try {
       // Check if relationship already exists
       const existingRelation = await db.query.fixtureServiceVersions.findFirst({
-        where: eq(fixtureServiceVersions.fixtureId, fixture.id)
+        where: eq(fixtureServiceVersions.fixtureId, fixture.id),
       })
 
       if (!existingRelation) {
@@ -855,7 +866,9 @@ fixturesRouter.post('/repair-service-versions', async c => {
           fixture.serviceVersion
         )
         repaired++
-        console.log(`✅ Repaired fixture ${fixture.id} for ${fixture.service}@${fixture.serviceVersion}`)
+        console.log(
+          `✅ Repaired fixture ${fixture.id} for ${fixture.service}@${fixture.serviceVersion}`
+        )
       }
     } catch (error) {
       console.error(`❌ Failed to repair fixture ${fixture.id}:`, error)
@@ -869,6 +882,6 @@ fixturesRouter.post('/repair-service-versions', async c => {
     message: `Repaired ${repaired} fixtures with ${errors} errors`,
     repaired,
     errors,
-    total: fixturesWithoutRelations.length
+    total: fixturesWithoutRelations.length,
   })
 })

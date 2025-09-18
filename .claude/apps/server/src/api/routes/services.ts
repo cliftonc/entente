@@ -9,9 +9,8 @@ import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env } from '..'
-import { services, serviceVersions } from '../../db/schema'
+import { serviceVersions, services } from '../../db/schema'
 import type { DbService } from '../../db/types'
-import { ensureServiceVersion } from '../utils/service-versions'
 import {
   findRepositoryByName,
   getRepositories,
@@ -19,6 +18,7 @@ import {
   parseRepositoryUrl,
   triggerWorkflow,
 } from '../utils/github-client'
+import { ensureServiceVersion } from '../utils/service-versions'
 
 export const servicesRouter = new Hono<Env>()
 
@@ -148,12 +148,16 @@ servicesRouter.post('/', async c => {
         {
           packageJson: registration.packageJson,
           gitSha: registration.gitSha,
-          createdBy: user?.name || 'service-registration'
+          createdBy: user?.name || 'service-registration',
         }
       )
-      console.log(`📋 Created service version: ${registration.name}@${registration.packageJson.version}`)
+      console.log(
+        `📋 Created service version: ${registration.name}@${registration.packageJson.version}`
+      )
     } catch (error) {
-      console.warn(`⚠️  Failed to create service version for ${registration.name}@${registration.packageJson.version}: ${error}`)
+      console.warn(
+        `⚠️  Failed to create service version for ${registration.name}@${registration.packageJson.version}: ${error}`
+      )
     }
   }
 
@@ -200,10 +204,7 @@ servicesRouter.get('/:name/versions', async c => {
   try {
     // First find the service
     const service = await db.query.services.findFirst({
-      where: and(
-        eq(services.tenantId, tenantId),
-        eq(services.name, name)
-      ),
+      where: and(eq(services.tenantId, tenantId), eq(services.name, name)),
     })
 
     if (!service) {
@@ -212,11 +213,8 @@ servicesRouter.get('/:name/versions', async c => {
 
     // Get all versions for this service
     const versions = await db.query.serviceVersions.findMany({
-      where: and(
-        eq(serviceVersions.tenantId, tenantId),
-        eq(serviceVersions.serviceId, service.id)
-      ),
-      orderBy: (serviceVersions, { desc }) => [desc(serviceVersions.createdAt)]
+      where: and(eq(serviceVersions.tenantId, tenantId), eq(serviceVersions.serviceId, service.id)),
+      orderBy: (serviceVersions, { desc }) => [desc(serviceVersions.createdAt)],
     })
 
     // Map to include service info for the frontend
@@ -232,7 +230,7 @@ servicesRouter.get('/:name/versions', async c => {
       packageJson: v.packageJson,
       createdBy: v.createdBy,
       createdAt: v.createdAt,
-      updatedAt: v.updatedAt
+      updatedAt: v.updatedAt,
     }))
 
     return c.json(versionsWithService)

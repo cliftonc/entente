@@ -48,9 +48,10 @@ Records deployment state in the central service, enabling deployment awareness a
 #### Check Deployment Safety
 ```bash
 entente can-i-deploy \
-  --consumer web-app \
+  --service web-app \
   --version 1.5.0 \
-  --environment production
+  --environment production \
+  --type consumer
 ```
 
 Example output:
@@ -165,9 +166,10 @@ jobs:
       - name: Check if safe to deploy
         run: |
           entente can-i-deploy \
-            --consumer ${{ github.repository }} \
+            --service ${{ github.repository }} \
             --version ${{ github.sha }} \
-            --environment production
+            --environment production \
+            --type consumer
       
       - name: Deploy service
         run: ./deploy.sh
@@ -196,7 +198,7 @@ stages:
 deploy:
   stage: deploy
   script:
-    - entente can-i-deploy --consumer $CI_PROJECT_NAME --version $CI_COMMIT_SHA --environment production
+    - entente can-i-deploy --service $CI_PROJECT_NAME --version $CI_COMMIT_SHA --environment production --type consumer
     - ./deploy.sh
     - entente record-deployment --service $CI_PROJECT_NAME --version $CI_COMMIT_SHA --environment production
     - entente fixtures approve --test-run $CI_PIPELINE_ID --approved-by $GITLAB_USER_LOGIN
@@ -245,9 +247,10 @@ ENVIRONMENT=staging npm run test:verify
 ```bash
 # Check if safe to deploy
 entente can-i-deploy \
-  --consumer order-web \
+  --service order-web \
   --version 1.5.0 \
-  --environment production
+  --environment production \
+  --type consumer
 
 # Deploy service
 npm run deploy:production
@@ -279,8 +282,9 @@ entente record-deployment \
 - `--deployed-by <user>` - User who deployed (default: $USER)
 
 ### can-i-deploy
-- `--consumer <name>` - Consumer service name (required)
-- `--version <version>` - Consumer version (required)
+- `--service <name>` - Service name (required, or defaults from package.json)
+- `--version <version>` - Service version (required, or defaults from package.json)
+- `--type <type>` - Service type: consumer or provider (required)
 - `--environment <env>` - Target environment (required)
 
 ### fixtures approve

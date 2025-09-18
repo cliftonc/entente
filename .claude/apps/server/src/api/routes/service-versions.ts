@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import type { Env } from '..'
-import { services, serviceVersions } from '../../db/schema'
+import { serviceVersions, services } from '../../db/schema'
 
 export const serviceVersionsRouter = new Hono<Env>()
 
@@ -13,13 +13,10 @@ serviceVersionsRouter.get('/:id', async c => {
 
   try {
     const version = await db.query.serviceVersions.findFirst({
-      where: and(
-        eq(serviceVersions.id, id),
-        eq(serviceVersions.tenantId, tenantId)
-      ),
+      where: and(eq(serviceVersions.id, id), eq(serviceVersions.tenantId, tenantId)),
       with: {
-        service: true
-      }
+        service: true,
+      },
     })
 
     if (!version) {
@@ -39,7 +36,7 @@ serviceVersionsRouter.get('/:id', async c => {
       packageJson: version.packageJson,
       createdBy: version.createdBy,
       createdAt: version.createdAt,
-      updatedAt: version.updatedAt
+      updatedAt: version.updatedAt,
     }
 
     return c.json(versionWithService)

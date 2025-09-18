@@ -23,7 +23,7 @@ Consumer (v1.0.0)
   → Records interactions against mock server
   → Captures: "I expect these responses for these requests"
   → Tagged with environment context (e.g., "ci", "test", "local")
-  → Doesn't know what provider version will satisfy these expectations
+  → Specifies a version of the server and uses this to retrieve openapi spec and fixture data from entente
 ```
 
 **2. Provider Verifies Capabilities (Verification Phase)**
@@ -32,7 +32,6 @@ Provider (v2.0.0)
   → Fetches recorded consumer expectations
   → Verifies: "I can satisfy these consumer expectations"
   → Creates version linkage: "Provider v2.0.0 ✓ Consumer v1.0.0"
-  → Tagged with verification environment
 ```
 
 **3. Deployment Decision (can-i-deploy)**
@@ -41,6 +40,7 @@ Question: Can consumer v1.0.0 deploy to staging?
   → What provider version is in staging? (e.g., v2.0.0)
   → Has provider v2.0.0 verified against consumer v1.0.0?
   → Decision: Safe to deploy ✓ or Not verified ✗
+  → If not verified, it can automatically trigger a verification action in Github if configured
 ```
 
 ### Key Principles
@@ -93,7 +93,7 @@ Question: Can consumer v1.0.0 deploy to staging?
 3. **Configure environment variables**:
    Create a `.env` file in your service directory:
    ```bash
-   ENTENTE_SERVICE_URL=https://your-entente-service.com
+   ENTENTE_SERVICE_URL=https://your-entente-service.com // Optional - defaults to https://entente.dev
    ENTENTE_API_KEY=your-api-key-here
 
    # For GitHub integration (optional)
@@ -326,6 +326,7 @@ describe('Castle Service Provider Verification', () => {
   beforeEach(async () => {
     resetCastles() // Reset test data
 
+    // This would be your real API server
     server = serve({
       fetch: app.fetch,
       port: testPort,
@@ -553,12 +554,12 @@ Configure these in your repository settings:
 
 **Repository Secrets:**
 - `ENTENTE_API_KEY` - Your Entente service API key
-- `CLOUDFLARE_API_TOKEN` - For Cloudflare Workers deployment
-- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
+- `CLOUDFLARE_API_TOKEN` - For Cloudflare Workers deployment if using
+- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID if using
 
 **Repository Variables:**
 - `ENTENTE_SERVICE_URL` - URL of your Entente service
-- `CLOUDFLARE_WORKERS_SUBDOMAIN` - Your Workers subdomain
+- `CLOUDFLARE_WORKERS_SUBDOMAIN` - Your Workers subdomain if using
 
 ## GitHub App Integration
 
@@ -572,16 +573,7 @@ Entente provides GitHub App integration for repository-level automation and moni
 
 ### Automatic Service-to-Repository Mapping
 
-The system automatically maps services to GitHub repositories:
-
-```typescript
-// Services can include GitHub repository URLs
-{
-  "name": "castle-client",
-  "gitRepositoryUrl": "https://github.com/myorg/castle-client",
-  // ... other service config
-}
-```
+The system automatically maps services to GitHub repositories, it will try to detect the github url when registering a service.
 
 ### GitHub Actions Workflow Monitoring
 
@@ -594,21 +586,7 @@ Monitor your CI/CD pipelines directly from the Entente dashboard:
 
 ### Triggering Workflows
 
-Entente can trigger GitHub Actions workflows programmatically:
-
-```typescript
-// Trigger deployment workflow
-await github.triggerWorkflow('owner', 'repo', 'deploy.yml', 'main', {
-  environment: 'staging',
-  version: '1.2.3'
-})
-
-// Monitor workflow runs
-const runs = await github.getWorkflowRuns('owner', 'repo', {
-  status: 'completed',
-  branch: 'main'
-})
-```
+Entente can trigger GitHub Actions workflows programmatically if the Github app is linked.
 
 ### Repository Integration Features
 

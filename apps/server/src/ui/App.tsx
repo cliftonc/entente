@@ -5,6 +5,7 @@ import AdminLayout from './components/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import { WebSocketProvider } from './components/WebSocketProvider'
 import { AuthProvider } from './hooks/useAuth'
+import { initializeQueryClient } from './lib/queryClient'
 import ConsumerDetail from './pages/ConsumerDetail'
 import ContractDetail from './pages/ContractDetail'
 import Contracts from './pages/Contracts'
@@ -15,14 +16,14 @@ import Fixtures from './pages/Fixtures'
 import GitHubEmailRequired from './pages/GitHubEmailRequired'
 import InteractionDetails from './pages/InteractionDetails'
 import InviteAccept from './pages/InviteAccept'
+import OpenAPIViewer from './pages/OpenAPIViewer'
 import ProviderDetail from './pages/ProviderDetail'
-import Services from './pages/Services'
 import ServiceVersionDetail from './pages/ServiceVersionDetail'
 import ServiceVersions from './pages/ServiceVersions'
+import Services from './pages/Services'
 import Settings from './pages/Settings'
 import Verification from './pages/Verification'
 import VerificationDetail from './pages/VerificationDetail'
-import { initializeQueryClient } from './lib/queryClient'
 
 const queryClient = initializeQueryClient()
 
@@ -57,6 +58,7 @@ function App() {
                       <Route path="/deployments" element={<Deployments />} />
                       <Route path="/verification" element={<Verification />} />
                       <Route path="/verification/:id" element={<VerificationDetail />} />
+                      <Route path="/openapi/service/:serviceName" element={<OpenAPIViewer />} />
                       <Route path="/settings/*" element={<Settings />} />
                     </Routes>
                   </AdminLayout>

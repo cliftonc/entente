@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import GetStartedButton from '../components/GetStartedButton'
-import ServicesExample from '../components/get-started-examples/ServicesExample'
 import TimestampDisplay from '../components/TimestampDisplay'
+import ServicesExample from '../components/get-started-examples/ServicesExample'
 import { useServices } from '../hooks/useServices'
 
 function Services() {
@@ -15,16 +15,17 @@ function Services() {
     error,
     isEmpty,
   } = useServices({
-    type: typeFilter === 'all' ? undefined : (typeFilter as 'consumer' | 'provider')
+    type: typeFilter === 'all' ? undefined : (typeFilter as 'consumer' | 'provider'),
   })
 
   // Apply search filter (type filter is already handled by the hook)
-  const filteredServices = services?.filter(service => {
-    const matchesSearch =
-      service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (service.description || '').toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesSearch
-  }) || []
+  const filteredServices =
+    services?.filter(service => {
+      const matchesSearch =
+        service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (service.description || '').toLowerCase().includes(searchTerm.toLowerCase())
+      return matchesSearch
+    }) || []
 
   if (isLoading) {
     return (
@@ -129,8 +130,8 @@ function Services() {
             {searchTerm || typeFilter !== 'all'
               ? 'No services match your filters'
               : isEmpty
-              ? 'No services found'
-              : 'Loading services...'}
+                ? 'No services found'
+                : 'Loading services...'}
           </div>
         ) : (
           filteredServices.map(service => (

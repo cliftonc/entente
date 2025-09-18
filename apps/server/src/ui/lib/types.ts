@@ -2,12 +2,12 @@
  * Common types and interfaces for data hooks
  */
 
-import type {
-  UseQueryOptions,
-  UseMutationOptions,
-  UseInfiniteQueryOptions,
-} from '@tanstack/react-query'
 import type { VerificationResults } from '@entente/types'
+import type {
+  UseInfiniteQueryOptions,
+  UseMutationOptions,
+  UseQueryOptions,
+} from '@tanstack/react-query'
 
 /**
  * Base filter interface that all entity filters extend
@@ -169,15 +169,62 @@ export interface HookState<TData, TError = ApiError> {
 }
 
 /**
+ * Statistics type for verifications
+ */
+export interface VerificationStatistics {
+  totalVerifications: number
+  passedVerifications: number
+  failedVerifications: number
+  overallPassRate: number
+}
+
+/**
+ * Statistics type for contracts
+ */
+export interface ContractStatistics {
+  totalContracts: number
+  activeContracts: number
+  archivedContracts: number
+  deprecatedContracts: number
+}
+
+/**
+ * Statistics type for deployments
+ */
+export interface DeploymentStatistics {
+  totalDeployments: number
+  activeDeployments: number
+  blockedDeployments: number
+}
+
+/**
+ * Environment breakdown type for deployments
+ */
+export interface DeploymentEnvironmentBreakdown {
+  [environment: string]: {
+    total: number
+    active: number
+    blocked: number
+  }
+}
+
+/**
  * Hook state for lists with additional metadata
  */
-export interface ListHookState<TData, TError = ApiError> extends HookState<TData[], TError> {
+export interface ListHookState<
+  TData,
+  TStatistics = any,
+  TEnvironmentBreakdown = any,
+  TError = ApiError,
+> extends HookState<TData[], TError> {
   isEmpty: boolean
   totalCount?: number
   hasNextPage?: boolean
   hasPreviousPage?: boolean
   currentPage?: number
   pageSize?: number
+  statistics?: TStatistics
+  environmentBreakdown?: TEnvironmentBreakdown
 }
 
 /**
@@ -337,6 +384,16 @@ export interface ExportConfig {
   filename?: string
 }
 
+export interface VerificationResultInteraction {
+  method: string
+  path: string
+  operation: string
+  service: string
+  consumer: string
+  ennvironment: string
+  timestamp: string
+}
+
 /**
  * Extended verification result type for UI components
  * Includes computed fields and metadata returned by API but not in core VerificationResults type
@@ -347,11 +404,17 @@ export interface ExtendedVerificationResult extends VerificationResults {
   version?: string // Provider version
   submittedAt: string
   status: 'passed' | 'failed'
+  summary: {
+    total: number
+    passed: number
+    failed: number
+  }
   total: number
   passed: number
   failed: number
   createdAt?: string
   lastRun?: string
+  interaction: VerificationResultInteraction
   providerGitSha?: string | null
   providerGitRepositoryUrl?: string | null
   consumerGitSha?: string | null

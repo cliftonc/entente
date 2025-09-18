@@ -292,7 +292,6 @@ function Contracts() {
                           version={contract.consumerVersion}
                           serviceName={contract.consumerName}
                           serviceType="consumer"
-                          
                         />
                       </td>
                       <td>
@@ -308,7 +307,6 @@ function Contracts() {
                           version={contract.providerVersion || 'latest'}
                           serviceName={contract.providerName}
                           serviceType="provider"
-                          
                         />
                       </td>
                       <td>

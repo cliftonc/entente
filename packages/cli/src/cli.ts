@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 import { promises as fs } from 'node:fs'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import chalk from 'chalk'
 import { Command } from 'commander'
 import { loginFlow, logoutFlow, whoAmI } from './auth.js'
@@ -20,7 +23,19 @@ import {
 
 const program = new Command()
 
-program.name('entente').description('CLI for Entente contract testing').version('0.1.0')
+// Get the actual package version
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'))
+
+program.name('entente').description('CLI for Entente contract testing').version(packageJson.version)
+
+// Add entente-version flag
+program.option('--entente-version', 'show CLI version').action(options => {
+  if (options.ententeVersion) {
+    console.log(`@entente/cli version ${packageJson.version}`)
+    process.exit(0)
+  }
+})
 
 // Authentication commands
 program
@@ -66,7 +81,7 @@ program
   .description(
     'Register a service (consumer or provider) with package.json and optionally upload OpenAPI spec'
   )
-  .requiredOption('-n, --name <name>', 'Service name')
+  .requiredOption('-s, --service <service>', 'Service name')
   .requiredOption('-t, --type <type>', 'Service type: consumer or provider')
   .option('-p, --package <path>', 'Path to package.json', './package.json')
   .option('-d, --description <desc>', 'Service description')
@@ -83,9 +98,9 @@ program
         throw new Error('Type must be either "consumer" or "provider"')
       }
 
-      console.log(chalk.blue('📦'), `Registering ${options.type} service ${options.name}...`)
+      console.log(chalk.blue('📦'), `Registering ${options.type} service ${options.service}...`)
       await registerService({
-        name: options.name,
+        name: options.service,
         type: options.type,
         packagePath: options.package,
         description: options.description,
@@ -101,12 +116,9 @@ program
           return
         }
 
-        console.log(
-          chalk.blue('📤'),
-          `Uploading OpenAPI spec for ${options.name}...`
-        )
+        console.log(chalk.blue('📤'), `Uploading OpenAPI spec for ${options.service}...`)
         await uploadSpec({
-          service: options.name,
+          service: options.service,
           environment: options.environment,
           spec: options.spec,
           branch: options.branch,
@@ -121,7 +133,7 @@ program
 program
   .command('register-provider')
   .description('Register a provider with package.json and optionally upload OpenAPI spec')
-  .requiredOption('-n, --name <name>', 'Provider name')
+  .requiredOption('-s, --service <service>', 'Provider service name')
   .option('-p, --package <path>', 'Path to package.json', './package.json')
   .option('-d, --description <desc>', 'Provider description')
   .option('--spec <file>', 'Path to OpenAPI spec file to upload')
@@ -134,9 +146,9 @@ program
   .option('-b, --branch <branch>', 'Git branch for spec', 'main')
   .action(async options => {
     try {
-      console.log(chalk.blue('📦'), `Registering provider ${options.name}...`)
+      console.log(chalk.blue('📦'), `Registering provider ${options.service}...`)
       await registerProvider({
-        name: options.name,
+        name: options.service,
         packagePath: options.package,
         description: options.description,
       })
@@ -149,10 +161,10 @@ program
 
         console.log(
           chalk.blue('📤'),
-          `Uploading OpenAPI spec for ${options.name}@${options.version}...`
+          `Uploading OpenAPI spec for ${options.service}@${options.version}...`
         )
         await uploadSpec({
-          service: options.name,
+          service: options.service,
           version: options.version,
           environment: options.environment,
           spec: options.spec,
@@ -168,14 +180,14 @@ program
 program
   .command('register-consumer')
   .description('Register a consumer with package.json')
-  .requiredOption('-n, --name <name>', 'Consumer name')
+  .requiredOption('-s, --service <service>', 'Consumer service name')
   .requiredOption('-p, --package <path>', 'Path to package.json', './package.json')
   .option('-d, --description <desc>', 'Consumer description')
   .action(async options => {
     try {
-      console.log(chalk.blue('📱'), `Registering consumer ${options.name}...`)
+      console.log(chalk.blue('📱'), `Registering consumer ${options.service}...`)
       await registerConsumer({
-        name: options.name,
+        name: options.service,
         packagePath: options.package,
         description: options.description,
       })
@@ -189,8 +201,8 @@ program
 program
   .command('deploy-service')
   .description('Deploy a service (consumer or provider)')
-  .requiredOption('-n, --name <name>', 'Service name')
-  .requiredOption('--service-version <version>', 'Service version')
+  .requiredOption('-s, --service <service>', 'Service name')
+  .requiredOption('-v, --version <version>', 'Service version')
   .requiredOption('-e, --environment <environment>', 'Target environment')
   .requiredOption('-t, --type <type>', 'Service type: consumer or provider')
   .option('--deployed-by <user>', 'User who deployed (defaults to $USER)')
@@ -203,22 +215,22 @@ program
       if (options.type === 'consumer') {
         console.log(
           chalk.blue('🚀'),
-          `Deploying consumer ${options.name}@${options.serviceVersion} to ${options.environment} ...`
+          `Deploying consumer ${options.service}@${options.version} to ${options.environment} ...`
         )
         await deployConsumer({
-          name: options.name,
-          version: options.serviceVersion,
+          name: options.service,
+          version: options.version,
           environment: options.environment,
           deployedBy: options.deployedBy,
         })
       } else {
         console.log(
           chalk.blue('🚀'),
-          `Deploying provider ${options.name}@${options.serviceVersion} to ${options.environment}...`
+          `Deploying provider ${options.service}@${options.version} to ${options.environment}...`
         )
         await deployProvider({
-          name: options.name,
-          version: options.serviceVersion,
+          name: options.service,
+          version: options.version,
           environment: options.environment,
           deployedBy: options.deployedBy,
         })
@@ -236,6 +248,7 @@ program
     'Upload OpenAPI specification to central service (auto-registers provider if needed)'
   )
   .requiredOption('-s, --service <service>', 'Service name')
+  .requiredOption('-v, --version <version>', 'Service version')
   .requiredOption('-e, --environment <environment>', 'Target environment')
   .requiredOption('--spec <file>', 'Path to OpenAPI spec file')
   .option('-b, --branch <branch>', 'Git branch', 'main')
@@ -243,10 +256,11 @@ program
     try {
       console.log(
         chalk.blue('📤'),
-        `Uploading OpenAPI spec for ${options.service}@${options.serviceVersion} to ${options.environment}...`
+        `Uploading OpenAPI spec for ${options.service}@${options.version} to ${options.environment}...`
       )
       await uploadSpec({
         service: options.service,
+        version: options.version,
         environment: options.environment,
         spec: options.spec,
         branch: options.branch,
@@ -265,15 +279,10 @@ program
     '-s, --service <service>',
     'Service name (consumer or provider) - defaults to package.json name'
   )
-  .option('--service-version <version>', 'Service version - defaults to package.json version')
+  .option('-v, --version <version>', 'Service version - defaults to package.json version')
   .requiredOption('-e, --environment <environment>', 'Target environment')
   .requiredOption('-t, --type <type>', 'Service type: consumer or provider')
   .option('-p, --package <path>', 'Path to package.json', './package.json')
-  .option('-c, --consumer <consumer>', 'Legacy: Consumer service name (use --service instead)')
-  .option(
-    '--consumer-version <version>',
-    'Legacy: Consumer version (use --service-version instead)'
-  )
   .action(async options => {
     try {
       // Validate service type
@@ -281,8 +290,8 @@ program
         throw new Error('Type must be either "consumer" or "provider"')
       }
 
-      let service = options.service || options.consumer
-      let version = options.serviceVersion || options.consumerVersion
+      let service = options.service
+      let version = options.version
 
       // If service or version not provided, read from package.json
       if (!service || !version) {
@@ -321,7 +330,7 @@ program
           if (!service || !version) {
             console.error(
               chalk.red(
-                'Service name and version are required. Provide them via --service and --service-version or ensure package.json exists.'
+                'Service name and version are required. Provide them via --service and --version or ensure package.json exists.'
               )
             )
             process.exit(1)

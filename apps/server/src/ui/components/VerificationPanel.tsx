@@ -1,6 +1,6 @@
 import type { VerificationTask } from '@entente/types'
-import type { ExtendedVerificationResult } from '../lib/types'
 import { Link } from 'react-router-dom'
+import type { ExtendedVerificationResult } from '../lib/types'
 import TimestampDisplay from './TimestampDisplay'
 import VersionBadge from './VersionBadge'
 
@@ -55,7 +55,6 @@ function VerificationPanel({
                         version={task.consumerVersion}
                         serviceName={serviceType === 'consumer' ? serviceName : task.consumer}
                         serviceType="consumer"
-
                       />
                     </div>
                     <span className="text-sm text-base-content/80">→</span>
@@ -65,7 +64,6 @@ function VerificationPanel({
                         version={task.providerVersion}
                         serviceName={task.provider}
                         serviceType="provider"
-
                       />
                     </div>
                     <span className="text-xs text-base-content/70">
@@ -98,16 +96,16 @@ function VerificationPanel({
                   <div className="flex items-center gap-2">
                     <div
                       className={`badge ${
-                        verification.passed === verification.total
+                        verification.summary?.passed === verification.summary?.total
                           ? 'badge-success'
-                          : verification.failed > 0
+                          : (verification.summary?.failed || 0) > 0
                             ? 'badge-error'
                             : 'badge-warning'
                       }`}
                     >
-                      {verification.passed === verification.total
+                      {verification.summary?.passed === verification.summary?.total
                         ? 'passed'
-                        : verification.failed > 0
+                        : (verification.summary?.failed || 0) > 0
                           ? 'failed'
                           : 'pending'}
                     </div>
@@ -119,11 +117,12 @@ function VerificationPanel({
                       </span>
                       <VersionBadge
                         version={verification.consumerVersion || 'latest'}
-                        serviceName={serviceType === 'consumer'
-                          ? serviceName
-                          : verification.consumer || 'Unknown'}
+                        serviceName={
+                          serviceType === 'consumer'
+                            ? serviceName
+                            : verification.consumer || 'Unknown'
+                        }
                         serviceType="consumer"
-
                       />
                     </div>
                     <span className="text-sm text-base-content/80">→</span>
@@ -135,7 +134,6 @@ function VerificationPanel({
                         version={verification.providerVersion || 'latest'}
                         serviceName={verification.provider || 'Unknown'}
                         serviceType="provider"
-
                       />
                     </div>
                     <span className="text-xs text-base-content/70">
@@ -143,7 +141,7 @@ function VerificationPanel({
                     </span>
                   </div>
                   <span className="text-sm font-medium">
-                    {verification.passed || 0}/{verification.total || 0} tests
+                    {verification.summary?.passed || 0}/{verification.summary?.total || 0} tests
                   </span>
                 </div>
               </Link>

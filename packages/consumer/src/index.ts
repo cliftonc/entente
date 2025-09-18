@@ -8,6 +8,11 @@ import {
   generateFixtureHash,
   generateInteractionHash,
   prioritizeFixtures,
+  createOpenAPIMockHandler,
+  handleMockRequest,
+  type MockRequest as FixtureMockRequest,
+  type MockResponse as FixtureMockResponse,
+  type MockHandler
 } from '@entente/fixtures'
 import type {
   ClientConfig,
@@ -140,8 +145,15 @@ export const createClient = (config: ClientConfig): EntenteClient => {
       // Convert LocalMockData to fixtures if provided
       let allFixtures = fixtures
       if (options?.localMockData && fixtures.length === 0) {
-        console.log(`📋 Converting local mock data to fixtures for ${service}@${actualProviderVersion}`)
-        const convertedFixtures = convertMockDataToFixtures(options.localMockData, service, actualProviderVersion, spec)
+        console.log(
+          `📋 Converting local mock data to fixtures for ${service}@${actualProviderVersion}`
+        )
+        const convertedFixtures = convertMockDataToFixtures(
+          options.localMockData,
+          service,
+          actualProviderVersion,
+          spec
+        )
         allFixtures = prioritizeFixtures(convertedFixtures)
       }
 
@@ -267,7 +279,9 @@ const fetchSpec = async (
   // Show helpful messages (safely check for metadata)
   const resolvedVersion = data.metadata?.providerVersion || providerVersion
 
-  console.log(`🔍 Provider version resolution: requested="${providerVersion}" → resolved="${resolvedVersion}" for ${service}`)
+  console.log(
+    `🔍 Provider version resolution: requested="${providerVersion}" → resolved="${resolvedVersion}" for ${service}`
+  )
 
   if (data.metadata?.resolvedFromLatest) {
     console.log(`📋 Using latest provider version: ${resolvedVersion} for ${service}`)
@@ -314,7 +328,12 @@ const convertMockDataToFixtures = (
 
     for (const [scenarioName, mockResponse] of Object.entries(scenarios)) {
       // Generate request data based on operation info and scenario
-      const requestData = generateRequestDataForOperation(operationId, scenarioName, operationInfo, mockResponse)
+      const requestData = generateRequestDataForOperation(
+        operationId,
+        scenarioName,
+        operationInfo,
+        mockResponse
+      )
 
       const fixture: Fixture = {
         id: `local_${fixtureId++}`,
@@ -387,13 +406,13 @@ const generateRequestDataForOperation = (
         body = {
           name: '',
           region: 'Test Region',
-          yearBuilt: 999
+          yearBuilt: 999,
         }
       } else {
         body = {
           name: 'Château de Test',
           region: 'Test Region',
-          yearBuilt: 1500
+          yearBuilt: 1500,
         }
       }
       break
@@ -416,7 +435,7 @@ const generateRequestDataForOperation = (
     path,
     headers,
     query: {},
-    body
+    body,
   }
 }
 
@@ -530,408 +549,147 @@ const createFixtureBasedMockServer = async (
   fixtures: Fixture[],
   port: number
 ): Promise<MockServer> => {
-  const mockServer = (await createBasicMockServer(port)) as MockServer & {
-    _startPrism: (spec: OpenAPISpec, fixtures: Fixture[]) => Promise<void>
-  }
-
-  // Start Prism with spec and fixtures
-  await mockServer._startPrism(spec, fixtures)
-
-  return mockServer
+  return await createBasicMockServer(spec, fixtures, port)
 }
 
 const createSchemaMockServer = async (spec: OpenAPISpec, port: number): Promise<MockServer> => {
-  const mockServer = (await createBasicMockServer(port)) as MockServer & {
-    _startPrism: (spec: OpenAPISpec, fixtures: Fixture[]) => Promise<void>
-  }
-
-  // Start Prism with spec but no fixtures (dynamic mode)
-  await mockServer._startPrism(spec, [])
-
-  return mockServer
+  // Schema-based (no fixtures) - the mock handler will fall back to OpenAPI examples or 501 responses
+  return await createBasicMockServer(spec, [], port)
 }
 
-const createBasicMockServer = async (port: number): Promise<MockServer> => {
-  // This creates a Prism mock server process
+const createBasicMockServer = async (
+  spec: OpenAPISpec,
+  fixtures: Fixture[],
+  port: number
+): Promise<MockServer> => {
+  const { createServer } = await import('node:http')
   const actualPort = port || 3000 + Math.floor(Math.random() * 1000)
 
-  // For now, return a placeholder that will be replaced by Prism
-  return createPrismMockServer(actualPort)
-}
+  // Create mock handlers using the fixtures package
+  const mockHandlers = createOpenAPIMockHandler(spec, fixtures)
 
-// Prism types (since they're dynamically imported)
-interface PrismInstance {
-  request: (request: unknown, operations: unknown[]) => Promise<{ output?: any }>
-}
-
-interface PrismOperation {
-  method: string
-  path: string
-  responses: Record<string, unknown>
-  operationId?: string
-}
-
-// Prism HTTP operation interface
-interface PrismHttpOperation {
-  method: string
-  path: string
-  responses: Record<string, unknown>
-  // Add other properties that might exist
-  [key: string]: any
-}
-
-const createPrismMockServer = async (port: number): Promise<MockServer> => {
-  const { createInstance, getHttpOperationsFromSpec } = await import('@stoplight/prism-http')
-
-  let prismInstance: PrismInstance | null = null
   let httpServer: Server | null = null
-  let operations: PrismOperation[] | null = null
   const handlers: Array<(req: MockRequest, res: MockResponse) => Promise<void>> = []
 
-  const startPrism = async (spec: OpenAPISpec, fixtures: Fixture[] = []) => {
-    // Inject fixtures as examples into the spec
-    const specWithFixtures = injectFixturesIntoSpec(spec, fixtures)
-
-    // Get operations from the OpenAPI spec and convert to PrismOperation format
-    const httpOperations = await getHttpOperationsFromSpec(specWithFixtures)
-    operations = httpOperations.map(
-      (op: any): PrismOperation => ({
-        method: op.method || 'get',
-        path: op.path || '/',
-        responses: op.responses || {},
-        operationId: op.iid, // Prism uses 'iid' field for operation ID
-      })
-    )
-
-    // Create Prism instance with proper configuration for fixtures
-    const prismConfig = {
-      mock: {
-        dynamic: fixtures.length === 0, // Use dynamic mocking if no fixtures, static if we have fixtures
-      },
-      upstreamProxy: undefined,
-      isProxy: false,
-      validateRequest: true,
-      validateResponse: true,
-      checkSecurity: false,
-      errors: false,
-    }
-
-    const prismLogger = {
-      logger: {
-        info: () => {},
-        warn: () => {},
-        error: () => {},
-        debug: () => {},
-      },
-    }
-
-    prismInstance = createInstance(prismConfig as any, prismLogger) as any
-
-    // Start HTTP server that uses Prism
-    const { createServer } = await import('node:http')
-    const { URL } = await import('node:url')
-
+  const startServer = async () => {
     httpServer = createServer(async (req, res) => {
       const startTime = Date.now()
 
       try {
-        const url = new URL(req.url || '/', `http://localhost:${port}`)
-        const body =
-          req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH'
-            ? await getRequestBody(req)
-            : undefined
+        // Parse request
+        const url = new URL(req.url || '/', `http://localhost:${actualPort}`)
+        const method = req.method || 'GET'
 
-        // Normalize headers for Prism
-        const normalizedHeaders: Record<string, string> = {}
+        // Get headers
+        const headers: Record<string, string> = {}
         for (const [key, value] of Object.entries(req.headers)) {
           if (typeof value === 'string') {
-            normalizedHeaders[key.toLowerCase()] = value
+            headers[key.toLowerCase()] = value
           } else if (Array.isArray(value)) {
-            normalizedHeaders[key.toLowerCase()] = value.join(', ')
+            headers[key.toLowerCase()] = value.join(', ')
           }
         }
 
-        // Create request object for Prism
-        const prismRequest = {
-          method: req.method?.toLowerCase() || 'get',
-          url: {
-            path: url.pathname,
-            query: Object.fromEntries(url.searchParams.entries()),
-            baseUrl: `http://localhost:${port}`,
-          },
-          headers: normalizedHeaders,
-          body,
+        // Get query parameters
+        const query: Record<string, unknown> = {}
+        for (const [key, value] of url.searchParams.entries()) {
+          query[key] = value
         }
 
-        let output: unknown = null
-        let finalStatusCode = 500
-        let finalHeaders: Record<string, string> = {
-          'content-type': 'application/json',
-        }
-        let finalBody: unknown = null
-
-        // Use Prism to handle the request
-        const result =
-          prismInstance && operations
-            ? await prismInstance.request(prismRequest, operations)
-            : { output: null }
-
-        // Handle the result
-        if (result.output) {
-          output = result.output as any
-          finalStatusCode = (output as any).statusCode || 200
-          finalHeaders = { ...finalHeaders, ...((output as any).headers || {}) }
-          finalBody = (output as any).body
-        } else {
-          // If Prism didn't return output, try fallback fixture matching
-          const fallbackFixtureRequest = {
-            method: prismRequest.method,
-            path: prismRequest.url.path,
-            body: prismRequest.body,
-            headers: prismRequest.headers,
-          }
-          const fallbackResponse = await tryFallbackFixtureMatch(fallbackFixtureRequest, fixtures)
-          if (fallbackResponse) {
-            finalStatusCode = fallbackResponse.status
-            finalHeaders = {
-              ...finalHeaders,
-              ...(fallbackResponse.headers || {}),
+        // Get request body if present
+        let body: unknown = undefined
+        if (method !== 'GET' && method !== 'HEAD') {
+          try {
+            const chunks: Buffer[] = []
+            for await (const chunk of req) {
+              chunks.push(chunk)
             }
-            finalBody = fallbackResponse.body
-          } else {
-            // Final fallback
-            finalStatusCode = 404
-            finalBody = {
-              error: 'not_found',
-              message: 'No matching operation found',
+            const bodyText = Buffer.concat(chunks).toString()
+
+            if (bodyText) {
+              const contentType = headers['content-type'] || ''
+              if (contentType.includes('application/json')) {
+                body = JSON.parse(bodyText)
+              } else {
+                body = bodyText
+              }
             }
+          } catch {
+            // Ignore body parsing errors
           }
         }
 
-        // Set response headers
-        for (const [key, value] of Object.entries(finalHeaders)) {
-          res.setHeader(key, value)
-        }
-        res.statusCode = finalStatusCode
-
-        // Handle different response body types
-        let responseBody = ''
-        if (finalBody !== undefined && finalBody !== null) {
-          if (typeof finalBody === 'string') {
-            responseBody = finalBody
-          } else if (typeof finalBody === 'object') {
-            responseBody = JSON.stringify(finalBody)
-          } else {
-            responseBody = String(finalBody)
-          }
+        // Create mock request
+        const mockRequest: FixtureMockRequest = {
+          method,
+          path: url.pathname,
+          headers,
+          query,
+          body
         }
 
-        // End the response
-        res.end(responseBody)
-
-        // Calculate duration and create mock objects for handlers
+        // Handle request with mock handlers
+        const mockResponse = handleMockRequest(mockRequest, mockHandlers)
         const duration = Date.now() - startTime
 
-        const mockRequest: MockRequest = {
-          method: req.method || 'GET',
-          path: url.pathname,
-          headers: normalizedHeaders,
-          query: Object.fromEntries(url.searchParams.entries()),
-          body,
+        // Set response headers
+        res.statusCode = mockResponse.status
+        for (const [key, value] of Object.entries(mockResponse.headers)) {
+          res.setHeader(key, value)
         }
 
-        const mockResponse: MockResponse = {
-          status: finalStatusCode,
-          headers: finalHeaders,
-          body: finalBody,
-          duration,
+        // Send response
+        const responseBody = typeof mockResponse.body === 'string'
+          ? mockResponse.body
+          : JSON.stringify(mockResponse.body)
+        res.end(responseBody)
+
+        // Create mock objects for handlers
+        const mockReq: MockRequest = {
+          method,
+          path: url.pathname,
+          headers,
+          query,
+          body
+        }
+
+        const mockRes: MockResponse = {
+          status: mockResponse.status,
+          headers: mockResponse.headers,
+          body: mockResponse.body,
+          duration
         }
 
         // Invoke all registered handlers
         for (const handler of handlers) {
           try {
-            await handler(mockRequest, mockResponse)
+            await handler(mockReq, mockRes)
           } catch (handlerError) {
-            // Log handler errors but don't fail the request
             console.error('Handler error:', handlerError)
           }
         }
-      } catch (error: unknown) {
-        // Calculate duration even for errors
-        const duration = Date.now() - startTime
 
-        // Handle Prism errors gracefully
-        let statusCode = 500
-        let errorResponse: { error: string; message: string; details?: string } = {
-          error: 'InternalServerError',
-          message: 'An unexpected error occurred',
-        }
-
-        // Check for validation errors
-        const errorObj = error as any
-        if (errorObj.name === 'ProblemJsonError' || errorObj.type) {
-          statusCode = errorObj.status || 400
-          errorResponse = {
-            error: errorObj.type || 'ValidationError',
-            message: errorObj.title || errorObj.message || 'Validation error',
-            details: errorObj.detail || errorObj.validation,
-          }
-        } else if (errorObj.status || errorObj.statusCode) {
-          statusCode = errorObj.status || errorObj.statusCode
-          errorResponse = {
-            error: errorObj.name || 'RequestError',
-            message: errorObj.message || 'Request error',
-            details: errorObj.validation || errorObj.detail,
-          }
-        }
-
-        res.statusCode = statusCode
+      } catch (error) {
+        console.error('Mock server error:', error)
+        res.statusCode = 500
         res.setHeader('content-type', 'application/json')
-        res.end(JSON.stringify(errorResponse))
-
-        // Create mock objects for handlers even for errors
-        const url = new URL(req.url || '/', `http://localhost:${port}`)
-        const normalizedHeaders: Record<string, string> = {}
-        for (const [key, value] of Object.entries(req.headers)) {
-          if (typeof value === 'string') {
-            normalizedHeaders[key.toLowerCase()] = value
-          } else if (Array.isArray(value)) {
-            normalizedHeaders[key.toLowerCase()] = value.join(', ')
-          }
-        }
-
-        const mockRequest: MockRequest = {
-          method: req.method || 'GET',
-          path: url.pathname,
-          headers: normalizedHeaders,
-          query: Object.fromEntries(url.searchParams.entries()),
-          body: undefined, // Don't try to read body again on error
-        }
-
-        const mockResponse: MockResponse = {
-          status: statusCode,
-          headers: { 'content-type': 'application/json' },
-          body: errorResponse,
-          duration,
-        }
-
-        // Invoke all registered handlers for errors too
-        for (const handler of handlers) {
-          try {
-            await handler(mockRequest, mockResponse)
-          } catch (handlerError) {
-            // Log handler errors but don't fail the request
-            console.error('Handler error:', handlerError)
-          }
-        }
+        res.end(JSON.stringify({ error: 'Internal server error' }))
       }
     })
 
     await new Promise<void>((resolve, reject) => {
-      httpServer!.listen(port, (err?: Error) => {
+      httpServer!.listen(actualPort, (err?: Error) => {
         if (err) reject(err)
         else resolve()
       })
     })
   }
 
-  const getRequestBody = async (req: {
-    on: (event: string, callback: (chunk?: unknown) => void) => void
-  }): Promise<unknown> => {
-    return new Promise((resolve, reject) => {
-      let body = ''
-      req.on('data', (chunk: any) => {
-        body += (chunk as Buffer).toString()
-      })
-      req.on('end', () => {
-        try {
-          resolve(body ? JSON.parse(body) : undefined)
-        } catch (_error) {
-          resolve(body || undefined)
-        }
-      })
-      req.on('error', reject)
-    })
-  }
-
-  const tryFallbackFixtureMatch = async (
-    request: { method: string; path: string; body?: unknown; headers?: Record<string, string> },
-    availableFixtures: Fixture[]
-  ): Promise<{
-    status: number
-    headers: Record<string, string>
-    body: unknown
-  } | null> => {
-    if (!availableFixtures || availableFixtures.length === 0) {
-      return null
-    }
-
-    // Find all matching fixtures by method and path, then prioritize
-    const candidateFixtures = availableFixtures.filter(fixture => {
-      const fixtureRequest = fixture.data.request as HTTPRequest | undefined
-
-      if (!fixtureRequest) {
-        return false
-      }
-
-      // Match method
-      if (fixtureRequest.method.toLowerCase() !== request.method.toLowerCase()) {
-        return false
-      }
-
-      // For path matching, try exact match first, then pattern match
-      const requestPath = request.path // Use path directly, not request.url.path
-      const exactPathMatch = fixtureRequest.path === requestPath
-      const patternPathMatch = pathMatches(fixtureRequest.path, requestPath)
-
-      if (!exactPathMatch && !patternPathMatch) {
-        return false
-      }
-
-      // For POST/PUT requests, try to match body if both exist
-      if (request.body && fixtureRequest.body) {
-        try {
-          const requestBodyStr = JSON.stringify(request.body)
-          const fixtureBodyStr = JSON.stringify(fixtureRequest.body)
-          return requestBodyStr === fixtureBodyStr
-        } catch {
-          // If JSON comparison fails, fall back to string comparison
-          return String(request.body) === String(fixtureRequest.body)
-        }
-      }
-
-      return true
-    })
-
-    if (candidateFixtures.length === 0) {
-      return null
-    }
-
-    // Prioritize exact path matches over pattern matches
-    const exactMatches = candidateFixtures.filter(fixture => {
-      const fixtureRequest = fixture.data.request as HTTPRequest | undefined
-      return fixtureRequest?.path === request.path
-    })
-
-    const matchingFixture = exactMatches.length > 0 ? exactMatches[0] : candidateFixtures[0]
-
-    if (!matchingFixture) {
-      return null
-    }
-
-    const fixtureResponse = matchingFixture.data.response as any
-    return {
-      status: fixtureResponse.status,
-      headers: fixtureResponse.headers || {
-        'content-type': 'application/json',
-      },
-      body: fixtureResponse.body,
-    }
-  }
+  await startServer()
 
   return {
-    url: `http://localhost:${port}`,
-    port: port,
+    url: `http://localhost:${actualPort}`,
+    port: actualPort,
     close: async () => {
       if (httpServer) {
         await new Promise<void>(resolve => {
@@ -939,22 +697,14 @@ const createPrismMockServer = async (port: number): Promise<MockServer> => {
         })
         httpServer = null
       }
-      if (prismInstance) {
-        prismInstance = null
-      }
     },
     onRequest: handler => {
       handlers.push(handler)
-    },
-    // Internal method to start Prism with spec and fixtures
-    _startPrism: startPrism,
-    // Internal method to get current operations for operation extraction
-    _getOperations: () => operations,
-  } as MockServer & {
-    _startPrism: (spec: OpenAPISpec, fixtures: Fixture[]) => Promise<void>
-    _getOperations: () => any[]
+    }
   }
 }
+
+// Legacy Prism types and functions removed - functionality moved to fixtures package
 
 const createFixtureCollector = (
   service: string,
@@ -1506,3 +1256,6 @@ const pathMatchesSpec = (specPath: string, requestPath: string): boolean => {
 
   return true
 }
+
+// Export mock server utilities for use by other packages
+export type { MockServer, MockRequest, MockResponse }

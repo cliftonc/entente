@@ -193,7 +193,6 @@ function ContractDetail() {
                 version={contract.consumerVersion}
                 serviceName={contract.consumerName}
                 serviceType="consumer"
-                
               />
             </div>
 
@@ -217,7 +216,6 @@ function ContractDetail() {
                 version={contract.providerVersion}
                 serviceName={contract.providerName}
                 serviceType="provider"
-                
               />
             </div>
 
@@ -237,172 +235,6 @@ function ContractDetail() {
               <TimestampDisplay timestamp={contract.lastSeen} />
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Verification Status */}
-      <div className="card bg-base-100 shadow-xl">
-        <div className="card-body">
-          <h2 className="card-title">
-            Verification Status
-            <span className="text-base font-normal text-base-content/70">
-              (
-              {(verificationData?.pendingTasks?.length || 0) +
-                (verificationData?.completedResults?.length || 0)}{' '}
-              total)
-            </span>
-          </h2>
-
-          {verificationData &&
-          (verificationData.pendingTasks.length > 0 ||
-            verificationData.completedResults.length > 0) ? (
-            <div className="space-y-6">
-              {/* Pending Verifications */}
-              {verificationData.pendingTasks.length > 0 && (
-                <div>
-                  <div className="overflow-x-auto">
-                    <table className="table table-sm">
-                      <thead>
-                        <tr>
-                          <th>Provider Version</th>
-                          <th>Consumer Version</th>
-                          <th>Interactions</th>
-                          <th>Status</th>
-                          <th>Created</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {verificationData.pendingTasks.map(task => (
-                          <tr key={task.id}>
-                            <td>
-                              <VersionBadge
-                                version={task.providerVersion}
-                                serviceName={contract.providerName}
-                                serviceType="provider"
-                                
-                              />
-                            </td>
-                            <td>
-                              <VersionBadge
-                                version={task.consumerVersion}
-                                serviceName={contract.consumerName}
-                                serviceType="consumer"
-                                
-                              />
-                            </td>
-                            <td>
-                              <span className="text-sm">
-                                {Array.isArray(task.interactions) ? task.interactions.length : 0}{' '}
-                                interactions
-                              </span>
-                            </td>
-                            <td>
-                              <span className="badge badge-warning">Pending</span>
-                            </td>
-                            <td>
-                              <TimestampDisplay timestamp={task.createdAt} />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Completed Verifications */}
-              {verificationData.completedResults.length > 0 && (
-                <div>
-                  <div className="overflow-x-auto">
-                    <table className="table table-sm">
-                      <thead>
-                        <tr>
-                          <th>Provider Version</th>
-                          <th>Consumer Version</th>
-                          <th>Results</th>
-                          <th>Status</th>
-                          <th>Completed</th>
-                          <th>Git SHA</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {verificationData.completedResults.map(result => (
-                          <tr key={result.id}>
-                            <td>
-                              <VersionBadge
-                                version={result.providerVersion}
-                                serviceName={contract.providerName}
-                                serviceType="provider"
-                                
-                              />
-                            </td>
-                            <td>
-                              <VersionBadge
-                                version={result.consumerVersion || 'N/A'}
-                                serviceName={contract.consumerName}
-                                serviceType="consumer"
-                                
-                              />
-                            </td>
-                            <td>
-                              <span className="text-sm">
-                                {result.passed}/{result.total}
-                              </span>
-                            </td>
-                            <td>
-                              <span
-                                className={`badge ${
-                                  result.status === 'passed' ? 'badge-success' : 'badge-error'
-                                }`}
-                              >
-                                {result.status}
-                              </span>
-                            </td>
-                            <td>
-                              <TimestampDisplay timestamp={result.submittedAt} />
-                            </td>
-                            <td>
-                              {result.providerGitSha && <GitShaLink sha={result.providerGitSha} />}
-                            </td>
-                            <td>
-                              <Link
-                                to={`/verification/${result.id}`}
-                                className="btn btn-ghost btn-xs"
-                              >
-                                View Details
-                              </Link>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-base-content/70">
-              <svg
-                className="w-12 h-12 mx-auto mb-3 text-base-content/30"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <div className="font-medium">No verification data available</div>
-              <div className="text-sm">
-                Verification tasks will appear here once the provider starts verifying against this
-                contract.
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -494,6 +326,189 @@ function ContractDetail() {
                 />
               </svg>
               <span>Showing the 50 most recent interactions. Total: {interactions.length}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Verification Status */}
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body">
+          <h2 className="card-title">
+            Verification Status
+            <span className="text-base font-normal text-base-content/70">
+              (
+              {(verificationData?.pendingTasks?.length || 0) +
+                (verificationData?.completedResults?.length || 0)}{' '}
+              total)
+            </span>
+          </h2>
+
+          {verificationData &&
+          (verificationData.pendingTasks.length > 0 ||
+            verificationData.completedResults.length > 0) ? (
+            <div className="space-y-6">
+              {/* Pending Verifications */}
+              {verificationData.pendingTasks.length > 0 && (
+                <div>
+                  <div className="overflow-x-auto">
+                    <table className="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Provider Version</th>
+                          <th>Consumer Version</th>
+                          <th>Interactions</th>
+                          <th>Status</th>
+                          <th>Created</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {verificationData.pendingTasks.map(task => (
+                          <tr key={task.id}>
+                            <td>
+                              <VersionBadge
+                                version={task.providerVersion}
+                                serviceName={contract.providerName}
+                                serviceType="provider"
+                              />
+                            </td>
+                            <td>
+                              <VersionBadge
+                                version={task.consumerVersion}
+                                serviceName={contract.consumerName}
+                                serviceType="consumer"
+                              />
+                            </td>
+                            <td>
+                              <span className="text-sm">
+                                {Array.isArray(task.interactions) ? task.interactions.length : 0}{' '}
+                                interactions
+                              </span>
+                            </td>
+                            <td>
+                              <span className="badge badge-warning">Pending</span>
+                            </td>
+                            <td>
+                              <TimestampDisplay timestamp={task.createdAt} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Completed Verifications */}
+              {verificationData.completedResults.length > 0 && (
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-semibold text-base-content">Recent Verifications</h3>
+                    {verificationData.completedResults.length > 5 && (
+                      <Link
+                        to={`/verification?provider=${contract.providerName}&consumer=${contract.consumerName}`}
+                        className="btn btn-ghost btn-sm text-primary"
+                      >
+                        View All ({verificationData.completedResults.length})
+                      </Link>
+                    )}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Provider Version</th>
+                          <th>Consumer Version</th>
+                          <th>Results</th>
+                          <th>Status</th>
+                          <th>Completed</th>
+                          <th>Git SHA</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {verificationData.completedResults.slice(0, 5).map(result => (
+                          <tr key={result.id}>
+                            <td>
+                              <VersionBadge
+                                version={result.providerVersion}
+                                serviceName={contract.providerName}
+                                serviceType="provider"
+                              />
+                            </td>
+                            <td>
+                              <VersionBadge
+                                version={result.consumerVersion || 'N/A'}
+                                serviceName={contract.consumerName}
+                                serviceType="consumer"
+                              />
+                            </td>
+                            <td>
+                              <span className="text-sm">
+                                {result.passed}/{result.total}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className={`badge ${
+                                  result.status === 'passed' ? 'badge-success' : 'badge-error'
+                                }`}
+                              >
+                                {result.status}
+                              </span>
+                            </td>
+                            <td>
+                              <TimestampDisplay timestamp={result.submittedAt} />
+                            </td>
+                            <td>
+                              {result.providerGitSha && <GitShaLink sha={result.providerGitSha} />}
+                            </td>
+                            <td>
+                              <Link
+                                to={`/verification/${result.id}`}
+                                className="btn btn-ghost btn-xs"
+                              >
+                                View Details
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {verificationData.completedResults.length > 5 && (
+                    <div className="mt-3 text-center">
+                      <Link
+                        to={`/verification?provider=${contract.providerName}&consumer=${contract.consumerName}`}
+                        className="btn btn-outline btn-sm"
+                      >
+                        View All {verificationData.completedResults.length} Verifications →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-base-content/70">
+              <svg
+                className="w-12 h-12 mx-auto mb-3 text-base-content/30"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="font-medium">No verification data available</div>
+              <div className="text-sm">
+                Verification tasks will appear here once the provider starts verifying against this
+                contract.
+              </div>
             </div>
           )}
         </div>

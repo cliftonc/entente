@@ -31,6 +31,7 @@ import { fixturesRouter } from './routes/fixtures.js'
 import { githubRoutes } from './routes/github.js'
 import { interactionsRouter } from './routes/interactions.js'
 import { keysRouter } from './routes/keys.js'
+import { mockRouter } from './routes/mock.js'
 import { serviceVersionsRouter } from './routes/service-versions.js'
 import { servicesRouter } from './routes/services.js'
 import settingsRouter from './routes/settings.js'
@@ -84,6 +85,7 @@ app.use('/api/dependencies/*', authMiddleware)
 app.use('/api/stats/*', authMiddleware)
 app.use('/api/settings/*', authMiddleware)
 app.use('/api/github/*', authMiddleware)
+app.use('/api/mock/*', authMiddleware)
 
 app.route('/api/keys', keysRouter)
 app.route('/api/specs', specsRouter)
@@ -98,6 +100,7 @@ app.route('/api/dependencies', dependenciesRouter)
 app.route('/api/stats', statsRouter)
 app.route('/api/settings', settingsRouter)
 app.route('/api/github', githubRoutes)
+app.route('/api/mock', mockRouter)
 
 // WebSocket route (no auth middleware - auth handled in the WebSocket handler)
 app.route('/', websocketRouter)

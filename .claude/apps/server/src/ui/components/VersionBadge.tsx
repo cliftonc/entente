@@ -20,9 +20,10 @@ function VersionBadge({
   const badgeContent = `v${version}`
 
   // Apply color coding based on service type - lighter colors with grey border and rounded square look
-  const colorClass = serviceType === 'consumer'
-    ? 'bg-blue-100 text-blue-800 border-gray-300' // lighter blue for consumer
-    : 'bg-green-100 text-green-800 border-gray-300' // lighter green for provider
+  const colorClass =
+    serviceType === 'consumer'
+      ? 'bg-blue-100 text-blue-800 border-gray-300' // lighter blue for consumer
+      : 'bg-green-100 text-green-800 border-gray-300' // lighter green for provider
 
   const baseClassName = `px-2 py-1.5 text-xs font-medium border rounded-md whitespace-nowrap inline-block ${colorClass} ${className}`
 

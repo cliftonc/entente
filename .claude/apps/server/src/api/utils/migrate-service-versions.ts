@@ -1,20 +1,20 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
-import type { Database } from '../../db/types'
 import {
   contracts,
   deployments,
-  fixtures,
   fixtureServiceVersions,
+  fixtures,
   interactions,
   serviceDependencies,
-  services,
   serviceVersions,
+  services,
   specs,
   verificationResults,
   verificationTasks,
 } from '../../db/schema'
-import { ensureServiceVersion } from './service-versions'
+import type { Database } from '../../db/types'
 import { addServiceVersionToFixture } from './fixture-service-versions'
+import { ensureServiceVersion } from './service-versions'
 
 /**
  * Migration script to backfill serviceVersions from existing data.
@@ -221,13 +221,7 @@ async function backfillServiceVersionsFromExistingData(db: Database): Promise<vo
     const [tenantId, serviceName, version] = versionKey.split(':')
 
     try {
-      await ensureServiceVersion(
-        db,
-        tenantId,
-        serviceName,
-        version,
-        { createdBy: 'migration' }
-      )
+      await ensureServiceVersion(db, tenantId, serviceName, version, { createdBy: 'migration' })
       count++
 
       if (count % 100 === 0) {
@@ -260,7 +254,7 @@ async function updateInteractionsWithVersionIds(db: Database): Promise<void> {
   console.log('   • Updating interactions...')
 
   const interactionsToUpdate = await db.query.interactions.findMany({
-    where: isNull(interactions.consumerVersionId)
+    where: isNull(interactions.consumerVersionId),
   })
 
   let count = 0
@@ -284,7 +278,7 @@ async function updateInteractionsWithVersionIds(db: Database): Promise<void> {
         .update(interactions)
         .set({
           consumerVersionId,
-          providerVersionId
+          providerVersionId,
         })
         .where(eq(interactions.id, interaction.id))
 
@@ -304,7 +298,7 @@ async function updateContractsWithVersionIds(db: Database): Promise<void> {
   console.log('   • Updating contracts...')
 
   const contractsToUpdate = await db.query.contracts.findMany({
-    where: isNull(contracts.consumerVersionId)
+    where: isNull(contracts.consumerVersionId),
   })
 
   let count = 0
@@ -328,7 +322,7 @@ async function updateContractsWithVersionIds(db: Database): Promise<void> {
         .update(contracts)
         .set({
           consumerVersionId,
-          providerVersionId
+          providerVersionId,
         })
         .where(eq(contracts.id, contract.id))
 
@@ -345,7 +339,7 @@ async function updateVerificationTasksWithVersionIds(db: Database): Promise<void
   console.log('   • Updating verification tasks...')
 
   const tasksToUpdate = await db.query.verificationTasks.findMany({
-    where: isNull(verificationTasks.consumerVersionId)
+    where: isNull(verificationTasks.consumerVersionId),
   })
 
   let count = 0
@@ -369,7 +363,7 @@ async function updateVerificationTasksWithVersionIds(db: Database): Promise<void
         .update(verificationTasks)
         .set({
           consumerVersionId,
-          providerVersionId
+          providerVersionId,
         })
         .where(eq(verificationTasks.id, task.id))
 
@@ -386,18 +380,20 @@ async function updateVerificationResultsWithVersionIds(db: Database): Promise<vo
   console.log('   • Updating verification results...')
 
   const resultsToUpdate = await db.query.verificationResults.findMany({
-    where: isNull(verificationResults.consumerVersionId)
+    where: isNull(verificationResults.consumerVersionId),
   })
 
   let count = 0
   for (const result of resultsToUpdate) {
     try {
-      const consumerVersionId = result.consumer ? await ensureServiceVersion(
-        db,
-        result.tenantId,
-        result.consumer,
-        result.consumerVersion || 'unknown'
-      ) : null
+      const consumerVersionId = result.consumer
+        ? await ensureServiceVersion(
+            db,
+            result.tenantId,
+            result.consumer,
+            result.consumerVersion || 'unknown'
+          )
+        : null
 
       const providerVersionId = await ensureServiceVersion(
         db,
@@ -410,7 +406,7 @@ async function updateVerificationResultsWithVersionIds(db: Database): Promise<vo
         .update(verificationResults)
         .set({
           consumerVersionId,
-          providerVersionId
+          providerVersionId,
         })
         .where(eq(verificationResults.id, result.id))
 
@@ -427,7 +423,7 @@ async function updateDeploymentsWithVersionIds(db: Database): Promise<void> {
   console.log('   • Updating deployments...')
 
   const deploymentsToUpdate = await db.query.deployments.findMany({
-    where: isNull(deployments.serviceVersionId)
+    where: isNull(deployments.serviceVersionId),
   })
 
   let count = 0
@@ -443,7 +439,7 @@ async function updateDeploymentsWithVersionIds(db: Database): Promise<void> {
       await db
         .update(deployments)
         .set({
-          serviceVersionId
+          serviceVersionId,
         })
         .where(eq(deployments.id, deployment.id))
 
@@ -502,34 +498,33 @@ async function updateServiceDependenciesWithVersionIds(db: Database): Promise<vo
     where: isNull(serviceDependencies.consumerVersionId),
     with: {
       consumer: true,
-      provider: true
-    }
+      provider: true,
+    },
   })
 
   let count = 0
   for (const dependency of dependenciesToUpdate) {
     try {
-      const consumerVersionId = dependency.consumer ? await ensureServiceVersion(
-        db,
-        dependency.tenantId,
-        dependency.consumer.name,
-        dependency.consumerVersion
-      ) : null
+      const consumerVersionId = dependency.consumer
+        ? await ensureServiceVersion(
+            db,
+            dependency.tenantId,
+            dependency.consumer.name,
+            dependency.consumerVersion
+          )
+        : null
 
       // For provider, we need to infer the version since it's not stored in the dependency
       // We'll use 'latest' as a placeholder
-      const providerVersionId = dependency.provider ? await ensureServiceVersion(
-        db,
-        dependency.tenantId,
-        dependency.provider.name,
-        'latest'
-      ) : null
+      const providerVersionId = dependency.provider
+        ? await ensureServiceVersion(db, dependency.tenantId, dependency.provider.name, 'latest')
+        : null
 
       await db
         .update(serviceDependencies)
         .set({
           consumerVersionId,
-          providerVersionId
+          providerVersionId,
         })
         .where(eq(serviceDependencies.id, dependency.id))
 
@@ -593,7 +588,11 @@ export async function validateServiceVersionsMigration(db: Database): Promise<bo
   }
 
   const isValid = totalMissing === 0
-  console.log(isValid ? '✅ Migration validation passed' : `❌ Migration validation failed: ${totalMissing} missing references`)
+  console.log(
+    isValid
+      ? '✅ Migration validation passed'
+      : `❌ Migration validation failed: ${totalMissing} missing references`
+  )
 
   return isValid
 }

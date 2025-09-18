@@ -1,6 +1,6 @@
 import { boolean, jsonb, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
-import { services } from './services'
 import { serviceVersions } from './service-versions'
+import { services } from './services'
 import { tenants } from './tenants'
 
 export const deployments = pgTable('deployments', {

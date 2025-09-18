@@ -219,7 +219,13 @@ export async function updateKeyUsage(db: DbConnection, apiKey: string): Promise<
 export async function validateApiKey(
   db: DbConnection,
   apiKey: string
-): Promise<{ valid: boolean; tenantId?: string; permissions?: string[]; keyName?: string; keyId?: string }> {
+): Promise<{
+  valid: boolean
+  tenantId?: string
+  permissions?: string[]
+  keyName?: string
+  keyId?: string
+}> {
   const key = await db.query.keys.findFirst({
     where: and(eq(keys.keyHash, apiKey), eq(keys.isActive, true), isNull(keys.revokedAt)),
   })

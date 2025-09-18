@@ -282,6 +282,7 @@ export interface VerificationResult {
   error?: string
   errorDetails?: VerificationErrorDetails
   actualResponse?: HTTPResponse
+  interaction?: ClientInteraction
 }
 
 export interface VerificationResults {

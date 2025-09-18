@@ -2,11 +2,11 @@ import type { InviteTeamMemberRequest, TeamMember } from '@entente/types'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
-  useTeamMembers,
   useInviteTeamMember,
-  useUpdateTeamMemberRole,
   useRemoveTeamMember,
-  useResendTeamInvite
+  useResendTeamInvite,
+  useTeamMembers,
+  useUpdateTeamMemberRole,
 } from '../../hooks/useTeamMembers'
 import InviteForm from './components/InviteForm'
 import TeamMemberRow from './components/TeamMemberRow'

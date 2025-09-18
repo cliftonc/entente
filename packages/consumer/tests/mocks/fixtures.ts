@@ -27,30 +27,16 @@ export const createMockFixtureManager = () => {
 export const setupFixturesMock = () => {
   const fixtureManagerMock = createMockFixtureManager()
 
-  const createFixtureManager = vi.fn().mockReturnValue(fixtureManagerMock)
-
-  const extractOperationFromPath = vi.fn().mockReturnValue('test-operation')
-  const extractOperationFromSpec = vi.fn().mockReturnValue('test-operation')
-  const generateFixtureHash = vi.fn().mockResolvedValue('mock-hash-123')
-  const generateInteractionHash = vi.fn().mockResolvedValue('mock-interaction-hash-456')
-  const prioritizeFixtures = vi.fn().mockImplementation((fixtures: Fixture[]) => fixtures)
-
-  vi.doMock('@entente/fixtures', () => ({
-    createFixtureManager,
-    extractOperationFromPath,
-    extractOperationFromSpec,
-    generateFixtureHash,
-    generateInteractionHash,
-    prioritizeFixtures,
-  }))
+  // Only mock the createFixtureManager function, let everything else use the real implementation
+  vi.doMock('@entente/fixtures', async (importOriginal) => {
+    const actual = await importOriginal()
+    return {
+      ...actual,
+      createFixtureManager: vi.fn().mockReturnValue(fixtureManagerMock),
+    }
+  })
 
   return {
-    createFixtureManager,
-    extractOperationFromPath,
-    extractOperationFromSpec,
-    generateFixtureHash,
-    generateInteractionHash,
-    prioritizeFixtures,
     fixtureManagerMock,
   }
 }

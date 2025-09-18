@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
+import CodeBlock from '../components/CodeBlock'
 import TimestampDisplay from '../components/TimestampDisplay'
+import VersionBadge from '../components/VersionBadge'
 import { contractApi, interactionApi } from '../utils/api'
 
 function InteractionDetails() {
@@ -155,16 +157,30 @@ function InteractionDetails() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <div>
-                <strong>Service:</strong> {interaction.service}
+                <strong>Service:</strong>{' '}
+                <Link
+                  to={`/services/provider/${interaction.service}`}
+                  className="font-medium hover:underline text-primary"
+                >
+                  {interaction.service}
+                </Link>
               </div>
               <div>
-                <strong>Service Version:</strong> {interaction.serviceVersion}
+                <strong>Consumer:</strong>{' '}
+                <Link
+                  to={`/services/consumer/${interaction.consumer}`}
+                  className="font-medium hover:underline text-primary"
+                >
+                  {interaction.consumer}
+                </Link>
               </div>
               <div>
-                <strong>Consumer:</strong> {interaction.consumer}
-              </div>
-              <div>
-                <strong>Consumer Version:</strong> {interaction.consumerVersion}
+                <strong>Consumer Version:</strong>{' '}
+                <VersionBadge
+                  version={interaction.consumerVersion}
+                  serviceName={interaction.consumer}
+                  serviceType="consumer"
+                />
               </div>
             </div>
             <div className="space-y-2">
@@ -219,10 +235,12 @@ function InteractionDetails() {
 
                 <div>
                   <h4 className="font-medium text-sm text-base-content/70 mb-2">Headers</h4>
-                  <div className="bg-base-200 p-3 rounded">
-                    <pre className="text-xs overflow-x-auto">
-                      {JSON.stringify(interaction.request.headers, null, 2)}
-                    </pre>
+                  <div className="bg-base-200 p-1 rounded">
+                    <CodeBlock
+                      code={JSON.stringify(interaction.request.headers, null, 2)}
+                      language="json"
+                      showLineNumbers={false}
+                    />
                   </div>
                 </div>
 
@@ -231,10 +249,12 @@ function InteractionDetails() {
                     <h4 className="font-medium text-sm text-base-content/70 mb-2">
                       Query Parameters
                     </h4>
-                    <div className="bg-base-200 p-3 rounded">
-                      <pre className="text-xs overflow-x-auto">
-                        {JSON.stringify(interaction.request.query, null, 2)}
-                      </pre>
+                    <div className="bg-base-200 p-1 rounded">
+                      <CodeBlock
+                        code={JSON.stringify(interaction.request.query, null, 2)}
+                        language="json"
+                        showLineNumbers={false}
+                      />
                     </div>
                   </div>
                 )}
@@ -242,12 +262,16 @@ function InteractionDetails() {
                 {interaction.request.body != null && (
                   <div>
                     <h4 className="font-medium text-sm text-base-content/70 mb-2">Body</h4>
-                    <div className="bg-base-200 p-3 rounded">
-                      <pre className="text-xs overflow-x-auto">
-                        {typeof interaction.request.body === 'string'
-                          ? interaction.request.body
-                          : JSON.stringify(interaction.request.body, null, 2) || ''}
-                      </pre>
+                    <div className="bg-base-200 p-1 rounded">
+                      <CodeBlock
+                        code={
+                          typeof interaction.request.body === 'string'
+                            ? interaction.request.body
+                            : JSON.stringify(interaction.request.body, null, 2) || ''
+                        }
+                        language={typeof interaction.request.body === 'string' ? 'json' : 'json'}
+                        showLineNumbers={false}
+                      />
                     </div>
                   </div>
                 )}
@@ -281,22 +305,28 @@ function InteractionDetails() {
 
                 <div>
                   <h4 className="font-medium text-sm text-base-content/70 mb-2">Headers</h4>
-                  <div className="bg-base-200 p-3 rounded">
-                    <pre className="text-xs overflow-x-auto">
-                      {JSON.stringify(interaction.response.headers, null, 2)}
-                    </pre>
+                  <div className="bg-base-200 p-1 rounded">
+                    <CodeBlock
+                      code={JSON.stringify(interaction.response.headers, null, 2)}
+                      language="json"
+                      showLineNumbers={false}
+                    />
                   </div>
                 </div>
 
                 {interaction.response.body != null && (
                   <div>
                     <h4 className="font-medium text-sm text-base-content/70 mb-2">Body</h4>
-                    <div className="bg-base-200 p-3 rounded">
-                      <pre className="text-xs overflow-x-auto">
-                        {typeof interaction.response.body === 'string'
-                          ? interaction.response.body
-                          : JSON.stringify(interaction.response.body, null, 2) || ''}
-                      </pre>
+                    <div className="bg-base-200 p-1 rounded">
+                      <CodeBlock
+                        code={
+                          typeof interaction.response.body === 'string'
+                            ? interaction.response.body
+                            : JSON.stringify(interaction.response.body, null, 2) || ''
+                        }
+                        language={typeof interaction.response.body === 'string' ? 'json' : 'json'}
+                        showLineNumbers={false}
+                      />
                     </div>
                   </div>
                 )}
@@ -311,10 +341,12 @@ function InteractionDetails() {
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
             <h2 className="card-title">Client Information</h2>
-            <div className="bg-base-200 p-3 rounded">
-              <pre className="text-sm overflow-x-auto">
-                {JSON.stringify(interaction.clientInfo, null, 2)}
-              </pre>
+            <div className="bg-base-200 p-1 rounded">
+              <CodeBlock
+                code={JSON.stringify(interaction.clientInfo, null, 2)}
+                language="json"
+                showLineNumbers={false}
+              />
             </div>
           </div>
         </div>

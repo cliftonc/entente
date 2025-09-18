@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
+import { serviceVersions, services } from '../../db/schema'
 import type { Database } from '../../db/types'
-import { services, serviceVersions } from '../../db/schema'
 
 export interface ServiceVersionMetadata {
   spec?: any // OpenAPI spec
@@ -22,10 +22,7 @@ export async function ensureServiceVersion(
 ): Promise<string> {
   // 1. Find or create service
   let service = await db.query.services.findFirst({
-    where: and(
-      eq(services.tenantId, tenantId),
-      eq(services.name, serviceName)
-    )
+    where: and(eq(services.tenantId, tenantId), eq(services.name, serviceName)),
   })
 
   if (!service) {
@@ -47,7 +44,7 @@ export async function ensureServiceVersion(
         githubAutoLinked: false,
         githubConfiguredAt: null,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
       .returning()
     service = newService
@@ -59,7 +56,7 @@ export async function ensureServiceVersion(
       eq(serviceVersions.tenantId, tenantId),
       eq(serviceVersions.serviceId, service.id),
       eq(serviceVersions.version, version)
-    )
+    ),
   })
 
   if (!serviceVersion) {
@@ -75,7 +72,7 @@ export async function ensureServiceVersion(
         packageJson: metadata?.packageJson || null,
         createdBy: metadata?.createdBy || 'auto-created',
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
       .returning()
     serviceVersion = newVersion
@@ -87,7 +84,7 @@ export async function ensureServiceVersion(
         spec: metadata.spec,
         gitSha: metadata.gitSha || serviceVersion.gitSha,
         packageJson: metadata.packageJson || serviceVersion.packageJson,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
       .where(eq(serviceVersions.id, serviceVersion.id))
   }
@@ -106,10 +103,7 @@ export async function findServiceVersion(
   version: string
 ): Promise<{ id: string; version: string; spec: any } | null> {
   const service = await db.query.services.findFirst({
-    where: and(
-      eq(services.tenantId, tenantId),
-      eq(services.name, serviceName)
-    )
+    where: and(eq(services.tenantId, tenantId), eq(services.name, serviceName)),
   })
 
   if (!service) {
@@ -121,7 +115,7 @@ export async function findServiceVersion(
       eq(serviceVersions.tenantId, tenantId),
       eq(serviceVersions.serviceId, service.id),
       eq(serviceVersions.version, version)
-    )
+    ),
   })
 
   if (!serviceVersion) {
@@ -131,7 +125,7 @@ export async function findServiceVersion(
   return {
     id: serviceVersion.id,
     version: serviceVersion.version,
-    spec: serviceVersion.spec
+    spec: serviceVersion.spec,
   }
 }
 
@@ -144,10 +138,7 @@ export async function getServiceVersions(
   serviceName: string
 ): Promise<Array<{ id: string; version: string; spec: any; createdAt: Date }>> {
   const service = await db.query.services.findFirst({
-    where: and(
-      eq(services.tenantId, tenantId),
-      eq(services.name, serviceName)
-    )
+    where: and(eq(services.tenantId, tenantId), eq(services.name, serviceName)),
   })
 
   if (!service) {
@@ -155,17 +146,14 @@ export async function getServiceVersions(
   }
 
   const versions = await db.query.serviceVersions.findMany({
-    where: and(
-      eq(serviceVersions.tenantId, tenantId),
-      eq(serviceVersions.serviceId, service.id)
-    ),
-    orderBy: (serviceVersions, { desc }) => [desc(serviceVersions.createdAt)]
+    where: and(eq(serviceVersions.tenantId, tenantId), eq(serviceVersions.serviceId, service.id)),
+    orderBy: (serviceVersions, { desc }) => [desc(serviceVersions.createdAt)],
   })
 
   return versions.map(v => ({
     id: v.id,
     version: v.version,
     spec: v.spec,
-    createdAt: v.createdAt
+    createdAt: v.createdAt,
   }))
 }

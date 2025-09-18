@@ -1,10 +1,11 @@
 import type { HTTPRequest, HTTPResponse } from '@entente/types'
 import { Link, useParams } from 'react-router-dom'
+import CodeBlock from '../components/CodeBlock'
 import TimestampDisplay from '../components/TimestampDisplay'
 import { useAuth } from '../hooks/useAuth'
 import {
-  useFixture,
   useApproveFixture,
+  useFixture,
   useRejectFixture,
   useRevokeFixture,
 } from '../hooks/useFixtures'
@@ -345,10 +346,12 @@ function FixtureDetails() {
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
             <h2 className="card-title">Creation Context</h2>
-            <div className="bg-base-200 p-3 rounded">
-              <pre className="text-sm overflow-x-auto">
-                {JSON.stringify(fixture.createdFrom, null, 2)}
-              </pre>
+            <div className="bg-base-200 p-1 rounded">
+              <CodeBlock
+                code={JSON.stringify(fixture.createdFrom, null, 2)}
+                language="json"
+                showLineNumbers={false}
+              />
             </div>
           </div>
         </div>
@@ -366,10 +369,12 @@ function FixtureDetails() {
               return (
                 <div>
                   <h3 className="font-semibold text-lg mb-4">Raw Data</h3>
-                  <div className="bg-base-200 p-3 rounded">
-                    <pre className="text-sm overflow-x-auto">
-                      {JSON.stringify(fixture.data, null, 2)}
-                    </pre>
+                  <div className="bg-base-200 p-1 rounded">
+                    <CodeBlock
+                      code={JSON.stringify(fixture.data, null, 2)}
+                      language="json"
+                      showLineNumbers={false}
+                    />
                   </div>
                 </div>
               )
@@ -401,10 +406,12 @@ function FixtureDetails() {
                       {request.headers && Object.keys(request.headers).length > 0 && (
                         <div>
                           <h4 className="font-medium text-sm text-base-content/70 mb-2">Headers</h4>
-                          <div className="bg-base-200 p-3 rounded">
-                            <pre className="text-xs overflow-x-auto">
-                              {JSON.stringify(request.headers, null, 2)}
-                            </pre>
+                          <div className="bg-base-200 p-1 rounded">
+                            <CodeBlock
+                              code={JSON.stringify(request.headers, null, 2)}
+                              language="json"
+                              showLineNumbers={false}
+                            />
                           </div>
                         </div>
                       )}
@@ -414,10 +421,12 @@ function FixtureDetails() {
                           <h4 className="font-medium text-sm text-base-content/70 mb-2">
                             Query Parameters
                           </h4>
-                          <div className="bg-base-200 p-3 rounded">
-                            <pre className="text-xs overflow-x-auto">
-                              {JSON.stringify(request.query, null, 2)}
-                            </pre>
+                          <div className="bg-base-200 p-1 rounded">
+                            <CodeBlock
+                              code={JSON.stringify(request.query, null, 2)}
+                              language="json"
+                              showLineNumbers={false}
+                            />
                           </div>
                         </div>
                       )}
@@ -425,12 +434,16 @@ function FixtureDetails() {
                       {request.body !== undefined && request.body !== null && (
                         <div>
                           <h4 className="font-medium text-sm text-base-content/70 mb-2">Body</h4>
-                          <div className="bg-base-200 p-3 rounded">
-                            <pre className="text-xs overflow-x-auto">
-                              {typeof request.body === 'string'
-                                ? request.body
-                                : JSON.stringify(request.body, null, 2)}
-                            </pre>
+                          <div className="bg-base-200 p-1 rounded">
+                            <CodeBlock
+                              code={
+                                typeof request.body === 'string'
+                                  ? request.body
+                                  : JSON.stringify(request.body, null, 2)
+                              }
+                              language="json"
+                              showLineNumbers={false}
+                            />
                           </div>
                         </div>
                       )}
@@ -471,10 +484,12 @@ function FixtureDetails() {
                       {response.headers && Object.keys(response.headers).length > 0 && (
                         <div>
                           <h4 className="font-medium text-sm text-base-content/70 mb-2">Headers</h4>
-                          <div className="bg-base-200 p-3 rounded">
-                            <pre className="text-xs overflow-x-auto">
-                              {JSON.stringify(response.headers, null, 2)}
-                            </pre>
+                          <div className="bg-base-200 p-1 rounded">
+                            <CodeBlock
+                              code={JSON.stringify(response.headers, null, 2)}
+                              language="json"
+                              showLineNumbers={false}
+                            />
                           </div>
                         </div>
                       )}
@@ -482,12 +497,16 @@ function FixtureDetails() {
                       {response.body !== undefined && response.body !== null && (
                         <div>
                           <h4 className="font-medium text-sm text-base-content/70 mb-2">Body</h4>
-                          <div className="bg-base-200 p-3 rounded">
-                            <pre className="text-xs overflow-x-auto">
-                              {typeof response.body === 'string'
-                                ? response.body
-                                : JSON.stringify(response.body, null, 2)}
-                            </pre>
+                          <div className="bg-base-200 p-1 rounded">
+                            <CodeBlock
+                              code={
+                                typeof response.body === 'string'
+                                  ? response.body
+                                  : JSON.stringify(response.body, null, 2)
+                              }
+                              language="json"
+                              showLineNumbers={false}
+                            />
                           </div>
                         </div>
                       )}

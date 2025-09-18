@@ -3,15 +3,16 @@ import type {
   GitHubServiceConfigRequest,
   GitHubTriggerWorkflowRequest,
   GitHubWorkflow,
+  OpenAPISpec,
 } from '@entente/types'
 import { zValidator } from '@hono/zod-validator'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 // Remove unused Env import
-import { services, serviceVersions } from '../../db/schema'
+import { serviceVersions, services } from '../../db/schema'
 import type { DbService } from '../../db/types'
-import { ensureServiceVersion } from '../utils/service-versions'
+import { injectMockServerUrls } from '../utils/openapi'
 import {
   findRepositoryByName,
   getRepositories,
@@ -19,6 +20,7 @@ import {
   parseRepositoryUrl,
   triggerWorkflow,
 } from '../utils/github-client'
+import { ensureServiceVersion } from '../utils/service-versions'
 
 export const servicesRouter = new Hono()
 
@@ -148,12 +150,16 @@ servicesRouter.post('/', async c => {
         {
           packageJson: registration.packageJson,
           gitSha: registration.gitSha,
-          createdBy: user?.name || 'service-registration'
+          createdBy: user?.name || 'service-registration',
         }
       )
-      console.log(`📋 Created service version: ${registration.name}@${registration.packageJson.version}`)
+      console.log(
+        `📋 Created service version: ${registration.name}@${registration.packageJson.version}`
+      )
     } catch (error) {
-      console.warn(`⚠️  Failed to create service version for ${registration.name}@${registration.packageJson.version}: ${error}`)
+      console.warn(
+        `⚠️  Failed to create service version for ${registration.name}@${registration.packageJson.version}: ${error}`
+      )
     }
   }
 
@@ -200,10 +206,7 @@ servicesRouter.get('/:name/versions', async c => {
   try {
     // First find the service
     const service = await db.query.services.findFirst({
-      where: and(
-        eq(services.tenantId, tenantId),
-        eq(services.name, name)
-      ),
+      where: and(eq(services.tenantId, tenantId), eq(services.name, name)),
     })
 
     if (!service) {
@@ -212,28 +215,42 @@ servicesRouter.get('/:name/versions', async c => {
 
     // Get all versions for this service
     const versions = await db.query.serviceVersions.findMany({
-      where: and(
-        eq(serviceVersions.tenantId, tenantId),
-        eq(serviceVersions.serviceId, service.id)
-      ),
-      orderBy: (serviceVersions, { desc }) => [desc(serviceVersions.createdAt)]
+      where: and(eq(serviceVersions.tenantId, tenantId), eq(serviceVersions.serviceId, service.id)),
+      orderBy: (serviceVersions, { desc }) => [desc(serviceVersions.createdAt)],
     })
 
     // Map to include service info for the frontend
-    const versionsWithService = versions.map(v => ({
-      id: v.id,
-      tenantId: v.tenantId,
-      serviceId: v.serviceId,
-      serviceName: service.name,
-      serviceType: service.type,
-      version: v.version,
-      spec: v.spec,
-      gitSha: v.gitSha,
-      packageJson: v.packageJson,
-      createdBy: v.createdBy,
-      createdAt: v.createdAt,
-      updatedAt: v.updatedAt
-    }))
+    const versionsWithService = versions.map((v, index) => {
+      // Inject appropriate mock server URLs based on whether this is the latest version
+      const isLatest = index === 0 // First version is latest since ordered by desc creation date
+      const latestVersionWithSpec = versions.find(version => version.spec)
+      const isLatestWithSpec = v.id === latestVersionWithSpec?.id
+
+      let specWithUrls = v.spec
+      if (v.spec && Object.keys(v.spec).length > 0) {
+        specWithUrls = injectMockServerUrls(
+          v.spec as OpenAPISpec,
+          service.name,
+          isLatestWithSpec ? 'latest' : 'version',
+          v.id
+        )
+      }
+
+      return {
+        id: v.id,
+        tenantId: v.tenantId,
+        serviceId: v.serviceId,
+        serviceName: service.name,
+        serviceType: service.type,
+        version: v.version,
+        spec: specWithUrls,
+        gitSha: v.gitSha,
+        packageJson: v.packageJson,
+        createdBy: v.createdBy,
+        createdAt: v.createdAt,
+        updatedAt: v.updatedAt,
+      }
+    })
 
     return c.json(versionsWithService)
   } catch (error) {

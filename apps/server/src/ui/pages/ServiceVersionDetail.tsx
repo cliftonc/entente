@@ -50,19 +50,23 @@ function ServiceVersionDetail() {
   })
 
   // Fetch contracts for this service version
-  const { data: contracts, isLoading: contractsLoading } = useQuery({
+  const { data: contractsData, isLoading: contractsLoading } = useQuery({
     queryKey: ['contracts', serviceVersion?.serviceType, serviceVersion?.serviceName],
-    queryFn: () => {
+    queryFn: async () => {
       if (!serviceVersion) throw new Error('Service version is required')
-      return serviceVersion.serviceType === 'consumer'
-        ? contractApi.getAll({ consumer: serviceVersion.serviceName })
-        : contractApi.getByProvider(serviceVersion.serviceName)
+      if (serviceVersion.serviceType === 'consumer') {
+        return contractApi.getAll({ consumer: serviceVersion.serviceName })
+      } else {
+        return contractApi.getByProvider(serviceVersion.serviceName)
+      }
     },
     enabled: !!serviceVersion,
   })
 
   // Filter contracts to only show those with matching versions
-  const versionContracts = contracts?.filter(contract => {
+  const contracts = contractsData?.results || []
+
+  const versionContracts = contracts.filter((contract: Contract) => {
     if (serviceVersion?.serviceType === 'consumer') {
       return contract.consumerVersion === serviceVersion?.version
     } else {
@@ -83,14 +87,16 @@ function ServiceVersionDetail() {
   })
 
   // Filter interactions to only show those with matching versions
-  const versionInteractions = interactions?.filter(interaction => {
-    if (serviceVersion?.serviceType === 'consumer') {
-      return interaction.consumerVersion === serviceVersion.version
-    } else {
-      // For provider interactions, we might not have providerVersion, so we'll be more lenient
-      return true
-    }
-  })
+  const versionInteractions = Array.isArray(interactions)
+    ? interactions.filter(interaction => {
+        if (serviceVersion?.serviceType === 'consumer') {
+          return interaction.consumerVersion === serviceVersion.version
+        } else {
+          // For provider interactions, we might not have providerVersion, so we'll be more lenient
+          return true
+        }
+      })
+    : []
 
   // Calculate interaction count for contracts
   const getContractInteractionCount = (contract: Contract): number => {
@@ -137,7 +143,9 @@ function ServiceVersionDetail() {
   }
 
   // Filter deployments for this version
-  const versionDeployments = deployments?.filter(d => d.version === serviceVersion.version) || []
+  const versionDeployments = Array.isArray(deployments)
+    ? deployments.filter(d => d.version === serviceVersion.version)
+    : []
   const activeDeployments = versionDeployments.filter(d => d.active === true)
   const blockedDeployments = versionDeployments.filter(d => d.status === 'failed')
 
@@ -162,15 +170,15 @@ function ServiceVersionDetail() {
         <div>
           <h1 className="text-3xl font-bold text-base-content flex items-center gap-3">
             {serviceVersion.serviceName} v{serviceVersion.version}
-            <div className={`badge ${
-              serviceVersion.serviceType === 'consumer' ? 'badge-primary' : 'badge-secondary'
-            }`}>
+            <div
+              className={`badge ${
+                serviceVersion.serviceType === 'consumer' ? 'badge-primary' : 'badge-secondary'
+              }`}
+            >
               {serviceVersion.serviceType}
             </div>
           </h1>
-          <p className="text-base-content/70 mt-1">
-            Service version details and related data
-          </p>
+          <p className="text-base-content/70 mt-1">Service version details and related data</p>
         </div>
       </div>
 
@@ -219,15 +227,29 @@ function ServiceVersionDetail() {
                   <label className="label">
                     <span className="label-text">OpenAPI Spec</span>
                   </label>
-                  <div className={`badge ${serviceVersion.spec ? 'badge-success' : 'badge-warning'}`}>
-                    {serviceVersion.spec ? 'available' : 'not available'}
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`badge ${serviceVersion.spec ? 'badge-success' : 'badge-warning'}`}
+                    >
+                      {serviceVersion.spec ? 'available' : 'not available'}
+                    </div>
+                    {serviceVersion.spec && (
+                      <Link
+                        to={`/openapi/service/${serviceVersion.serviceName}?version=${serviceVersion.id}`}
+                        className="btn btn-xs btn-primary"
+                      >
+                        View Spec
+                      </Link>
+                    )}
                   </div>
                 </div>
                 <div>
                   <label className="label">
                     <span className="label-text">Package Info</span>
                   </label>
-                  <div className={`badge ${serviceVersion.packageJson ? 'badge-success' : 'badge-warning'}`}>
+                  <div
+                    className={`badge ${serviceVersion.packageJson ? 'badge-success' : 'badge-warning'}`}
+                  >
                     {serviceVersion.packageJson ? 'available' : 'not available'}
                   </div>
                 </div>
@@ -265,7 +287,10 @@ function ServiceVersionDetail() {
             <div className="card-body">
               <div className="flex justify-between items-center">
                 <h3 className="card-title text-lg">Deployments (v{serviceVersion.version})</h3>
-                <Link to={`/deployments?service=${serviceVersion.serviceName}`} className="btn btn-ghost btn-xs">
+                <Link
+                  to={`/deployments?service=${serviceVersion.serviceName}`}
+                  className="btn btn-ghost btn-xs"
+                >
                   View All
                 </Link>
               </div>
@@ -275,7 +300,9 @@ function ServiceVersionDetail() {
                 <div className="space-y-3">
                   {versionDeployments.slice(0, 3).map((deployment, idx) => (
                     <div
-                      key={deployment.id || `${deployment.environment}-${deployment.version}-${idx}`}
+                      key={
+                        deployment.id || `${deployment.environment}-${deployment.version}-${idx}`
+                      }
                       className="bg-base-200 rounded-lg p-3"
                     >
                       <div className="flex justify-between items-center mb-1">

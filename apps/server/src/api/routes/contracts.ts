@@ -13,7 +13,8 @@ contractsRouter.get('/', async c => {
   const consumer = c.req.query('consumer')
   const environment = c.req.query('environment')
   const status = c.req.query('status')
-  const limit = Number.parseInt(c.req.query('limit') || '100')
+  const limit = Number.parseInt(c.req.query('limit') || '10')
+  const offset = Number.parseInt(c.req.query('offset') || '0')
 
   const { tenantId } = c.get('session')
   const db = c.get('db')
@@ -24,6 +25,14 @@ contractsRouter.get('/', async c => {
   if (consumer) whereConditions.push(eq(contracts.consumerName, consumer))
   if (environment) whereConditions.push(eq(contracts.environment, environment))
   if (status) whereConditions.push(eq(contracts.status, status))
+
+  // Get total count for pagination
+  const [totalCountResult] = await db
+    .select({ count: count() })
+    .from(contracts)
+    .where(and(...whereConditions))
+
+  const totalCount = totalCountResult.count
 
   // Use LEFT JOIN to get contracts with their interaction counts in a single query
   const dbContracts = await db
@@ -67,6 +76,7 @@ contractsRouter.get('/', async c => {
     )
     .orderBy(desc(contracts.lastSeen))
     .limit(limit)
+    .offset(offset)
 
   const clientContracts: Contract[] = dbContracts.map(contract => ({
     id: contract.id,
@@ -91,7 +101,33 @@ contractsRouter.get('/', async c => {
     `📋 Retrieved ${clientContracts.length} contracts with filters: provider=${provider || 'all'}, consumer=${consumer || 'all'}, environment=${environment || 'all'}`
   )
 
-  return c.json(clientContracts)
+  // Calculate overall statistics (independent of pagination)
+  const allContracts = await db
+    .select({
+      status: contracts.status,
+    })
+    .from(contracts)
+    .where(eq(contracts.tenantId, tenantId))
+
+  const totalContracts = allContracts.length
+  const activeContracts = allContracts.filter(c => c.status === 'active').length
+  const archivedContracts = allContracts.filter(c => c.status === 'archived').length
+  const deprecatedContracts = allContracts.filter(c => c.status === 'deprecated').length
+
+  return c.json({
+    results: clientContracts,
+    totalCount,
+    limit,
+    offset,
+    hasNextPage: offset + limit < totalCount,
+    hasPreviousPage: offset > 0,
+    statistics: {
+      totalContracts,
+      activeContracts,
+      archivedContracts,
+      deprecatedContracts,
+    },
+  })
 })
 
 // Get single contract by ID

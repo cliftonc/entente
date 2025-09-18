@@ -4,11 +4,18 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { invitationApi } from '../utils/api'
-import { queryKeys, getInvalidationQueries } from '../lib/queryKeys'
-import { createOptimisticMutationOptions, defaultQueryOptions } from '../lib/queryClient'
-import type { QueryOptions, MutationOptions, HookState, MutationHookState, HookConfig, ApiError } from '../lib/types'
 import { mergeHookConfig } from '../lib/hookUtils'
+import { createOptimisticMutationOptions, defaultQueryOptions } from '../lib/queryClient'
+import { getInvalidationQueries, queryKeys } from '../lib/queryKeys'
+import type {
+  ApiError,
+  HookConfig,
+  HookState,
+  MutationHookState,
+  MutationOptions,
+  QueryOptions,
+} from '../lib/types'
+import { invitationApi } from '../utils/api'
 
 /**
  * Hook to get invitation details by token
@@ -43,8 +50,14 @@ export function useInvitationDetails(
  * Hook to accept an invitation
  */
 export function useAcceptInvitation(
-  options?: MutationOptions<{ success: boolean; requiresAuth?: boolean; loginUrl?: string; message?: string }, string>
-): MutationHookState<{ success: boolean; requiresAuth?: boolean; loginUrl?: string; message?: string }, string> {
+  options?: MutationOptions<
+    { success: boolean; requiresAuth?: boolean; loginUrl?: string; message?: string },
+    string
+  >
+): MutationHookState<
+  { success: boolean; requiresAuth?: boolean; loginUrl?: string; message?: string },
+  string
+> {
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
@@ -84,13 +97,19 @@ export function useInvalidateInvitations() {
     queryClient.invalidateQueries({ queryKey: queryKeys.invitations.all })
   }, [queryClient])
 
-  const invalidateDetails = useCallback((token: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.invitations.details(token) })
-  }, [queryClient])
+  const invalidateDetails = useCallback(
+    (token: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.invitations.details(token) })
+    },
+    [queryClient]
+  )
 
-  const removeDetails = useCallback((token: string) => {
-    queryClient.removeQueries({ queryKey: queryKeys.invitations.details(token) })
-  }, [queryClient])
+  const removeDetails = useCallback(
+    (token: string) => {
+      queryClient.removeQueries({ queryKey: queryKeys.invitations.details(token) })
+    },
+    [queryClient]
+  )
 
   return {
     invalidateAll,

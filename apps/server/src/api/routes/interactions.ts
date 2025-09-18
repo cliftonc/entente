@@ -10,9 +10,9 @@ import {
   verificationTasks,
 } from '../../db/schema'
 import type { DbConnection } from '../../db/types'
+import { NotificationService } from '../services/notification'
 import { ensureServiceVersion } from '../utils/service-versions'
 import { createOrUpdateContract } from './contracts'
-import { NotificationService } from '../services/notification'
 
 export const interactionsRouter = new Hono()
 

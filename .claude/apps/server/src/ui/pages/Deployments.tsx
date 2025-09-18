@@ -438,7 +438,6 @@ function Deployments() {
                           version={deployment.version}
                           serviceName={deployment.service}
                           serviceType={deployment.type as 'consumer' | 'provider'}
-                          
                         />
                       </td>
                       <td>

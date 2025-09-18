@@ -5,11 +5,18 @@
 import type { ClientInteraction } from '@entente/types'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import React, { useCallback } from 'react'
-import { interactionApi } from '../utils/api'
-import { queryKeys } from '../lib/queryKeys'
-import { defaultQueryOptions } from '../lib/queryClient'
-import type { InteractionFilters, QueryOptions, HookState, ListHookState, HookConfig, ApiError } from '../lib/types'
 import { mergeHookConfig } from '../lib/hookUtils'
+import { defaultQueryOptions } from '../lib/queryClient'
+import { queryKeys } from '../lib/queryKeys'
+import type {
+  ApiError,
+  HookConfig,
+  HookState,
+  InteractionFilters,
+  ListHookState,
+  QueryOptions,
+} from '../lib/types'
+import { interactionApi } from '../utils/api'
 
 /**
  * Hook to get all interactions with filtering
@@ -22,12 +29,13 @@ export function useInteractions(
 
   const query = useQuery({
     queryKey: queryKeys.interactions.list(filters),
-    queryFn: () => interactionApi.getAll({
-      provider: filters?.provider,
-      consumer: filters?.consumer,
-      environment: filters?.environment,
-      limit: filters?.limit,
-    }),
+    queryFn: () =>
+      interactionApi.getAll({
+        provider: filters?.provider,
+        consumer: filters?.consumer,
+        environment: filters?.environment,
+        limit: filters?.limit,
+      }),
     ...defaultQueryOptions,
     ...mergedOptions,
   })
@@ -52,10 +60,7 @@ export function useInteractions(
 /**
  * Hook to get a single interaction by ID
  */
-export function useInteraction(
-  id: string,
-  options?: HookConfig
-): HookState<ClientInteraction> {
+export function useInteraction(id: string, options?: HookConfig): HookState<ClientInteraction> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({
@@ -159,12 +164,13 @@ export function useInteractionsByProvider(
 
   const query = useQuery({
     queryKey: queryKeys.interactions.byProvider(provider, filters),
-    queryFn: () => interactionApi.getAll({
-      provider,
-      consumer: filters?.consumer,
-      environment: filters?.environment,
-      limit: filters?.limit,
-    }),
+    queryFn: () =>
+      interactionApi.getAll({
+        provider,
+        consumer: filters?.consumer,
+        environment: filters?.environment,
+        limit: filters?.limit,
+      }),
     ...defaultQueryOptions,
     ...mergedOptions,
     enabled: !!provider,
@@ -225,10 +231,7 @@ export function useInteractionStats(
 /**
  * Hook to get overall interaction statistics
  */
-export function useOverallInteractionStats(
-  filters?: InteractionFilters,
-  options?: HookConfig
-) {
+export function useOverallInteractionStats(filters?: InteractionFilters, options?: HookConfig) {
   const mergedOptions = mergeHookConfig(options)
 
   // This is a derived query that calculates stats from the interactions list
@@ -239,7 +242,8 @@ export function useOverallInteractionStats(
 
     const interactions = interactionsQuery.data
     const totalInteractions = interactions.length
-    const uniqueProviders = new Set(interactions.map(i => i.provider || i.service).filter(Boolean)).size
+    const uniqueProviders = new Set(interactions.map(i => i.provider || i.service).filter(Boolean))
+      .size
     const uniqueConsumers = new Set(interactions.map(i => i.consumer)).size
 
     // Recent interactions (last 20)
@@ -249,39 +253,51 @@ export function useOverallInteractionStats(
 
     // Interactions by status
     const interactionsByStatus = Object.entries(
-      interactions.reduce((acc, interaction) => {
-        const status = interaction.status || 'unknown'
-        acc[status] = (acc[status] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
+      interactions.reduce(
+        (acc, interaction) => {
+          const status = interaction.status || 'unknown'
+          acc[status] = (acc[status] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>
+      )
     ).map(([status, count]) => ({ status, count }))
 
     // Interactions by provider
     const interactionsByProvider = Object.entries(
-      interactions.reduce((acc, interaction) => {
-        const provider = interaction.provider || interaction.service
-        if (provider) {
-          acc[provider] = (acc[provider] || 0) + 1
-        }
-        return acc
-      }, {} as Record<string, number>)
+      interactions.reduce(
+        (acc, interaction) => {
+          const provider = interaction.provider || interaction.service
+          if (provider) {
+            acc[provider] = (acc[provider] || 0) + 1
+          }
+          return acc
+        },
+        {} as Record<string, number>
+      )
     ).map(([provider, count]) => ({ provider, count }))
 
     // Interactions by consumer
     const interactionsByConsumer = Object.entries(
-      interactions.reduce((acc, interaction) => {
-        acc[interaction.consumer] = (acc[interaction.consumer] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
+      interactions.reduce(
+        (acc, interaction) => {
+          acc[interaction.consumer] = (acc[interaction.consumer] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>
+      )
     ).map(([consumer, count]) => ({ consumer, count }))
 
     // Interactions by environment
     const interactionsByEnvironment = Object.entries(
-      interactions.reduce((acc, interaction) => {
-        const env = interaction.environment || 'unknown'
-        acc[env] = (acc[env] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
+      interactions.reduce(
+        (acc, interaction) => {
+          const env = interaction.environment || 'unknown'
+          acc[env] = (acc[env] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>
+      )
     ).map(([environment, count]) => ({ environment, count }))
 
     // Interaction trends (last 7 days)
@@ -338,22 +354,38 @@ export function useInvalidateInteractions() {
     queryClient.invalidateQueries({ queryKey: queryKeys.interactions.all })
   }, [queryClient])
 
-  const invalidateInteraction = useCallback((id: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.interactions.detail(id) })
-  }, [queryClient])
+  const invalidateInteraction = useCallback(
+    (id: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.interactions.detail(id) })
+    },
+    [queryClient]
+  )
 
-  const invalidateByService = useCallback((service: string, version?: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.interactions.byService(service, version) })
-    queryClient.invalidateQueries({ queryKey: queryKeys.interactions.stats(service, version) })
-  }, [queryClient])
+  const invalidateByService = useCallback(
+    (service: string, version?: string) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.interactions.byService(service, version),
+      })
+      queryClient.invalidateQueries({ queryKey: queryKeys.interactions.stats(service, version) })
+    },
+    [queryClient]
+  )
 
-  const invalidateByConsumer = useCallback((consumer: string, version?: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.interactions.byConsumer(consumer, version) })
-  }, [queryClient])
+  const invalidateByConsumer = useCallback(
+    (consumer: string, version?: string) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.interactions.byConsumer(consumer, version),
+      })
+    },
+    [queryClient]
+  )
 
-  const invalidateByProvider = useCallback((provider: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.interactions.byProvider(provider) })
-  }, [queryClient])
+  const invalidateByProvider = useCallback(
+    (provider: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.interactions.byProvider(provider) })
+    },
+    [queryClient]
+  )
 
   return {
     invalidateAll,

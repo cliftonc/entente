@@ -54,7 +54,6 @@ function VerificationPanel({
                         version={task.consumerVersion}
                         serviceName={serviceType === 'consumer' ? serviceName : task.consumer}
                         serviceType="consumer"
-
                       />
                     </div>
                     <span className="text-sm text-base-content/80">→</span>
@@ -64,7 +63,6 @@ function VerificationPanel({
                         version={task.providerVersion}
                         serviceName={task.provider}
                         serviceType="provider"
-
                       />
                     </div>
                     <span className="text-xs text-base-content/70">
@@ -120,11 +118,12 @@ function VerificationPanel({
                       </span>
                       <VersionBadge
                         version={verification.consumerVersion || 'latest'}
-                        serviceName={serviceType === 'consumer'
-                          ? serviceName
-                          : verification.consumer || 'Unknown'}
+                        serviceName={
+                          serviceType === 'consumer'
+                            ? serviceName
+                            : verification.consumer || 'Unknown'
+                        }
                         serviceType="consumer"
-
                       />
                     </div>
                     <span className="text-sm text-base-content/80">→</span>
@@ -136,7 +135,6 @@ function VerificationPanel({
                         version={verification.providerVersion || 'latest'}
                         serviceName={verification.provider || 'Unknown'}
                         serviceType="provider"
-
                       />
                     </div>
                     <span className="text-xs text-base-content/70">

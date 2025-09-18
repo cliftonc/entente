@@ -209,7 +209,6 @@ function ConsumerDetail() {
             </div>
           </div>
 
-
           {/* Pending Verification */}
           {!pendingTasksLoading && consumerPendingTasks.length > 0 && (
             <VerificationPanel
@@ -452,7 +451,6 @@ function ConsumerDetail() {
               )}
             </div>
           </div>
-
         </div>
       </div>
     </div>

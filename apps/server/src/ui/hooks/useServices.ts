@@ -5,11 +5,20 @@
 import type { Service, ServiceVersion } from '@entente/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { serviceApi, serviceVersionApi } from '../utils/api'
-import { queryKeys, getInvalidationQueries } from '../lib/queryKeys'
-import { createOptimisticMutationOptions, defaultQueryOptions } from '../lib/queryClient'
-import type { ServiceFilters, QueryOptions, MutationOptions, HookState, ListHookState, MutationHookState, HookConfig, ApiError } from '../lib/types'
 import { createOptimisticListUpdater, mergeHookConfig } from '../lib/hookUtils'
+import { createOptimisticMutationOptions, defaultQueryOptions } from '../lib/queryClient'
+import { getInvalidationQueries, queryKeys } from '../lib/queryKeys'
+import type {
+  ApiError,
+  HookConfig,
+  HookState,
+  ListHookState,
+  MutationHookState,
+  MutationOptions,
+  QueryOptions,
+  ServiceFilters,
+} from '../lib/types'
+import { serviceApi, serviceVersionApi } from '../utils/api'
 
 /**
  * Hook to get all services with filtering
@@ -124,10 +133,7 @@ export function useServiceVersions(
 /**
  * Hook to get a specific service version
  */
-export function useServiceVersion(
-  id: string,
-  options?: HookConfig
-): HookState<ServiceVersion> {
+export function useServiceVersion(id: string, options?: HookConfig): HookState<ServiceVersion> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({
@@ -199,13 +205,19 @@ export function useInvalidateServices() {
     queryClient.invalidateQueries({ queryKey: queryKeys.services.all })
   }, [queryClient])
 
-  const invalidateService = useCallback((name: string, type: 'consumer' | 'provider') => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.services.detail(name, type) })
-  }, [queryClient])
+  const invalidateService = useCallback(
+    (name: string, type: 'consumer' | 'provider') => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.services.detail(name, type) })
+    },
+    [queryClient]
+  )
 
-  const invalidateServiceVersions = useCallback((serviceName: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.serviceVersions.byService(serviceName) })
-  }, [queryClient])
+  const invalidateServiceVersions = useCallback(
+    (serviceName: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceVersions.byService(serviceName) })
+    },
+    [queryClient]
+  )
 
   return {
     invalidateAll,

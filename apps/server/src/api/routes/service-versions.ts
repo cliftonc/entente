@@ -1,7 +1,9 @@
+import type { OpenAPISpec } from '@entente/types'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 // Remove unused Env import
-import { services, serviceVersions } from '../../db/schema'
+import { serviceVersions, services } from '../../db/schema'
+import { injectMockServerUrls } from '../utils/openapi'
 
 export const serviceVersionsRouter = new Hono()
 
@@ -13,33 +15,36 @@ serviceVersionsRouter.get('/:id', async c => {
 
   try {
     const version = await db.query.serviceVersions.findFirst({
-      where: and(
-        eq(serviceVersions.id, id),
-        eq(serviceVersions.tenantId, tenantId)
-      ),
+      where: and(eq(serviceVersions.id, id), eq(serviceVersions.tenantId, tenantId)),
       with: {
-        service: true
-      }
+        service: true,
+      },
     })
 
     if (!version) {
       return c.json({ error: 'Service version not found' }, 404)
     }
 
+    // Inject mock server URLs into the spec if present
+    const serviceName = (version as any).service?.name || 'Unknown'
+    const specWithMock = version.spec && Object.keys(version.spec).length > 0
+      ? injectMockServerUrls(version.spec as OpenAPISpec, serviceName, 'version', version.id)
+      : version.spec
+
     // Map to include service info for the frontend
     const versionWithService = {
       id: version.id,
       tenantId: version.tenantId,
       serviceId: version.serviceId,
-      serviceName: (version as any).service?.name || 'Unknown',
+      serviceName: serviceName,
       serviceType: (version as any).service?.type || 'unknown',
       version: version.version,
-      spec: version.spec,
+      spec: specWithMock,
       gitSha: version.gitSha,
       packageJson: version.packageJson,
       createdBy: version.createdBy,
       createdAt: version.createdAt,
-      updatedAt: version.updatedAt
+      updatedAt: version.updatedAt,
     }
 
     return c.json(versionWithService)

@@ -242,7 +242,7 @@ export class NotificationService {
 
   static async sendTestEvent(
     tenantId: string,
-    message: string = 'Hello from Entente!',
+    message = 'Hello from Entente!',
     options?: { env?: any }
   ) {
     const event = {

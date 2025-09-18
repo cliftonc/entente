@@ -1,12 +1,13 @@
+import type { Contract } from '@entente/types'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import ConsumerFilter from '../components/ConsumerFilter'
 import GetStartedButton from '../components/GetStartedButton'
-import ContractsExample from '../components/get-started-examples/ContractsExample'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
+import ContractsExample from '../components/get-started-examples/ContractsExample'
 import { useContracts } from '../hooks/useContracts'
 
 function Contracts() {
@@ -18,6 +19,9 @@ function Contracts() {
     searchParams.get('consumer') || ''
   )
   const [selectedStatus, setSelectedStatus] = useState<string>(searchParams.get('status') || '')
+  const [displayedContracts, setDisplayedContracts] = useState<Contract[]>([])
+  const [currentOffset, setCurrentOffset] = useState(0)
+  const pageSize = 10
 
   // Update filters when URL params change
   useEffect(() => {
@@ -33,12 +37,48 @@ function Contracts() {
     data: contracts,
     isLoading: contractsLoading,
     error: contractsError,
+    hasNextPage,
+    totalCount,
+    statistics,
+    isFetching,
   } = useContracts({
     provider: selectedProvider || undefined,
     consumer: selectedConsumer || undefined,
     status: selectedStatus as 'active' | 'archived' | 'deprecated' | undefined,
-    limit: 200,
+    limit: pageSize,
+    offset: currentOffset,
   })
+
+  // Reset pagination when filters change (MUST run before data update)
+  useEffect(() => {
+    setCurrentOffset(0)
+    setDisplayedContracts([])
+  }, [selectedProvider, selectedConsumer, selectedStatus])
+
+  // Update displayed contracts when new data is loaded
+  useEffect(() => {
+    if (contracts !== undefined) {
+      if (contracts.length === 0 && currentOffset === 0) {
+        // Empty result set - clear displayed results
+        setDisplayedContracts([])
+        return
+      }
+
+      if (contracts.length > 0) {
+        if (currentOffset === 0) {
+          // First page - replace all results
+          setDisplayedContracts(contracts)
+        } else {
+          // Additional pages - append to existing results, avoiding duplicates
+          setDisplayedContracts(prev => {
+            const existingIds = new Set(prev.map(item => item.id))
+            const newItems = contracts.filter(item => !existingIds.has(item.id))
+            return [...prev, ...newItems]
+          })
+        }
+      }
+    }
+  }, [contracts])
 
   // Handle filter changes
   const handleProviderChange = (provider: string) => {
@@ -87,8 +127,17 @@ function Contracts() {
     setSearchParams({})
   }
 
-  const isLoading = contractsLoading
+  const handleShowMore = () => {
+    console.log(`Loading more contracts: offset ${currentOffset} -> ${currentOffset + pageSize}`)
+    setCurrentOffset(prev => prev + pageSize)
+  }
+
+  // Only show full loading state for initial load
+  const isLoading = contractsLoading && currentOffset === 0
   const error = contractsError
+
+  // Use displayedContracts for rendering
+  const contractsToDisplay = displayedContracts.length > 0 ? displayedContracts : contracts || []
 
   // Create filter summary for display
   const getFilterSummary = () => {
@@ -254,7 +303,7 @@ function Contracts() {
           <h2 className="card-title">
             Contract Relationships
             <span className="text-base font-normal text-base-content/70">
-              ({contracts?.length || 0} results)
+              ({contractsToDisplay.length || 0} results)
             </span>
           </h2>
           <div className="overflow-x-auto">
@@ -272,7 +321,7 @@ function Contracts() {
                 </tr>
               </thead>
               <tbody>
-                {!contracts || contracts.length === 0 ? (
+                {!contractsToDisplay || contractsToDisplay.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="text-center text-base-content/70 py-8">
                       {selectedProvider || selectedConsumer || selectedStatus
@@ -281,7 +330,7 @@ function Contracts() {
                     </td>
                   </tr>
                 ) : (
-                  contracts.map(contract => (
+                  contractsToDisplay.map(contract => (
                     <tr key={contract.id}>
                       <td>
                         <Link
@@ -296,7 +345,6 @@ function Contracts() {
                           version={contract.consumerVersion}
                           serviceName={contract.consumerName}
                           serviceType="consumer"
-                          
                         />
                       </td>
                       <td>
@@ -312,7 +360,6 @@ function Contracts() {
                           version={contract.providerVersion || 'latest'}
                           serviceName={contract.providerName}
                           serviceType="provider"
-                          
                         />
                       </td>
                       <td>
@@ -337,6 +384,29 @@ function Contracts() {
               </tbody>
             </table>
           </div>
+          {hasNextPage && (
+            <div className="card-actions justify-center pt-4">
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={handleShowMore}
+                disabled={isFetching}
+              >
+                {isFetching && currentOffset > 0 ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs"></span>
+                    Loading...
+                  </>
+                ) : (
+                  'Show More'
+                )}
+              </button>
+              {totalCount && (
+                <span className="text-sm text-base-content/70 ml-2">
+                  Showing {contractsToDisplay.length} of {totalCount} results
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

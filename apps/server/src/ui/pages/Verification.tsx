@@ -2,31 +2,51 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ConsumerFilter from '../components/ConsumerFilter'
 import GetStartedButton from '../components/GetStartedButton'
-import VerificationExample from '../components/get-started-examples/VerificationExample'
 import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
+import VerificationBar from '../components/VerificationBar'
 import VersionBadge from '../components/VersionBadge'
-import { useVerificationResults, usePendingVerificationTasks } from '../hooks/useVerifications'
+import VerificationExample from '../components/get-started-examples/VerificationExample'
+import { usePendingVerificationTasks, useVerificationResults } from '../hooks/useVerifications'
+import type { ExtendedVerificationResult } from '../lib/types'
 
 function Verification() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [providerFilter, setProviderFilter] = useState(searchParams.get('provider') || '')
   const [consumerFilter, setConsumerFilter] = useState(searchParams.get('consumer') || '')
+  const [startDate, setStartDate] = useState(searchParams.get('startDate') || '')
+  const [endDate, setEndDate] = useState(searchParams.get('endDate') || '')
+  const [displayedResults, setDisplayedResults] = useState<ExtendedVerificationResult[]>([])
+  const [currentOffset, setCurrentOffset] = useState(0)
+  const pageSize = 10
 
   // Update filters when URL params change
   useEffect(() => {
     const provider = searchParams.get('provider')
     const consumer = searchParams.get('consumer')
+    const start = searchParams.get('startDate')
+    const end = searchParams.get('endDate')
     if (provider) setProviderFilter(provider)
     if (consumer) setConsumerFilter(consumer)
+    if (start) setStartDate(start)
+    if (end) setEndDate(end)
   }, [searchParams])
 
   const {
     data: verificationResults,
-    isLoading,
+    isLoading: isLoadingCurrentPage,
     error,
-  } = useVerificationResults()
+    hasNextPage,
+    totalCount,
+    statistics,
+    isFetching,
+  } = useVerificationResults({
+    limit: pageSize,
+    offset: currentOffset,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  })
 
   const {
     data: pendingTasks,
@@ -34,9 +54,40 @@ function Verification() {
     error: pendingError,
   } = usePendingVerificationTasks()
 
+  // Reset when filters change (MUST run before data update)
+  useEffect(() => {
+    setCurrentOffset(0)
+    setDisplayedResults([])
+  }, [providerFilter, consumerFilter, startDate, endDate])
+
+  // Update displayed results when new data is loaded
+  useEffect(() => {
+    if (verificationResults !== undefined) {
+      if (verificationResults.length === 0 && currentOffset === 0) {
+        // Empty result set - clear displayed results
+        setDisplayedResults([])
+        return
+      }
+
+      if (verificationResults.length > 0) {
+        if (currentOffset === 0) {
+          // First page - replace all results
+          setDisplayedResults(verificationResults)
+        } else {
+          // Additional pages - append to existing results, avoiding duplicates
+          setDisplayedResults(prev => {
+            const existingIds = new Set(prev.map(item => item.id))
+            const newItems = verificationResults.filter(item => !existingIds.has(item.id))
+            return [...prev, ...newItems]
+          })
+        }
+      }
+    }
+  }, [verificationResults])
+
   // Filter results based on provider and consumer filters
   const filteredResults =
-    verificationResults?.filter(result => {
+    displayedResults?.filter(result => {
       if (providerFilter && (result.provider || result.provider || '') !== providerFilter)
         return false
       if (consumerFilter) {
@@ -55,12 +106,11 @@ function Verification() {
       return true
     }) || []
 
-  // Calculate statistics based on filtered results
-  const totalVerifications = filteredResults.length
-  const passedVerifications = filteredResults.filter(v => v.status === 'passed').length
-  const failedVerifications = filteredResults.filter(v => v.status === 'failed').length
-  const overallPassRate =
-    totalVerifications > 0 ? (passedVerifications / totalVerifications) * 100 : 0
+  // Use statistics from API (independent of pagination and filtering)
+  const totalVerifications = statistics?.totalVerifications || 0
+  const passedVerifications = statistics?.passedVerifications || 0
+  const failedVerifications = statistics?.failedVerifications || 0
+  const overallPassRate = statistics?.overallPassRate || 0
 
   // Handle filter changes
   const handleProviderFilterChange = (provider: string) => {
@@ -68,6 +118,8 @@ function Verification() {
     updateUrlParams({
       provider: provider || undefined,
       consumer: consumerFilter || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
     })
   }
 
@@ -76,26 +128,51 @@ function Verification() {
     updateUrlParams({
       provider: providerFilter || undefined,
       consumer: consumer || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    })
+  }
+
+  const handleDateFilterChange = (start: string, end: string) => {
+    setStartDate(start)
+    setEndDate(end)
+    updateUrlParams({
+      provider: providerFilter || undefined,
+      consumer: consumerFilter || undefined,
+      startDate: start || undefined,
+      endDate: end || undefined,
     })
   }
 
   const updateUrlParams = (params: {
     provider?: string
     consumer?: string
+    startDate?: string
+    endDate?: string
   }) => {
     const newParams: Record<string, string> = {}
     if (params.provider) newParams.provider = params.provider
     if (params.consumer) newParams.consumer = params.consumer
+    if (params.startDate) newParams.startDate = params.startDate
+    if (params.endDate) newParams.endDate = params.endDate
     setSearchParams(Object.keys(newParams).length > 0 ? newParams : {})
   }
 
   const clearFilters = () => {
     setProviderFilter('')
     setConsumerFilter('')
+    setStartDate('')
+    setEndDate('')
     setSearchParams({})
   }
 
-  if (isLoading || isPendingLoading) {
+  const handleShowMore = () => {
+    console.log(`Loading more results: offset ${currentOffset} -> ${currentOffset + pageSize}`)
+    setCurrentOffset(prev => prev + pageSize)
+  }
+
+  // Only show full loading state for initial load (first page)
+  if ((isLoadingCurrentPage && currentOffset === 0) || isPendingLoading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -174,6 +251,15 @@ function Verification() {
                 • Consumer: {consumerFilter}
               </span>
             )}
+            {startDate && endDate && (
+              <span className="text-lg font-normal text-base-content/70">
+                {' '}
+                • Date:{' '}
+                {startDate === endDate
+                  ? new Date(startDate).toLocaleDateString()
+                  : `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`}
+              </span>
+            )}
           </h1>
           <p className="text-base-content/70 mt-1">
             Monitor provider verification results and contract compliance
@@ -198,13 +284,48 @@ function Verification() {
           onChange={handleConsumerFilterChange}
           label="Consumer Filter"
         />
-        {(providerFilter || consumerFilter) && (
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text">Start Date</span>
+          </label>
+          <input
+            type="date"
+            className="input input-bordered"
+            value={startDate ? new Date(startDate).toISOString().split('T')[0] : ''}
+            onChange={e => {
+              const newStartDate = e.target.value || ''
+              handleDateFilterChange(newStartDate, endDate)
+            }}
+          />
+        </div>
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text">End Date</span>
+          </label>
+          <input
+            type="date"
+            className="input input-bordered"
+            value={endDate ? new Date(endDate).toISOString().split('T')[0] : ''}
+            onChange={e => {
+              const newEndDate = e.target.value || ''
+              handleDateFilterChange(startDate, newEndDate)
+            }}
+          />
+        </div>
+        {(providerFilter || consumerFilter || startDate || endDate) && (
           <div className="form-control">
             <button className="btn btn-ghost btn-sm" onClick={clearFilters}>
               Clear Filters
             </button>
           </div>
         )}
+      </div>
+
+      {/* Verification Activity Bar */}
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body">
+          <VerificationBar days={30} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -280,7 +401,6 @@ function Verification() {
                           version={task.providerVersion}
                           serviceName={task.provider}
                           serviceType="provider"
-                          
                         />
                       </td>
                       <td>
@@ -296,7 +416,6 @@ function Verification() {
                           version={task.consumerVersion}
                           serviceName={task.consumer}
                           serviceType="consumer"
-                          
                         />
                       </td>
                       <td>
@@ -376,7 +495,6 @@ function Verification() {
                           version={result.providerVersion || result.version || '1.0.0'}
                           serviceName={result.provider || result.provider}
                           serviceType="provider"
-                          
                         />
                       </td>
                       <td>
@@ -397,7 +515,6 @@ function Verification() {
                             version={result.consumerVersion || 'N/A'}
                             serviceName={result.consumer || result.consumer}
                             serviceType="consumer"
-                            
                           />
                         ) : (
                           <span className="text-sm text-base-content/50">N/A</span>
@@ -422,7 +539,9 @@ function Verification() {
                         </span>
                       </td>
                       <td>
-                        <TimestampDisplay timestamp={result.createdAt || result.lastRun || new Date().toISOString()} />
+                        <TimestampDisplay
+                          timestamp={result.createdAt || result.lastRun || new Date().toISOString()}
+                        />
                       </td>
                       <td>
                         <div className="flex gap-1">
@@ -449,6 +568,29 @@ function Verification() {
               </tbody>
             </table>
           </div>
+          {hasNextPage && (
+            <div className="card-actions justify-center pt-4">
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={handleShowMore}
+                disabled={isFetching}
+              >
+                {isFetching && currentOffset > 0 ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs"></span>
+                    Loading...
+                  </>
+                ) : (
+                  'Show More'
+                )}
+              </button>
+              {totalCount && (
+                <span className="text-sm text-base-content/70 ml-2">
+                  Showing {filteredResults.length} of {totalCount} results
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

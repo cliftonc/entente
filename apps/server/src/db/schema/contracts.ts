@@ -1,8 +1,8 @@
 import { relations } from 'drizzle-orm'
 import { integer, pgTable, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core'
 import { interactions } from './interactions'
-import { services } from './services'
 import { serviceVersions } from './service-versions'
+import { services } from './services'
 import { tenants } from './tenants'
 import { verificationTasks } from './verification'
 

@@ -29,7 +29,10 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
     // Small delay to ensure everything is properly initialized
     const timer = setTimeout(() => {
-      console.log('WebSocketProvider: Calling websocketClient.connect() with tenant:', currentTenantId)
+      console.log(
+        'WebSocketProvider: Calling websocketClient.connect() with tenant:',
+        currentTenantId
+      )
       websocketClient.connect(currentTenantId)
     }, 100)
 

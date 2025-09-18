@@ -1,16 +1,26 @@
 import type { TenantSettings, TenantSettingsUpdate } from '@entente/types'
 import { useQueryClient } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
-import SettingToggle from './components/SettingToggle'
-import { useSettings, useUpdateSettings, useCreateTenant, useDeleteTenant } from '../../hooks/useSettings'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+import {
+  useCreateTenant,
+  useDeleteTenant,
+  useSettings,
+  useUpdateSettings,
+} from '../../hooks/useSettings'
+import SettingToggle from './components/SettingToggle'
 
 function DeleteTenantSection() {
   const [slugInput, setSlugInput] = useState('')
   const { tenants, currentTenantId } = useAuth()
 
-  const { mutate: deleteTenant, isLoading: isDeleting, error, reset } = useDeleteTenant({
-    onSuccess: (data) => {
+  const {
+    mutate: deleteTenant,
+    isLoading: isDeleting,
+    error,
+    reset,
+  } = useDeleteTenant({
+    onSuccess: data => {
       if (data.logout) {
         // No remaining tenants: force logout UI state (session cleared of tenant); redirect home or reload
         window.location.href = '/'
@@ -124,7 +134,12 @@ function LocalSettingInput({
 function CreateTenantSection() {
   const [name, setName] = useState('')
 
-  const { mutate: createTenant, isLoading: isCreating, error, reset } = useCreateTenant({
+  const {
+    mutate: createTenant,
+    isLoading: isCreating,
+    error,
+    reset,
+  } = useCreateTenant({
     onSuccess: () => {
       // Backend switches session to new tenant; trigger hard redirect to root to load new context
       window.location.href = '/'

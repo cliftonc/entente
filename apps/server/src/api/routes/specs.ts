@@ -3,9 +3,9 @@ import { and, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { deployments, services, specs } from '../../db/schema'
 import type { DbSpec } from '../../db/types'
-import { ensureServiceVersion, getServiceVersions } from '../utils/service-versions'
 import { findBestSemverMatch, getLatestVersion } from '../utils/semver-match'
-
+import { ensureServiceVersion, getServiceVersions } from '../utils/service-versions'
+import { injectMockServerUrls } from '../utils/openapi'
 
 export const specsRouter = new Hono()
 
@@ -52,7 +52,7 @@ specsRouter.post('/:service', async c => {
       spec: spec,
       gitSha: undefined,
       packageJson: undefined,
-      createdBy: user?.name || 'spec-upload'
+      createdBy: user?.name || 'spec-upload',
     }
   )
 
@@ -145,7 +145,10 @@ specsRouter.get('/:service', async c => {
     return c.json({ error: 'Spec not found' }, 404)
   }
 
-  return c.json(spec.spec as any)
+  // Inject mock server URLs into the spec (specific version endpoint)
+  const specWithMock = injectMockServerUrls(spec.spec as OpenAPISpec, service, 'latest')
+
+  return c.json(specWithMock)
 })
 
 // List available versions for a service
@@ -187,11 +190,14 @@ specsRouter.get('/:service/by-provider-version', async c => {
   const allVersions = await getServiceVersions(db, tenantId, service)
 
   if (allVersions.length === 0) {
-    return c.json({
-      error: 'No versions found',
-      message: `No versions found for service '${service}'.`,
-      suggestion: `Upload a spec or record interactions for this service first.`,
-    }, 404)
+    return c.json(
+      {
+        error: 'No versions found',
+        message: `No versions found for service '${service}'.`,
+        suggestion: `Upload a spec or record interactions for this service first.`,
+      },
+      404
+    )
   }
 
   // Find best match using semver
@@ -208,21 +214,27 @@ specsRouter.get('/:service/by-provider-version', async c => {
       const match = findBestSemverMatch(requestedVersion, allVersions)
       if (match) {
         selectedVersion = allVersions.find(v => v.id === match.id)
-        console.log(`🔍 Version ${requestedVersion} not found for ${service}, using best semver match: ${match.version}`)
+        console.log(
+          `🔍 Version ${requestedVersion} not found for ${service}, using best semver match: ${match.version}`
+        )
       }
     }
   }
 
   if (!selectedVersion) {
-    return c.json({
-      error: 'No compatible version found',
-      message: `No compatible version found for '${requestedVersion}'.`,
-      requestedVersion: requestedVersion,
-      availableVersions: allVersions.map(v => v.version),
-      suggestion: allVersions.length > 0
-        ? `Try using one of the available versions: ${allVersions.map(v => v.version).join(', ')}`
-        : `No versions available for ${service}.`,
-    }, 404)
+    return c.json(
+      {
+        error: 'No compatible version found',
+        message: `No compatible version found for '${requestedVersion}'.`,
+        requestedVersion: requestedVersion,
+        availableVersions: allVersions.map(v => v.version),
+        suggestion:
+          allVersions.length > 0
+            ? `Try using one of the available versions: ${allVersions.map(v => v.version).join(', ')}`
+            : `No versions available for ${service}.`,
+      },
+      404
+    )
   }
 
   // Check if this version is deployed (for metadata)
@@ -237,9 +249,16 @@ specsRouter.get('/:service/by-provider-version', async c => {
     ),
   })
 
+  // Inject mock server URLs into the spec
+  const rawSpec = (selectedVersion as any).spec || {}
+  const urlType = requestedVersion === 'latest' ? 'latest' : 'version'
+  const specWithMock = rawSpec && Object.keys(rawSpec).length > 0
+    ? injectMockServerUrls(rawSpec as OpenAPISpec, service, urlType, selectedVersion.id)
+    : rawSpec
+
   // Return spec from ServiceVersion
   return c.json({
-    spec: (selectedVersion as any).spec || {}, // Return empty spec if none stored
+    spec: specWithMock, // Return spec with mock server URLs injected
     metadata: {
       providerVersion: selectedVersion.version, // Return actual version used
       serviceVersionId: selectedVersion.id,

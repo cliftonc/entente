@@ -7,7 +7,7 @@ import type {
 } from '@entente/types'
 import { Hono } from 'hono'
 
-import { and, count, desc, eq, gte, isNull } from 'drizzle-orm'
+import { and, count, desc, eq, gte, isNull, lte } from 'drizzle-orm'
 import {
   interactions,
   serviceDependencies,
@@ -81,17 +81,7 @@ verificationRouter.get('/result/:id', async c => {
 
         return {
           ...result,
-          interaction: interaction
-            ? {
-                method: (interaction.request as HTTPRequest)?.method,
-                path: (interaction.request as HTTPRequest)?.path,
-                operation: interaction.operation,
-                service: interaction.service,
-                consumer: interaction.consumer,
-                environment: interaction.environment,
-                timestamp: interaction.timestamp,
-              }
-            : null,
+          interaction: interaction || undefined,
         }
       }
       return result
@@ -196,7 +186,53 @@ verificationRouter.get('/pending', async c => {
 verificationRouter.get('/', async c => {
   const db = c.get('db')
   const { tenantId } = c.get('session')
-  const limit = Number.parseInt(c.req.query('limit') || '100')
+  const limit = Number.parseInt(c.req.query('limit') || '10')
+  const offset = Number.parseInt(c.req.query('offset') || '0')
+  const startDate = c.req.query('startDate')
+  const endDate = c.req.query('endDate')
+
+  // Build where conditions for filtering
+  const whereConditions = [eq(verificationResults.tenantId, tenantId)]
+
+  if (startDate) {
+    // Parse the date string - handle both YYYY-MM-DD format and ISO format
+    let startDateTime: Date
+    if (startDate.includes('T')) {
+      // Already an ISO string, just parse it
+      startDateTime = new Date(startDate)
+    } else {
+      // Date-only format, convert to start of day
+      startDateTime = new Date(startDate + 'T00:00:00.000Z')
+    }
+
+    if (!isNaN(startDateTime.getTime())) {
+      whereConditions.push(gte(verificationResults.submittedAt, startDateTime))
+    }
+  }
+
+  if (endDate) {
+    // Parse the date string - handle both YYYY-MM-DD format and ISO format
+    let endDateTime: Date
+    if (endDate.includes('T')) {
+      // Already an ISO string, just parse it
+      endDateTime = new Date(endDate)
+    } else {
+      // Date-only format, convert to end of day
+      endDateTime = new Date(endDate + 'T23:59:59.999Z')
+    }
+
+    if (!isNaN(endDateTime.getTime())) {
+      whereConditions.push(lte(verificationResults.submittedAt, endDateTime))
+    }
+  }
+
+  // Get total count for pagination with same filters
+  const [totalCountResult] = await db
+    .select({ count: count() })
+    .from(verificationResults)
+    .where(and(...whereConditions))
+
+  const totalCount = totalCountResult.count
 
   const dbResults = await db
     .select({
@@ -230,9 +266,10 @@ verificationRouter.get('/', async c => {
         eq(services.tenantId, tenantId)
       )
     )
-    .where(eq(verificationResults.tenantId, tenantId))
+    .where(and(...whereConditions))
     .orderBy(desc(verificationResults.submittedAt))
     .limit(limit)
+    .offset(offset)
 
   const results = dbResults.map(result => {
     const resultData = result.results as VerificationResult[]
@@ -263,7 +300,106 @@ verificationRouter.get('/', async c => {
     }
   })
 
-  return c.json(results)
+  // Calculate overall statistics (with same date filters)
+  const allResults = await db
+    .select({
+      results: verificationResults.results,
+    })
+    .from(verificationResults)
+    .where(and(...whereConditions))
+
+  const totalVerifications = allResults.length
+  let passedVerifications = 0
+  let failedVerifications = 0
+
+  for (const result of allResults) {
+    const resultData = result.results as VerificationResult[]
+    const total = resultData.length
+    const passed = resultData.filter(r => r.success).length
+
+    if (passed === total) {
+      passedVerifications++
+    } else {
+      failedVerifications++
+    }
+  }
+
+  const overallPassRate =
+    totalVerifications > 0 ? (passedVerifications / totalVerifications) * 100 : 0
+
+  return c.json({
+    results,
+    totalCount,
+    limit,
+    offset,
+    hasNextPage: offset + limit < totalCount,
+    hasPreviousPage: offset > 0,
+    statistics: {
+      totalVerifications,
+      passedVerifications,
+      failedVerifications,
+      overallPassRate,
+    },
+  })
+})
+
+// Get recent verification results for dashboard visualization
+verificationRouter.get('/recent', async c => {
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+
+  // Get recent verification results (last N days by default)
+  const days = Number.parseInt(c.req.query('days') || '30')
+  const limit = Number.parseInt(c.req.query('limit') || '1000')
+
+  // Calculate cutoff from end of today going back N days (in UTC)
+  const endOfToday = new Date()
+  endOfToday.setUTCHours(23, 59, 59, 999)
+  const daysAgo = new Date(endOfToday.getTime() - days * 24 * 60 * 60 * 1000)
+
+  console.log(`🔍 Querying recent verifications for tenant ${tenantId}`)
+  console.log(`📅 Days: ${days}, Limit: ${limit}`)
+  console.log(`⏰ End of today: ${endOfToday.toISOString()}`)
+  console.log(`⏰ Cutoff date: ${daysAgo.toISOString()}`)
+
+  const recentResults = await db
+    .select({
+      id: verificationResults.id,
+      provider: verificationResults.provider,
+      consumer: verificationResults.consumer,
+      submittedAt: verificationResults.submittedAt,
+      results: verificationResults.results,
+      taskConsumer: verificationTasks.consumer,
+    })
+    .from(verificationResults)
+    .leftJoin(verificationTasks, eq(verificationResults.taskId, verificationTasks.id))
+    .where(
+      and(eq(verificationResults.tenantId, tenantId), gte(verificationResults.submittedAt, daysAgo))
+    )
+    .orderBy(desc(verificationResults.submittedAt))
+    .limit(limit)
+
+  console.log(`📊 Found ${recentResults.length} recent verification results`)
+
+  const formattedResults = recentResults.map(result => {
+    const resultData = result.results as VerificationResult[]
+    const total = resultData.length
+    const passed = resultData.filter(r => r.success).length
+    const failed = total - passed
+
+    return {
+      id: result.id,
+      submittedAt: result.submittedAt,
+      status: passed === total ? 'passed' : 'failed',
+      provider: result.provider,
+      consumer: result.consumer || result.taskConsumer,
+      passed,
+      failed,
+      total,
+    }
+  })
+
+  return c.json(formattedResults)
 })
 
 // Get verification tasks for a provider

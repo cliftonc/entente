@@ -4,18 +4,16 @@
 
 import type { DeploymentState } from '@entente/types'
 import { useQuery } from '@tanstack/react-query'
-import { statsApi } from '../utils/api'
-import { queryKeys } from '../lib/queryKeys'
-import { defaultQueryOptions } from '../lib/queryClient'
-import type { HookState, HookConfig, ApiError } from '../lib/types'
 import { mergeHookConfig } from '../lib/hookUtils'
+import { defaultQueryOptions } from '../lib/queryClient'
+import { queryKeys } from '../lib/queryKeys'
+import type { ApiError, HookConfig, HookState } from '../lib/types'
+import { statsApi } from '../utils/api'
 
 /**
  * Hook to get dashboard statistics
  */
-export function useDashboardStats(
-  options?: HookConfig
-): HookState<{
+export function useDashboardStats(options?: HookConfig): HookState<{
   totalServices: number
   totalInteractions: number
   pendingFixtures: number

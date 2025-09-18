@@ -3,9 +3,8 @@ import { and, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { deployments, services, specs } from '../../db/schema'
 import type { DbSpec } from '../../db/types'
-import { ensureServiceVersion, getServiceVersions } from '../utils/service-versions'
 import { findBestSemverMatch, getLatestVersion } from '../utils/semver-match'
-
+import { ensureServiceVersion, getServiceVersions } from '../utils/service-versions'
 
 export const specsRouter = new Hono()
 
@@ -52,7 +51,7 @@ specsRouter.post('/:service', async c => {
       spec: spec,
       gitSha: metadata.gitSha,
       packageJson: metadata.packageJson,
-      createdBy: user?.name || 'spec-upload'
+      createdBy: user?.name || 'spec-upload',
     }
   )
 
@@ -187,11 +186,14 @@ specsRouter.get('/:service/by-provider-version', async c => {
   const allVersions = await getServiceVersions(db, tenantId, service)
 
   if (allVersions.length === 0) {
-    return c.json({
-      error: 'No versions found',
-      message: `No versions found for service '${service}'.`,
-      suggestion: `Upload a spec or record interactions for this service first.`,
-    }, 404)
+    return c.json(
+      {
+        error: 'No versions found',
+        message: `No versions found for service '${service}'.`,
+        suggestion: `Upload a spec or record interactions for this service first.`,
+      },
+      404
+    )
   }
 
   // Find best match using semver
@@ -208,21 +210,27 @@ specsRouter.get('/:service/by-provider-version', async c => {
       const match = findBestSemverMatch(requestedVersion, allVersions)
       if (match) {
         selectedVersion = allVersions.find(v => v.id === match.id)
-        console.log(`🔍 Version ${requestedVersion} not found for ${service}, using best semver match: ${match.version}`)
+        console.log(
+          `🔍 Version ${requestedVersion} not found for ${service}, using best semver match: ${match.version}`
+        )
       }
     }
   }
 
   if (!selectedVersion) {
-    return c.json({
-      error: 'No compatible version found',
-      message: `No compatible version found for '${requestedVersion}'.`,
-      requestedVersion: requestedVersion,
-      availableVersions: allVersions.map(v => v.version),
-      suggestion: allVersions.length > 0
-        ? `Try using one of the available versions: ${allVersions.map(v => v.version).join(', ')}`
-        : `No versions available for ${service}.`,
-    }, 404)
+    return c.json(
+      {
+        error: 'No compatible version found',
+        message: `No compatible version found for '${requestedVersion}'.`,
+        requestedVersion: requestedVersion,
+        availableVersions: allVersions.map(v => v.version),
+        suggestion:
+          allVersions.length > 0
+            ? `Try using one of the available versions: ${allVersions.map(v => v.version).join(', ')}`
+            : `No versions available for ${service}.`,
+      },
+      404
+    )
   }
 
   // Check if this version is deployed (for metadata)

@@ -5,41 +5,54 @@
 import type { VerificationResults, VerificationTask } from '@entente/types'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import React, { useCallback } from 'react'
-import { verificationApi } from '../utils/api'
-import { queryKeys } from '../lib/queryKeys'
-import { defaultQueryOptions } from '../lib/queryClient'
-import type { VerificationFilters, HookConfig, ApiError, HookState, ListHookState, ExtendedVerificationResult } from '../lib/types'
 import { mergeHookConfig } from '../lib/hookUtils'
+import { defaultQueryOptions } from '../lib/queryClient'
+import { queryKeys } from '../lib/queryKeys'
+import type {
+  ApiError,
+  ExtendedVerificationResult,
+  HookConfig,
+  HookState,
+  ListHookState,
+  VerificationFilters,
+} from '../lib/types'
+import { verificationApi } from '../utils/api'
 
 /**
- * Hook to get all verification results
+ * Hook to get all verification results with pagination
  */
 export function useVerificationResults(
-  options?: HookConfig
+  options?: HookConfig & { limit?: number; offset?: number; startDate?: string; endDate?: string }
 ): ListHookState<ExtendedVerificationResult> {
   const mergedOptions = mergeHookConfig(options)
+  const limit = options?.limit || 10
+  const offset = options?.offset || 0
+  const startDate = options?.startDate
+  const endDate = options?.endDate
 
   const query = useQuery({
-    queryKey: queryKeys.verification.list(),
-    queryFn: () => verificationApi.getAll(),
+    queryKey: queryKeys.verification.list(limit, offset, startDate, endDate),
+    queryFn: () => verificationApi.getAll(limit, offset, startDate, endDate),
     ...defaultQueryOptions,
     ...mergedOptions,
+    placeholderData: previousData => previousData, // Keep previous data during refetch
   })
 
   return {
-    data: query.data,
+    data: query.data?.results || [],
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error as ApiError | null,
     isFetching: query.isFetching,
     isSuccess: query.isSuccess,
     refetch: query.refetch,
-    isEmpty: !query.data || query.data.length === 0,
-    totalCount: query.data?.length,
-    hasNextPage: false,
-    hasPreviousPage: false,
-    currentPage: 1,
-    pageSize: query.data?.length || 0,
+    isEmpty: !query.data?.results || query.data.results.length === 0,
+    totalCount: query.data?.totalCount || 0,
+    hasNextPage: query.data ? offset + limit < query.data.totalCount : false,
+    hasPreviousPage: offset > 0,
+    currentPage: Math.floor(offset / limit) + 1,
+    pageSize: limit,
+    statistics: query.data?.statistics,
   }
 }
 
@@ -176,9 +189,7 @@ export function useVerificationTasks(
 /**
  * Hook to get all pending verification tasks
  */
-export function usePendingVerificationTasks(
-  options?: HookConfig
-): ListHookState<VerificationTask> {
+export function usePendingVerificationTasks(options?: HookConfig): ListHookState<VerificationTask> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({
@@ -286,9 +297,7 @@ export function useVerificationStats(
 /**
  * Hook to get overall verification statistics
  */
-export function useOverallVerificationStats(
-  options?: HookConfig
-) {
+export function useOverallVerificationStats(options?: HookConfig) {
   const mergedOptions = mergeHookConfig(options)
 
   // This combines data from multiple queries
@@ -311,27 +320,33 @@ export function useOverallVerificationStats(
 
     // Results by provider
     const resultsByProvider = Object.entries(
-      results.reduce((acc, result) => {
-        const provider = result.provider
-        if (!acc[provider]) {
-          acc[provider] = { passed: 0, failed: 0, total: 0 }
-        }
-        acc[provider].total += 1
-        if (result.status === 'passed') {
-          acc[provider].passed += 1
-        } else if (result.status === 'failed') {
-          acc[provider].failed += 1
-        }
-        return acc
-      }, {} as Record<string, { passed: number; failed: number; total: number }>)
+      results.reduce(
+        (acc, result) => {
+          const provider = result.provider
+          if (!acc[provider]) {
+            acc[provider] = { passed: 0, failed: 0, total: 0 }
+          }
+          acc[provider].total += 1
+          if (result.status === 'passed') {
+            acc[provider].passed += 1
+          } else if (result.status === 'failed') {
+            acc[provider].failed += 1
+          }
+          return acc
+        },
+        {} as Record<string, { passed: number; failed: number; total: number }>
+      )
     ).map(([provider, stats]) => ({ provider, ...stats }))
 
     // Results by status
     const resultsByStatus = Object.entries(
-      results.reduce((acc, result) => {
-        acc[result.status] = (acc[result.status] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
+      results.reduce(
+        (acc, result) => {
+          acc[result.status] = (acc[result.status] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>
+      )
     ).map(([status, count]) => ({ status, count }))
 
     return {
@@ -369,23 +384,35 @@ export function useInvalidateVerifications() {
     queryClient.invalidateQueries({ queryKey: queryKeys.verification.all })
   }, [queryClient])
 
-  const invalidateResult = useCallback((id: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.verification.detail(id) })
-  }, [queryClient])
+  const invalidateResult = useCallback(
+    (id: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.verification.detail(id) })
+    },
+    [queryClient]
+  )
 
-  const invalidateByProvider = useCallback((provider: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.verification.byProvider(provider) })
-    queryClient.invalidateQueries({ queryKey: queryKeys.verification.tasks(provider) })
-    queryClient.invalidateQueries({ queryKey: queryKeys.verification.stats(provider) })
-  }, [queryClient])
+  const invalidateByProvider = useCallback(
+    (provider: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.verification.byProvider(provider) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.verification.tasks(provider) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.verification.stats(provider) })
+    },
+    [queryClient]
+  )
 
-  const invalidateByConsumer = useCallback((consumer: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.verification.byConsumer(consumer) })
-  }, [queryClient])
+  const invalidateByConsumer = useCallback(
+    (consumer: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.verification.byConsumer(consumer) })
+    },
+    [queryClient]
+  )
 
-  const invalidateByContract = useCallback((contractId: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.verification.byContract(contractId) })
-  }, [queryClient])
+  const invalidateByContract = useCallback(
+    (contractId: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.verification.byContract(contractId) })
+    },
+    [queryClient]
+  )
 
   const invalidatePendingTasks = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.verification.pendingTasks() })

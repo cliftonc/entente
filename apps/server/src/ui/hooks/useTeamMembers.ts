@@ -2,21 +2,27 @@
  * Team management hooks with caching and state management
  */
 
-import type { TeamMember, InviteTeamMemberRequest } from '@entente/types'
+import type { InviteTeamMemberRequest, TeamMember } from '@entente/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { teamApi } from '../utils/api'
-import { queryKeys, getInvalidationQueries } from '../lib/queryKeys'
-import { createOptimisticMutationOptions, defaultQueryOptions } from '../lib/queryClient'
-import type { QueryOptions, MutationOptions, HookState, MutationHookState, ListHookState, HookConfig, ApiError } from '../lib/types'
 import { mergeHookConfig } from '../lib/hookUtils'
+import { createOptimisticMutationOptions, defaultQueryOptions } from '../lib/queryClient'
+import { getInvalidationQueries, queryKeys } from '../lib/queryKeys'
+import type {
+  ApiError,
+  HookConfig,
+  HookState,
+  ListHookState,
+  MutationHookState,
+  MutationOptions,
+  QueryOptions,
+} from '../lib/types'
+import { teamApi } from '../utils/api'
 
 /**
  * Hook to get team members
  */
-export function useTeamMembers(
-  options?: HookConfig
-): ListHookState<TeamMember> {
+export function useTeamMembers(options?: HookConfig): ListHookState<TeamMember> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({

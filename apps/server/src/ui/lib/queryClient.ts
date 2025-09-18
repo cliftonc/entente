@@ -1,4 +1,4 @@
-import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query'
+import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 import type { OptimisticContext } from './types'
 
 /**
@@ -223,19 +223,33 @@ export const defaultQueryOptions = {
 /**
  * Default mutation options with optimistic updates support
  */
-export const createOptimisticMutationOptions = <TData, TVariables, TContext = OptimisticContext>(options: {
+export const createOptimisticMutationOptions = <
+  TData,
+  TVariables,
+  TContext = OptimisticContext,
+>(options: {
   mutationFn: (variables: TVariables) => Promise<TData>
   onMutate?: (variables: TVariables) => Promise<TContext | undefined>
   onError?: (error: Error, variables: TVariables, context: TContext | undefined) => void
   onSuccess?: (data: TData, variables: TVariables, context: TContext | undefined) => void
-  onSettled?: (data: TData | undefined, error: Error | null, variables: TVariables, context: TContext | undefined) => void
+  onSettled?: (
+    data: TData | undefined,
+    error: Error | null,
+    variables: TVariables,
+    context: TContext | undefined
+  ) => void
   invalidateQueries?: readonly (readonly string[])[]
 }) => {
   const { invalidateQueries: invalidationQueries, onSettled, ...rest } = options
 
   return {
     ...rest,
-    onSettled: (data: TData | undefined, error: Error | null, variables: TVariables, context: TContext | undefined) => {
+    onSettled: (
+      data: TData | undefined,
+      error: Error | null,
+      variables: TVariables,
+      context: TContext | undefined
+    ) => {
       // Always invalidate specified queries after mutation
       if (invalidationQueries) {
         invalidationQueries.forEach(queryKey => {
@@ -256,7 +270,10 @@ export const websocketHelpers = {
   /**
    * Update query data from WebSocket events
    */
-  updateQueryFromWebSocket: <TData>(queryKey: readonly string[], updater: (old: TData | undefined) => TData) => {
+  updateQueryFromWebSocket: <TData>(
+    queryKey: readonly string[],
+    updater: (old: TData | undefined) => TData
+  ) => {
     queryClient.setQueryData(queryKey, updater)
   },
 
@@ -273,26 +290,32 @@ export const websocketHelpers = {
    * Add new item to list from WebSocket
    */
   addItemToList: <TItem>(queryKey: readonly string[], newItem: TItem) => {
-    queryClient.setQueryData<TItem[]>(queryKey, old =>
-      old ? [newItem, ...old] : [newItem]
-    )
+    queryClient.setQueryData<TItem[]>(queryKey, old => (old ? [newItem, ...old] : [newItem]))
   },
 
   /**
    * Update item in list from WebSocket
    */
-  updateItemInList: <TItem extends { id: string }>(queryKey: readonly string[], updatedItem: TItem) => {
-    queryClient.setQueryData<TItem[]>(queryKey, old =>
-      old?.map(item => item.id === updatedItem.id ? updatedItem : item) || []
+  updateItemInList: <TItem extends { id: string }>(
+    queryKey: readonly string[],
+    updatedItem: TItem
+  ) => {
+    queryClient.setQueryData<TItem[]>(
+      queryKey,
+      old => old?.map(item => (item.id === updatedItem.id ? updatedItem : item)) || []
     )
   },
 
   /**
    * Remove item from list from WebSocket
    */
-  removeItemFromList: <TItem extends { id: string }>(queryKey: readonly string[], itemId: string) => {
-    queryClient.setQueryData<TItem[]>(queryKey, old =>
-      old?.filter(item => item.id !== itemId) || []
+  removeItemFromList: <TItem extends { id: string }>(
+    queryKey: readonly string[],
+    itemId: string
+  ) => {
+    queryClient.setQueryData<TItem[]>(
+      queryKey,
+      old => old?.filter(item => item.id !== itemId) || []
     )
   },
 }

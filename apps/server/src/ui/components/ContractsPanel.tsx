@@ -75,12 +75,6 @@ function ContractsPanel({
             <div className="divider">Recent Contracts</div>
             <div className="space-y-3">
               {contracts.slice(0, 5).map(contract => {
-                const otherServiceName =
-                  serviceType === 'provider' ? contract.consumerName : contract.providerName
-                const otherServiceVersion =
-                  serviceType === 'provider' ? contract.consumerVersion : contract.providerVersion
-                const otherServiceTypeLabel = serviceType === 'provider' ? 'consumer' : 'provider'
-
                 return (
                   <Link
                     key={contract.id}
@@ -88,18 +82,26 @@ function ContractsPanel({
                     className="block bg-base-200 rounded-lg p-3 hover:bg-base-300 transition-colors"
                   >
                     <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="font-medium text-sm">{otherServiceName}</div>
-                        <VersionBadge
-                          version={otherServiceVersion}
-                          serviceName={otherServiceName}
-                          serviceType={otherServiceTypeLabel as 'consumer' | 'provider'}
-
-                        />
-                        <span className="text-xs text-base-content/70">
-                          <TimestampDisplay
-                            timestamp={contract.lastSeen}
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium text-sm">{contract.consumerName}</div>
+                          <VersionBadge
+                            version={contract.consumerVersion}
+                            serviceName={contract.consumerName}
+                            serviceType="consumer"
                           />
+                        </div>
+                        <span className="text-base-content/40">→</span>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium text-sm">{contract.providerName}</div>
+                          <VersionBadge
+                            version={contract.providerVersion}
+                            serviceName={contract.providerName}
+                            serviceType="provider"
+                          />
+                        </div>
+                        <span className="text-xs text-base-content/70">
+                          <TimestampDisplay timestamp={contract.lastSeen} />
                         </span>
                       </div>
                       <div className="flex items-center gap-2">

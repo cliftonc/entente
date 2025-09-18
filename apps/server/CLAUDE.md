@@ -6,7 +6,7 @@ Central Entente service providing both REST API (Hono) and admin web interface (
 ## Architecture
 - **Backend**: Hono framework (Cloudflare Worker compatible)
 - **Frontend**: React + Vite + Tailwind CSS + DaisyUI
-- **Database**: Prepared for Neon PostgreSQL (currently using mock data)
+- **Database**: Prepared for Neon PostgreSQL
 - **Deployment**: Configured for both local development and Cloudflare Workers
 
 ## Project Structure
@@ -60,29 +60,24 @@ apps/server/
 # Start both API and UI in development
 pnpm dev
 
-# Start API only (port 3001) - uses Node.js server
-pnpm dev:api
+# Check types
+pnpm typecheck
 
-# Start API as Cloudflare Worker (for testing worker-specific features)
-pnpm dev:api:worker
-
-# Start UI only (port 3000)
-pnpm dev:ui
-
-# Build for production
+# Build
 pnpm build
 
 # Deploy to Cloudflare Workers
 pnpm deploy
 ```
 
+It is important that you correctly add types and typecheck all new features.  Avoid the use of any unless there is no alternative.
+
 ## Development vs Production
-- **Development**: Uses `@hono/node-server` for fast local development with hot reload
+- **Development**: Uses cloudflare worker for fast local development with hot reload
 - **Production**: Deploys as Cloudflare Worker for serverless execution
-- **Testing Workers**: Use `dev:api:worker` to test worker-specific features locally
 
 ## Environment Variables
-Required environment variables in `.env`:
+Required environment variables in `.dev.vars`:
 
 ```bash
 # Database
@@ -103,17 +98,16 @@ Connected to Neon PostgreSQL with Drizzle ORM:
 - **Database**: Neon PostgreSQL (serverless)
 - **ORM**: Drizzle ORM with schema definitions
 - **Migrations**: Available via `pnpm db:migrate`
-- **Studio**: Database browser via `pnpm db:studio`
 
 ### Database Commands
 ```bash
 pnpm db:generate  # Generate migration files
 pnpm db:migrate   # Run pending migrations
-pnpm db:push      # Push schema changes directly
-pnpm db:studio    # Open Drizzle Studio
 ```
 
 ## Authentication System
+
+IMPORTANT:  If you need an authorization token you can typically find one in ~/entente/entente.json,
 
 ### GitHub OAuth Flow
 The application uses GitHub OAuth for authentication:
@@ -171,8 +165,7 @@ Using DaisyUI theme called "entente" with:
 - ✅ Session management and protected routes
 - ✅ TanStack Query + Zustand state management
 - ✅ Environment variable system for development and production
-- ❌ Real-time notifications
-- ❌ File upload handling
+- ✅ Real-time notifications
 
 ## Next Steps
 1. **Real-time Updates**: WebSocket integration for live updates

@@ -87,15 +87,18 @@ export async function getInstallationInfo(
   )
 
   const account = installationData.account
-  const accountInfo = account && 'login' in account ? {
-    id: account.id,
-    login: account.login,
-    type: account.type as 'User' | 'Organization',
-  } : {
-    id: 0,
-    login: '',
-    type: 'User' as const,
-  }
+  const accountInfo =
+    account && 'login' in account
+      ? {
+          id: account.id,
+          login: account.login,
+          type: account.type as 'User' | 'Organization',
+        }
+      : {
+          id: 0,
+          login: '',
+          type: 'User' as const,
+        }
 
   return {
     id: installationData.id,

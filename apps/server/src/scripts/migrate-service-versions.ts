@@ -10,11 +10,14 @@
  *   npx tsx src/scripts/migrate-service-versions.ts
  */
 
+import { neon } from '@neondatabase/serverless'
 import { config } from 'dotenv'
 import { drizzle } from 'drizzle-orm/neon-http'
-import { neon } from '@neondatabase/serverless'
+import {
+  migrateExistingServiceVersions,
+  validateServiceVersionsMigration,
+} from '../api/utils/migrate-service-versions'
 import * as schema from '../db/schema'
-import { migrateExistingServiceVersions, validateServiceVersionsMigration } from '../api/utils/migrate-service-versions'
 
 // Load environment variables from .env file
 config()

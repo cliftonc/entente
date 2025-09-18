@@ -5,13 +5,13 @@ import GitHubIntegrationPanel from '../components/GitHubIntegrationPanel'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VerificationPanel from '../components/VerificationPanel'
 import VersionBadge from '../components/VersionBadge'
+import { useContractsByConsumer } from '../hooks/useContracts'
+import { useDeploymentHistory } from '../hooks/useDeployments'
+import { useGitHubInstallation } from '../hooks/useGitHubIntegration'
+import { useInteractions } from '../hooks/useInteractions'
 import { useService } from '../hooks/useServices'
 import { useServiceVersions } from '../hooks/useServices'
-import { useDeploymentHistory } from '../hooks/useDeployments'
-import { useVerificationsByConsumer, usePendingVerificationTasks } from '../hooks/useVerifications'
-import { useContractsByConsumer } from '../hooks/useContracts'
-import { useInteractions } from '../hooks/useInteractions'
-import { useGitHubInstallation } from '../hooks/useGitHubIntegration'
+import { usePendingVerificationTasks, useVerificationsByConsumer } from '../hooks/useVerifications'
 
 function ConsumerDetail() {
   const { name } = useParams<{ name: string }>()
@@ -33,20 +33,22 @@ function ConsumerDetail() {
     { enabled: !!name }
   )
 
-  const { data: pendingTasks, isLoading: pendingTasksLoading } = usePendingVerificationTasks(
-    { enabled: !!name }
-  )
+  const { data: pendingTasks, isLoading: pendingTasksLoading } = usePendingVerificationTasks({
+    enabled: !!name,
+  })
 
   // Fetch contracts for this consumer (contracts where this service is the consumer)
-  const { data: contracts, isLoading: contractsLoading } = useContractsByConsumer(
-    name || '',
-    { enabled: !!name }
-  )
+  const { data: contracts, isLoading: contractsLoading } = useContractsByConsumer(name || '', {
+    enabled: !!name,
+  })
 
   // Fetch all interactions for this consumer to get accurate counts
-  const { data: consumerInteractions } = useInteractions({
-    consumer: name,
-  }, { enabled: !!name })
+  const { data: consumerInteractions } = useInteractions(
+    {
+      consumer: name,
+    },
+    { enabled: !!name }
+  )
 
   // Check if tenant has GitHub app installation
   const { data: githubInstallation } = useGitHubInstallation()
@@ -167,7 +169,6 @@ function ConsumerDetail() {
               </div>
             </div>
           </div>
-
 
           {/* Pending Verification */}
           {!pendingTasksLoading && consumerPendingTasks.length > 0 && (
@@ -411,7 +412,6 @@ function ConsumerDetail() {
               )}
             </div>
           </div>
-
         </div>
       </div>
     </div>

@@ -5,19 +5,19 @@
 import type { ApiKey, CreateKeyRequest } from '@entente/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { keysApi } from '../utils/api'
-import { queryKeys, getInvalidationQueries } from '../lib/queryKeys'
+import { mergeHookConfig } from '../lib/hookUtils'
 import { defaultQueryOptions } from '../lib/queryClient'
+import { getInvalidationQueries, queryKeys } from '../lib/queryKeys'
 import type {
-  QueryOptions,
-  MutationOptions,
+  ApiError,
+  HookConfig,
   HookState,
   ListHookState,
   MutationHookState,
-  HookConfig,
-  ApiError,
+  MutationOptions,
+  QueryOptions,
 } from '../lib/types'
-import { mergeHookConfig } from '../lib/hookUtils'
+import { keysApi } from '../utils/api'
 
 /**
  * Hook to get all API keys

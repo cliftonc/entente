@@ -11,9 +11,7 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -24,20 +22,10 @@
     "@entente/fixtures": "workspace:*",
     "@entente/types": "workspace:*"
   },
-  "peerDependencies": {
-    "@stoplight/prism-http": "^5.8.0"
-  },
   "devDependencies": {
-    "@stoplight/prism-http": "^5.8.0",
-    "@stoplight/prism-core": "^5.8.0",
     "@types/node": "^22.10.6",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
-  "keywords": [
-    "contract-testing",
-    "consumer",
-    "testing",
-    "mocking"
-  ]
+  "keywords": ["contract-testing", "consumer", "testing", "mocking"]
 }

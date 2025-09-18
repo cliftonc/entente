@@ -220,7 +220,6 @@ function ProviderDetail() {
             </div>
           </div>
 
-
           {/* Pending Verification */}
           {!pendingTasksLoading && providerPendingTasks.length > 0 && (
             <VerificationPanel
@@ -464,7 +463,6 @@ function ProviderDetail() {
             </div>
           </div>
 
-
           {/* Draft Fixtures */}
           <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
@@ -490,7 +488,6 @@ function ProviderDetail() {
                               version={fixture.serviceVersion || 'latest'}
                               serviceName={fixture.service}
                               serviceType="provider"
-
                             />
                           </div>
                         </div>

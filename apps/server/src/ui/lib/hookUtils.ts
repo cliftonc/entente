@@ -2,16 +2,16 @@
  * Utility functions and helpers for data hooks
  */
 
-import { useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { type QueryClient, useQueryClient } from '@tanstack/react-query'
 import React, { useCallback, useMemo, useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type {
   BaseFilters,
-  OptimisticContext,
-  URLParamConfig,
-  SortConfig,
   HookConfig,
   InvalidationStrategy,
+  OptimisticContext,
+  SortConfig,
+  URLParamConfig,
 } from './types'
 import { DEFAULT_HOOK_CONFIG } from './types'
 
@@ -30,9 +30,7 @@ export function useURLParams<T extends Record<string, unknown>>(
       const paramValue = searchParams.get(config.key)
 
       if (paramValue !== null) {
-        const deserializedValue = config.deserializer
-          ? config.deserializer(paramValue)
-          : paramValue
+        const deserializedValue = config.deserializer ? config.deserializer(paramValue) : paramValue
 
         if (!config.validate || config.validate(deserializedValue as T[keyof T])) {
           result[key as keyof T] = deserializedValue as T[keyof T]
@@ -47,24 +45,25 @@ export function useURLParams<T extends Record<string, unknown>>(
     return result
   }, [searchParams, configs])
 
-  const updateParams = useCallback((updates: Partial<T>) => {
-    const newParams = new URLSearchParams(searchParams)
+  const updateParams = useCallback(
+    (updates: Partial<T>) => {
+      const newParams = new URLSearchParams(searchParams)
 
-    for (const [key, value] of Object.entries(updates)) {
-      const config = configs[key as keyof T]
+      for (const [key, value] of Object.entries(updates)) {
+        const config = configs[key as keyof T]
 
-      if (value === undefined || value === config.defaultValue) {
-        newParams.delete(config.key)
-      } else {
-        const serializedValue = config.serializer
-          ? config.serializer(value)
-          : String(value)
-        newParams.set(config.key, serializedValue)
+        if (value === undefined || value === config.defaultValue) {
+          newParams.delete(config.key)
+        } else {
+          const serializedValue = config.serializer ? config.serializer(value) : String(value)
+          newParams.set(config.key, serializedValue)
+        }
       }
-    }
 
-    setSearchParams(newParams)
-  }, [searchParams, setSearchParams, configs])
+      setSearchParams(newParams)
+    },
+    [searchParams, setSearchParams, configs]
+  )
 
   const clearParams = useCallback(() => {
     setSearchParams({})
@@ -84,7 +83,7 @@ export function useFilters<T extends BaseFilters>(
 
   // Use URL params if config is provided
   const [urlParams, updateUrlParams, clearUrlParams] = useURLParams(
-    urlConfig || {} as Record<keyof T, URLParamConfig<T[keyof T]>>
+    urlConfig || ({} as Record<keyof T, URLParamConfig<T[keyof T]>>)
   )
 
   const filters = hasUrlConfig ? urlParams : initialFilters
@@ -117,23 +116,26 @@ export function useSort<T extends string>(
     return defaultSort
   }, [searchParams, defaultSort, allowedFields])
 
-  const updateSort = useCallback((field: T) => {
-    const newParams = new URLSearchParams(searchParams)
-    const currentField = searchParams.get('sort')
-    const currentDirection = searchParams.get('direction')
+  const updateSort = useCallback(
+    (field: T) => {
+      const newParams = new URLSearchParams(searchParams)
+      const currentField = searchParams.get('sort')
+      const currentDirection = searchParams.get('direction')
 
-    if (currentField === field) {
-      // Toggle direction if same field
-      const newDirection = currentDirection === 'asc' ? 'desc' : 'asc'
-      newParams.set('direction', newDirection)
-    } else {
-      // New field, default to asc
-      newParams.set('sort', field)
-      newParams.set('direction', 'asc')
-    }
+      if (currentField === field) {
+        // Toggle direction if same field
+        const newDirection = currentDirection === 'asc' ? 'desc' : 'asc'
+        newParams.set('direction', newDirection)
+      } else {
+        // New field, default to asc
+        newParams.set('sort', field)
+        newParams.set('direction', 'asc')
+      }
 
-    setSearchParams(newParams)
-  }, [searchParams, setSearchParams])
+      setSearchParams(newParams)
+    },
+    [searchParams, setSearchParams]
+  )
 
   const clearSort = useCallback(() => {
     const newParams = new URLSearchParams(searchParams)
@@ -148,17 +150,19 @@ export function useSort<T extends string>(
 /**
  * Hook for managing pagination state
  */
-export function usePagination(defaultPageSize = 50): [
+export function usePagination(
+  defaultPageSize = 50
+): [
   { page: number; pageSize: number },
   (page: number) => void,
   (pageSize: number) => void,
-  () => void
+  () => void,
 ] {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const pagination = useMemo(() => {
-    const page = parseInt(searchParams.get('page') || '1', 10)
-    const pageSize = parseInt(searchParams.get('pageSize') || String(defaultPageSize), 10)
+    const page = Number.parseInt(searchParams.get('page') || '1', 10)
+    const pageSize = Number.parseInt(searchParams.get('pageSize') || String(defaultPageSize), 10)
 
     return {
       page: Math.max(1, page),
@@ -166,22 +170,28 @@ export function usePagination(defaultPageSize = 50): [
     }
   }, [searchParams, defaultPageSize])
 
-  const setPage = useCallback((page: number) => {
-    const newParams = new URLSearchParams(searchParams)
-    if (page > 1) {
-      newParams.set('page', String(page))
-    } else {
-      newParams.delete('page')
-    }
-    setSearchParams(newParams)
-  }, [searchParams, setSearchParams])
+  const setPage = useCallback(
+    (page: number) => {
+      const newParams = new URLSearchParams(searchParams)
+      if (page > 1) {
+        newParams.set('page', String(page))
+      } else {
+        newParams.delete('page')
+      }
+      setSearchParams(newParams)
+    },
+    [searchParams, setSearchParams]
+  )
 
-  const setPageSize = useCallback((pageSize: number) => {
-    const newParams = new URLSearchParams(searchParams)
-    newParams.set('pageSize', String(pageSize))
-    newParams.delete('page') // Reset to first page when changing page size
-    setSearchParams(newParams)
-  }, [searchParams, setSearchParams])
+  const setPageSize = useCallback(
+    (pageSize: number) => {
+      const newParams = new URLSearchParams(searchParams)
+      newParams.set('pageSize', String(pageSize))
+      newParams.delete('page') // Reset to first page when changing page size
+      setSearchParams(newParams)
+    },
+    [searchParams, setSearchParams]
+  )
 
   const resetPagination = useCallback(() => {
     const newParams = new URLSearchParams(searchParams)
@@ -224,7 +234,7 @@ export function createOptimisticListUpdater<T extends { id: string }>(
       const previousData = queryClient.getQueryData<T[]>(queryKey)
 
       // Optimistically update to the new value
-      queryClient.setQueryData<T[]>(queryKey, (old) => {
+      queryClient.setQueryData<T[]>(queryKey, old => {
         if (!old) return []
 
         switch (operation) {
@@ -237,7 +247,8 @@ export function createOptimisticListUpdater<T extends { id: string }>(
             )
 
           case 'remove':
-            const idToRemove = typeof variables === 'string' ? variables : (variables as { id: string }).id
+            const idToRemove =
+              typeof variables === 'string' ? variables : (variables as { id: string }).id
             return old.filter(item => item.id !== idToRemove)
 
           default:
@@ -248,7 +259,11 @@ export function createOptimisticListUpdater<T extends { id: string }>(
       return { previousData }
     },
 
-    onError: (_error: unknown, _variables: unknown, context: OptimisticContext<T[]> | undefined) => {
+    onError: (
+      _error: unknown,
+      _variables: unknown,
+      context: OptimisticContext<T[]> | undefined
+    ) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousData) {
         queryClient.setQueryData(queryKey, context.previousData)
@@ -334,11 +349,7 @@ export function useDebounce<T>(value: T, delay: number): T {
 /**
  * Helper to create consistent error messages
  */
-export function createErrorMessage(
-  operation: string,
-  entity: string,
-  error: unknown
-): string {
+export function createErrorMessage(operation: string, entity: string, error: unknown): string {
   const baseMessage = `Failed to ${operation} ${entity}`
 
   if (error instanceof Error) {
@@ -401,6 +412,6 @@ export function isStale(timestamp: number, staleTime: number): boolean {
  */
 export function formatQueryKey(queryKey: readonly unknown[]): string {
   return queryKey
-    .map(key => typeof key === 'object' ? JSON.stringify(key) : String(key))
+    .map(key => (typeof key === 'object' ? JSON.stringify(key) : String(key)))
     .join(' > ')
 }

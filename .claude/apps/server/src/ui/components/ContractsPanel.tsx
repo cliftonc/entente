@@ -94,7 +94,6 @@ function ContractsPanel({
                           version={otherServiceVersion}
                           serviceName={otherServiceName}
                           serviceType={otherServiceTypeLabel as 'consumer' | 'provider'}
-
                         />
                         <span className="text-xs text-base-content/70">
                           <TimestampDisplay

@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import TimestampDisplay from '../components/TimestampDisplay'
+import VerificationBar from '../components/VerificationBar'
 import VersionBadge from '../components/VersionBadge'
 import { useAuth } from '../hooks/useAuth'
 import { useDashboardStats } from '../hooks/useStats'
@@ -12,11 +13,7 @@ function Dashboard() {
   const queryClient = useQueryClient()
   const { tenants, currentTenantId, selectTenant, refresh } = useAuth()
 
-  const {
-    data: dashboardStats,
-    isLoading,
-    error,
-  } = useDashboardStats()
+  const { data: dashboardStats, isLoading, error } = useDashboardStats()
 
   // Handle invitation acceptance
   useEffect(() => {
@@ -175,6 +172,13 @@ function Dashboard() {
         </Link>
       </div>
 
+      {/* Verification Activity Bar */}
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body">
+          <VerificationBar days={7} />
+        </div>
+      </div>
+
       {/* Recent Activity and Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Deployments */}
@@ -230,7 +234,6 @@ function Dashboard() {
                             version={deployment.version}
                             serviceName={deployment.service}
                             serviceType={(deployment.type as 'consumer' | 'provider') || 'provider'}
-
                           />
                           {deployment.status === 'failed' && (
                             <span className="text-error">• Blocked</span>

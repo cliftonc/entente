@@ -2,17 +2,17 @@ import type { Fixture } from '@entente/types'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import GetStartedButton from '../components/GetStartedButton'
-import FixturesExample from '../components/get-started-examples/FixturesExample'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
+import FixturesExample from '../components/get-started-examples/FixturesExample'
 import { useAuth } from '../hooks/useAuth'
 import {
-  useFixtures,
+  useApproveAllFixtures,
   useApproveFixture,
+  useFixtureServicesSummary,
+  useFixtures,
   useRejectFixture,
   useRevokeFixture,
-  useApproveAllFixtures,
-  useFixtureServicesSummary,
 } from '../hooks/useFixtures'
 
 function Fixtures() {

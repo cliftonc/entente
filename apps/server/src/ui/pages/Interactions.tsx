@@ -254,7 +254,6 @@ function Interactions() {
                           version={interaction.consumerVersion}
                           serviceName={interaction.consumer}
                           serviceType="consumer"
-                          
                         />
                       </td>
                       <td>

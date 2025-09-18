@@ -45,9 +45,12 @@ deploymentsRouter.post('/consumer', async c => {
   )
 
   if (!serviceVersion) {
-    return c.json({
-      error: `Service version not found: ${consumerDeployment.name}@${consumerDeployment.version}. Please register this version first through service registration or interaction recording.`
-    }, 404)
+    return c.json(
+      {
+        error: `Service version not found: ${consumerDeployment.name}@${consumerDeployment.version}. Please register this version first through service registration or interaction recording.`,
+      },
+      404
+    )
   }
 
   // Create deployment record
@@ -135,9 +138,12 @@ deploymentsRouter.post('/provider', async c => {
   )
 
   if (!serviceVersion) {
-    return c.json({
-      error: `Service version not found: ${providerDeployment.name}@${providerDeployment.version}. Please register this version first through service registration or spec upload.`
-    }, 404)
+    return c.json(
+      {
+        error: `Service version not found: ${providerDeployment.name}@${providerDeployment.version}. Please register this version first through service registration or spec upload.`,
+      },
+      404
+    )
   }
 
   // Create deployment record

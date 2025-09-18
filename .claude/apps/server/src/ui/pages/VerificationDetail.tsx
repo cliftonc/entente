@@ -149,7 +149,6 @@ function VerificationDetail() {
               version={verification.providerVersion}
               serviceName={verification.provider}
               serviceType="provider"
-
             />
           </li>
         </ul>
@@ -170,7 +169,6 @@ function VerificationDetail() {
                   version={verification.providerVersion}
                   serviceName={verification.provider}
                   serviceType="provider"
-                  
                 />
               </div>
               <div>
@@ -183,7 +181,6 @@ function VerificationDetail() {
                     version={verification.consumerVersion || 'N/A'}
                     serviceName={verification.consumer}
                     serviceType="consumer"
-                    
                   />
                 ) : (
                   <span>N/A</span>

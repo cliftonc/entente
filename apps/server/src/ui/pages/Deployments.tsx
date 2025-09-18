@@ -1,13 +1,20 @@
-import { useEffect, useState } from 'react'
+import type { DeploymentState } from '@entente/types'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ConsumerFilter from '../components/ConsumerFilter'
 import GetStartedButton from '../components/GetStartedButton'
-import DeploymentsExample from '../components/get-started-examples/DeploymentsExample'
 import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
-import { useActiveDeploymentsAllEnvs, useActiveDeployments, useDeploymentSummary, useEnvironments } from '../hooks/useDeployments'
+import DeploymentsExample from '../components/get-started-examples/DeploymentsExample'
+import {
+  useActiveDeployments,
+  useActiveDeploymentsAllEnvs,
+  useDeploymentSummary,
+  useEnvironments,
+  usePaginatedDeployments,
+} from '../hooks/useDeployments'
 
 // Modal component for failure details
 function FailureDetailsModal({
@@ -90,6 +97,9 @@ function Deployments() {
   const [consumerFilter, setConsumerFilter] = useState(searchParams.get('consumer') || '')
   const [selectedFailedDeployment, setSelectedFailedDeployment] = useState<any>(null)
   const [isFailureModalOpen, setIsFailureModalOpen] = useState(false)
+  const [displayedDeployments, setDisplayedDeployments] = useState<DeploymentState[]>([])
+  const [currentOffset, setCurrentOffset] = useState(0)
+  const pageSize = 10
 
   // Update filters when URL params change
   useEffect(() => {
@@ -101,62 +111,143 @@ function Deployments() {
 
   const { data: environments, isLoading: environmentsLoading } = useEnvironments()
 
+  const { data: summary, isLoading, error } = useDeploymentSummary()
+
+  // Use paginated deployments when "ALL" environments is selected
   const {
-    data: summary,
-    isLoading,
-    error,
-  } = useDeploymentSummary()
+    data: paginatedDeployments,
+    isLoading: isPaginatedLoading,
+    error: paginatedError,
+    hasNextPage,
+    totalCount,
+    statistics,
+    isFetching,
+    environmentBreakdown,
+  } = usePaginatedDeployments({
+    limit: pageSize,
+    offset: currentOffset,
+    status: statusFilter,
+    provider: providerFilter || undefined,
+    consumer: consumerFilter || undefined,
+    environment: selectedEnvironment,
+  })
 
-  const { data: activeDeployments, isLoading: activeLoading } = selectedEnvironment === 'ALL'
-    ? useActiveDeploymentsAllEnvs()
-    : useActiveDeployments(`${selectedEnvironment}&include_inactive=true`)
+  const { data: activeDeployments, isLoading: activeLoading } =
+    selectedEnvironment !== 'ALL'
+      ? useActiveDeployments(`${selectedEnvironment}&include_inactive=true`)
+      : { data: [], isLoading: false }
 
-  // Filter deployments by provider, consumer, and status
+  // Reset pagination when environment or filters change (MUST run before data update)
+  useEffect(() => {
+    console.log('Filters changed, resetting pagination:', {
+      selectedEnvironment,
+      statusFilter,
+      providerFilter,
+      consumerFilter,
+    })
+    setCurrentOffset(0)
+    setDisplayedDeployments([])
+  }, [selectedEnvironment, providerFilter, consumerFilter, statusFilter])
+
+  // Update displayed deployments when new data is loaded (for paginated view)
+  useEffect(() => {
+    // Only update if we're showing ALL environments and have data
+    if (selectedEnvironment !== 'ALL' || paginatedDeployments === undefined) {
+      return
+    }
+
+    console.log('Data update effect:', {
+      selectedEnvironment,
+      currentOffset,
+      paginatedDeploymentsLength: paginatedDeployments?.length,
+      displayedDeploymentsLength: displayedDeployments.length,
+    })
+
+    if (paginatedDeployments.length === 0 && currentOffset === 0) {
+      // Empty result set for new filter - clear displayed results
+      console.log('Empty result set - clearing displayed deployments')
+      setDisplayedDeployments([])
+      return
+    }
+
+    if (paginatedDeployments.length > 0) {
+      if (currentOffset === 0) {
+        // First page - replace all results
+        console.log('Setting new first page with', paginatedDeployments.length, 'items')
+        setDisplayedDeployments(paginatedDeployments)
+      } else {
+        // Additional pages - append to existing results, avoiding duplicates
+        setDisplayedDeployments(prev => {
+          const existingIds = new Set(prev.map(item => item.id))
+          const newItems = paginatedDeployments.filter(item => !existingIds.has(item.id))
+          console.log('Appending', newItems.length, 'new items to existing', prev.length)
+          return [...prev, ...newItems]
+        })
+      }
+    }
+  }, [paginatedDeployments])
+
+  // Determine which deployment data to use (filters are now applied on backend for paginated data)
   const filteredDeployments =
-    activeDeployments?.filter(deployment => {
-      if (providerFilter && deployment.service !== providerFilter) return false
-      if (consumerFilter && deployment.consumer !== consumerFilter) return false
-      if (statusFilter === 'active' && !deployment.active) return false
-      if (statusFilter === 'inactive' && deployment.active) return false
-      if (
-        statusFilter === 'active-or-blocked' &&
-        !(deployment.active || deployment.status === 'failed')
-      )
-        return false
-      return true
-    }) || []
+    selectedEnvironment === 'ALL'
+      ? displayedDeployments
+      : activeDeployments?.filter(deployment => {
+          if (providerFilter && deployment.service !== providerFilter) return false
+          if (consumerFilter && deployment.consumer !== consumerFilter) return false
+          if (statusFilter === 'active' && !deployment.active) return false
+          if (statusFilter === 'inactive' && deployment.active) return false
+          if (
+            statusFilter === 'active-or-blocked' &&
+            !(deployment.active || deployment.status === 'failed')
+          )
+            return false
+          return true
+        }) || []
 
-  // Calculate deployment counts by environment from filtered deployments
+  // Use environment breakdown from API when available (for ALL environments), otherwise calculate from client data
   const deploymentsByEnv =
-    filteredDeployments?.reduce(
-      (acc, deployment) => {
-        acc[deployment.environment] = (acc[deployment.environment] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>
-    ) ||
-    {}
+    selectedEnvironment === 'ALL' && environmentBreakdown
+      ? Object.fromEntries(
+          Object.entries(environmentBreakdown).map(([env, data]) => [env, data.total])
+        )
+      : filteredDeployments?.reduce(
+          (acc, deployment) => {
+            acc[deployment.environment] = (acc[deployment.environment] || 0) + 1
+            return acc
+          },
+          {} as Record<string, number>
+        ) || {}
 
-  // Calculate total deployments across all environments
-  const totalDeployments = Object.values(deploymentsByEnv).reduce((sum: number, count: number) => sum + count, 0)
+  // Use API statistics when showing all environments, otherwise calculate from filtered data
+  const totalDeployments =
+    selectedEnvironment === 'ALL' && statistics?.totalDeployments
+      ? statistics.totalDeployments
+      : Object.values(deploymentsByEnv).reduce((sum: number, count: number) => sum + count, 0)
 
   // Calculate blocked deployments by environment
   const blockedDeploymentsByEnv =
-    filteredDeployments?.reduce(
-      (acc, deployment) => {
-        if (deployment.status === 'failed') {
-          acc[deployment.environment] = (acc[deployment.environment] || 0) + 1
-        }
-        return acc
-      },
-      {} as Record<string, number>
-    ) || {}
+    selectedEnvironment === 'ALL' && environmentBreakdown
+      ? Object.fromEntries(
+          Object.entries(environmentBreakdown).map(([env, data]) => [env, data.blocked])
+        )
+      : filteredDeployments?.reduce(
+          (acc, deployment) => {
+            if (deployment.status === 'failed') {
+              acc[deployment.environment] = (acc[deployment.environment] || 0) + 1
+            }
+            return acc
+          },
+          {} as Record<string, number>
+        ) || {}
 
   // Calculate total blocked deployments
-  const totalBlockedDeployments = Object.values(blockedDeploymentsByEnv).reduce(
-    (sum: number, count: number) => sum + count,
-    0
-  )
+  const totalBlockedDeployments =
+    selectedEnvironment === 'ALL' && statistics?.blockedDeployments
+      ? statistics.blockedDeployments
+      : Object.values(blockedDeploymentsByEnv).reduce(
+          (sum: number, count: number) => sum + count,
+          0
+        )
 
   // Handle filter changes
   const handleProviderFilterChange = (provider: string) => {
@@ -193,7 +284,19 @@ function Deployments() {
     setIsFailureModalOpen(false)
   }
 
-  if (isLoading || activeLoading || environmentsLoading) {
+  const handleShowMore = () => {
+    console.log(`Loading more deployments: offset ${currentOffset} -> ${currentOffset + pageSize}`)
+    setCurrentOffset(prev => prev + pageSize)
+  }
+
+  // Only show full loading state for initial load
+  const showFullLoading =
+    (selectedEnvironment === 'ALL' && isPaginatedLoading && currentOffset === 0) ||
+    (selectedEnvironment !== 'ALL' && activeLoading) ||
+    environmentsLoading ||
+    isLoading
+
+  if (showFullLoading) {
     return (
       <div className="space-y-6">
         <div>
@@ -225,7 +328,7 @@ function Deployments() {
     )
   }
 
-  if (error) {
+  if (error || paginatedError) {
     return (
       <div className="space-y-6">
         <div>
@@ -256,7 +359,8 @@ function Deployments() {
             {statusFilter !== 'active-or-blocked' && (
               <span className="text-lg font-normal text-base-content/70">
                 {' '}
-                • Status: {statusFilter === 'active-or-blocked' ? 'Active or Blocked' : statusFilter}
+                • Status:{' '}
+                {statusFilter === 'active-or-blocked' ? 'Active or Blocked' : statusFilter}
               </span>
             )}
             {providerFilter && (
@@ -429,7 +533,6 @@ function Deployments() {
                           version={deployment.version}
                           serviceName={deployment.service}
                           serviceType={deployment.type as 'consumer' | 'provider'}
-                          
                         />
                       </td>
                       <td>
@@ -501,6 +604,29 @@ function Deployments() {
               </tbody>
             </table>
           </div>
+          {selectedEnvironment === 'ALL' && hasNextPage && (
+            <div className="card-actions justify-center pt-4">
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={handleShowMore}
+                disabled={isFetching}
+              >
+                {isFetching && currentOffset > 0 ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs"></span>
+                    Loading...
+                  </>
+                ) : (
+                  'Show More'
+                )}
+              </button>
+              {totalCount && (
+                <span className="text-sm text-base-content/70 ml-2">
+                  Showing {filteredDeployments.length} of {totalCount} results
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

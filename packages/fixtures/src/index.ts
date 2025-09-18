@@ -5,6 +5,9 @@ import type {
   FixtureProposal,
   FixtureUpdate,
   NormalizedFixtures,
+  OpenAPISpec,
+  HTTPRequest,
+  HTTPResponse,
 } from '@entente/types'
 
 export interface FixtureManager {
@@ -597,4 +600,183 @@ const shouldReplaceEntity = (
 
   // Prefer more recent fixtures
   return fixture.createdAt > new Date(existing.source)
+}
+
+// Mock handler for fixture-based OpenAPI mocking
+export interface MockRequest {
+  method: string
+  path: string
+  headers: Record<string, string>
+  query?: Record<string, unknown>
+  body?: unknown
+}
+
+export interface MockResponse {
+  status: number
+  headers: Record<string, string>
+  body?: unknown
+}
+
+export interface MockHandler {
+  match: (request: MockRequest) => boolean
+  respond: (request: MockRequest) => MockResponse
+}
+
+export const createOpenAPIMockHandler = (
+  spec: OpenAPISpec,
+  fixtures: Fixture[]
+): MockHandler[] => {
+  const handlers: MockHandler[] = []
+
+  // Group fixtures by operation for faster lookup
+  const fixturesByOperation = new Map<string, Fixture[]>()
+  for (const fixture of fixtures) {
+    const operation = fixture.operation
+    if (!fixturesByOperation.has(operation)) {
+      fixturesByOperation.set(operation, [])
+    }
+    fixturesByOperation.get(operation)?.push(fixture)
+  }
+
+  // Sort fixtures by priority (highest first)
+  for (const [_, operationFixtures] of fixturesByOperation) {
+    operationFixtures.sort((a, b) => b.priority - a.priority)
+  }
+
+  // Create handlers for each path/method combination in the spec
+  for (const [path, pathItem] of Object.entries(spec.paths)) {
+    for (const [method, operation] of Object.entries(pathItem as any)) {
+      if (typeof operation === 'object' && operation) {
+        const operationId = (operation as any).operationId || extractOperationFromPath(method.toUpperCase(), path)
+
+        handlers.push({
+          match: (request: MockRequest) => {
+            return (
+              request.method.toLowerCase() === method.toLowerCase() &&
+              pathMatchesSpecPattern(request.path, path)
+            )
+          },
+          respond: (request: MockRequest) => {
+            // Try to find matching fixture first
+            const operationFixtures = fixturesByOperation.get(operationId) || []
+            const matchingFixture = findMatchingFixture(request, operationFixtures)
+
+            if (matchingFixture) {
+              const fixtureResponse = matchingFixture.data.response as HTTPResponse
+              return {
+                status: fixtureResponse.status,
+                headers: fixtureResponse.headers || { 'content-type': 'application/json' },
+                body: fixtureResponse.body
+              }
+            }
+
+            // Fall back to OpenAPI examples if available
+            const responses = (operation as any).responses || {}
+            for (const [statusCode, response] of Object.entries(responses)) {
+              if (statusCode.startsWith('2')) { // 2xx success responses
+                const responseObj = response as any
+                if (responseObj.content?.['application/json']?.example) {
+                  return {
+                    status: parseInt(statusCode),
+                    headers: { 'content-type': 'application/json' },
+                    body: responseObj.content['application/json'].example
+                  }
+                }
+              }
+            }
+
+            // No fixture or example found
+            return {
+              status: 501,
+              headers: { 'content-type': 'application/json' },
+              body: {
+                error: 'Not Implemented',
+                message: `No fixture or example available for ${method.toUpperCase()} ${path}`,
+                operation: operationId
+              }
+            }
+          }
+        })
+      }
+    }
+  }
+
+  return handlers
+}
+
+const findMatchingFixture = (request: MockRequest, fixtures: Fixture[]): Fixture | null => {
+  if (!fixtures || fixtures.length === 0) {
+    return null
+  }
+
+  // Try exact match first (including body for POST/PUT requests)
+  for (const fixture of fixtures) {
+    const fixtureRequest = fixture.data.request as HTTPRequest | undefined
+    if (!fixtureRequest) continue
+
+    // Method must match
+    if (fixtureRequest.method.toLowerCase() !== request.method.toLowerCase()) {
+      continue
+    }
+
+    // Path must match
+    if (fixtureRequest.path !== request.path) {
+      continue
+    }
+
+    // For POST/PUT/PATCH requests, try to match body if both exist
+    if (request.body && fixtureRequest.body) {
+      try {
+        const requestBodyStr = JSON.stringify(request.body)
+        const fixtureBodyStr = JSON.stringify(fixtureRequest.body)
+        if (requestBodyStr === fixtureBodyStr) {
+          return fixture
+        }
+      } catch {
+        // Fall through to string comparison
+        if (String(request.body) === String(fixtureRequest.body)) {
+          return fixture
+        }
+      }
+    } else if (!request.body && !fixtureRequest.body) {
+      // Both have no body - this is a match
+      return fixture
+    }
+  }
+
+  // Fall back to path/method match only (ignore body differences)
+  for (const fixture of fixtures) {
+    const fixtureRequest = fixture.data.request as HTTPRequest | undefined
+    if (!fixtureRequest) continue
+
+    if (
+      fixtureRequest.method.toLowerCase() === request.method.toLowerCase() &&
+      fixtureRequest.path === request.path
+    ) {
+      return fixture
+    }
+  }
+
+  return null
+}
+
+export const handleMockRequest = (
+  request: MockRequest,
+  handlers: MockHandler[]
+): MockResponse => {
+  for (const handler of handlers) {
+    if (handler.match(request)) {
+      return handler.respond(request)
+    }
+  }
+
+  // No handler matched
+  return {
+    status: 404,
+    headers: { 'content-type': 'application/json' },
+    body: {
+      error: 'Not Found',
+      message: `No handler found for ${request.method} ${request.path}`
+    }
+  }
 }

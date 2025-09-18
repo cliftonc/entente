@@ -2,51 +2,67 @@
  * Contracts data hooks with optimistic updates and caching
  */
 
-import type { Contract, ClientInteraction } from '@entente/types'
+import type { ClientInteraction, Contract } from '@entente/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import React, { useCallback } from 'react'
-import { contractApi } from '../utils/api'
-import { queryKeys, getInvalidationQueries } from '../lib/queryKeys'
-import { createOptimisticMutationOptions, defaultQueryOptions } from '../lib/queryClient'
-import type { ContractFilters, QueryOptions, MutationOptions, HookState, ListHookState, MutationHookState, HookConfig, ApiError } from '../lib/types'
 import { mergeHookConfig } from '../lib/hookUtils'
+import { createOptimisticMutationOptions, defaultQueryOptions } from '../lib/queryClient'
+import { getInvalidationQueries, queryKeys } from '../lib/queryKeys'
+import type {
+  ApiError,
+  ContractFilters,
+  ContractStatistics,
+  HookConfig,
+  HookState,
+  ListHookState,
+  MutationHookState,
+  MutationOptions,
+  QueryOptions,
+} from '../lib/types'
+import { contractApi } from '../utils/api'
 
 /**
- * Hook to get all contracts with filtering
+ * Hook to get all contracts with filtering and pagination
  */
 export function useContracts(
-  filters?: ContractFilters,
+  filters?: ContractFilters & { offset?: number },
   options?: HookConfig
-): ListHookState<Contract> {
+): ListHookState<Contract, ContractStatistics> {
   const mergedOptions = mergeHookConfig(options)
+  const limit = filters?.limit || 10
+  const offset = filters?.offset || 0
 
   const query = useQuery({
-    queryKey: queryKeys.contracts.list(filters),
-    queryFn: () => contractApi.getAll({
-      provider: filters?.provider,
-      consumer: filters?.consumer,
-      environment: filters?.environment,
-      status: filters?.status,
-      limit: filters?.limit || 200,
-    }),
+    queryKey: queryKeys.contracts.list({ ...filters, limit, offset }),
+    queryFn: () =>
+      contractApi.getAll({
+        provider: filters?.provider,
+        consumer: filters?.consumer,
+        environment: filters?.environment,
+        status: filters?.status,
+        limit,
+        offset,
+      }),
     ...defaultQueryOptions,
     ...mergedOptions,
+    placeholderData: previousData => previousData, // Keep previous data during refetch
   })
 
   return {
-    data: query.data,
+    data: query.data?.results || [],
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error as ApiError | null,
     isFetching: query.isFetching,
     isSuccess: query.isSuccess,
     refetch: query.refetch,
-    isEmpty: !query.data || query.data.length === 0,
-    totalCount: query.data?.length,
-    hasNextPage: false,
-    hasPreviousPage: false,
-    currentPage: 1,
-    pageSize: query.data?.length || 0,
+    isEmpty: !query.data?.results || query.data.results.length === 0,
+    totalCount: query.data?.totalCount || 0,
+    hasNextPage: query.data ? offset + limit < query.data.totalCount : false,
+    hasPreviousPage: offset > 0,
+    currentPage: Math.floor(offset / limit) + 1,
+    pageSize: limit,
+    statistics: query.data?.statistics,
   }
 }
 
@@ -56,7 +72,7 @@ export function useContracts(
 export function useContractsByProvider(
   provider: string,
   options?: HookConfig
-): ListHookState<Contract> {
+): ListHookState<Contract, ContractStatistics> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({
@@ -68,19 +84,20 @@ export function useContractsByProvider(
   })
 
   return {
-    data: query.data,
+    data: query.data?.results || [],
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error as ApiError | null,
     isFetching: query.isFetching,
     isSuccess: query.isSuccess,
     refetch: query.refetch,
-    isEmpty: !query.data || query.data.length === 0,
-    totalCount: query.data?.length,
+    isEmpty: !query.data?.results || query.data.results.length === 0,
+    totalCount: query.data?.totalCount || 0,
     hasNextPage: false,
     hasPreviousPage: false,
     currentPage: 1,
-    pageSize: query.data?.length || 0,
+    pageSize: query.data?.results?.length || 0,
+    statistics: query.data?.statistics,
   }
 }
 
@@ -102,29 +119,26 @@ export function useContractsByConsumer(
   })
 
   return {
-    data: query.data,
+    data: query.data?.results || [],
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error as ApiError | null,
     isFetching: query.isFetching,
     isSuccess: query.isSuccess,
     refetch: query.refetch,
-    isEmpty: !query.data || query.data.length === 0,
-    totalCount: query.data?.length,
+    isEmpty: !query.data?.results || query.data.results.length === 0,
+    totalCount: query.data?.totalCount || 0,
     hasNextPage: false,
     hasPreviousPage: false,
     currentPage: 1,
-    pageSize: query.data?.length || 0,
+    pageSize: query.data?.results?.length || 0,
   }
 }
 
 /**
  * Hook to get a single contract by ID
  */
-export function useContract(
-  id: string,
-  options?: HookConfig
-): HookState<Contract> {
+export function useContract(id: string, options?: HookConfig): HookState<Contract> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({
@@ -251,23 +265,35 @@ export function useInvalidateContracts() {
     queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all })
   }, [queryClient])
 
-  const invalidateContract = useCallback((id: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.contracts.detail(id) })
-  }, [queryClient])
+  const invalidateContract = useCallback(
+    (id: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.detail(id) })
+    },
+    [queryClient]
+  )
 
-  const invalidateByProvider = useCallback((provider: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.contracts.byProvider(provider) })
-  }, [queryClient])
+  const invalidateByProvider = useCallback(
+    (provider: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.byProvider(provider) })
+    },
+    [queryClient]
+  )
 
-  const invalidateByConsumer = useCallback((consumer: string) => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.contracts.byConsumer(consumer) })
-  }, [queryClient])
+  const invalidateByConsumer = useCallback(
+    (consumer: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.byConsumer(consumer) })
+    },
+    [queryClient]
+  )
 
-  const invalidateContractInteractions = useCallback((contractId: string) => {
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.contracts.interactions(contractId)
-    })
-  }, [queryClient])
+  const invalidateContractInteractions = useCallback(
+    (contractId: string) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.contracts.interactions(contractId),
+      })
+    },
+    [queryClient]
+  )
 
   return {
     invalidateAll,
@@ -304,10 +330,7 @@ export function useContractSubscription(contractId?: string) {
 /**
  * Hook to get contract summary statistics
  */
-export function useContractStats(
-  filters?: ContractFilters,
-  options?: HookConfig
-) {
+export function useContractStats(filters?: ContractFilters, options?: HookConfig) {
   const mergedOptions = mergeHookConfig(options)
 
   // This is a derived query that calculates stats from the contracts list
@@ -323,24 +346,33 @@ export function useContractStats(
     const deprecatedContracts = contracts.filter(c => c.status === 'deprecated').length
 
     const contractsByStatus = Object.entries(
-      contracts.reduce((acc, contract) => {
-        acc[contract.status] = (acc[contract.status] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
+      contracts.reduce(
+        (acc, contract) => {
+          acc[contract.status] = (acc[contract.status] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>
+      )
     ).map(([status, count]) => ({ status, count }))
 
     const contractsByProvider = Object.entries(
-      contracts.reduce((acc, contract) => {
-        acc[contract.providerName] = (acc[contract.providerName] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
+      contracts.reduce(
+        (acc, contract) => {
+          acc[contract.providerName] = (acc[contract.providerName] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>
+      )
     ).map(([provider, count]) => ({ provider, count }))
 
     const contractsByConsumer = Object.entries(
-      contracts.reduce((acc, contract) => {
-        acc[contract.consumerName] = (acc[contract.consumerName] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
+      contracts.reduce(
+        (acc, contract) => {
+          acc[contract.consumerName] = (acc[contract.consumerName] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>
+      )
     ).map(([consumer, count]) => ({ consumer, count }))
 
     return {

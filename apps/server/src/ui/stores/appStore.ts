@@ -139,15 +139,13 @@ export const useAppStore = create<AppStore>()(
         ),
 
       // Application state actions
-      setOnlineStatus: isOnline =>
-        set({ isOnline }, false, 'setOnlineStatus'),
+      setOnlineStatus: isOnline => set({ isOnline }, false, 'setOnlineStatus'),
 
       updateLastSyncTime: () =>
         set({ lastSyncTime: new Date().toISOString() }, false, 'updateLastSyncTime'),
 
       // Utility actions
-      resetState: () =>
-        set(initialState, false, 'resetState'),
+      resetState: () => set(initialState, false, 'resetState'),
     }),
     { name: 'app-store' }
   )

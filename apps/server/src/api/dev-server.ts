@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import 'dotenv/config'
+import { createServer } from 'node:http'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { WebSocketServer } from 'ws'
-import { createServer } from 'node:http'
 import app from './index.js'
 import { setupWebSocketServer } from './services/websocket-dev.js'
 
@@ -28,7 +28,7 @@ const server = createServer()
 // Set up WebSocket server
 const wss = new WebSocketServer({
   server,
-  path: '/ws'
+  path: '/ws',
 })
 
 // Initialize WebSocket handlers
@@ -64,17 +64,20 @@ server.on('request', async (req, res) => {
   if (response.body) {
     const reader = response.body.getReader()
     const pump = () => {
-      reader.read().then(({ done, value }) => {
-        if (done) {
+      reader
+        .read()
+        .then(({ done, value }) => {
+          if (done) {
+            res.end()
+            return
+          }
+          res.write(Buffer.from(value))
+          pump()
+        })
+        .catch(err => {
+          console.error('Stream error:', err)
           res.end()
-          return
-        }
-        res.write(Buffer.from(value))
-        pump()
-      }).catch(err => {
-        console.error('Stream error:', err)
-        res.end()
-      })
+        })
     }
     pump()
   } else {

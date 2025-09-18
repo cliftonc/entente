@@ -5,14 +5,14 @@ import GitHubIntegrationPanel from '../components/GitHubIntegrationPanel'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VerificationPanel from '../components/VerificationPanel'
 import VersionBadge from '../components/VersionBadge'
-import { useService } from '../hooks/useServices'
-import { useServiceVersions } from '../hooks/useServices'
-import { useDeploymentHistory } from '../hooks/useDeployments'
-import { useVerificationsByProvider, usePendingVerificationTasks } from '../hooks/useVerifications'
 import { useContractsByProvider } from '../hooks/useContracts'
-import { useInteractions } from '../hooks/useInteractions'
+import { useDeploymentHistory } from '../hooks/useDeployments'
 import { useFixtures } from '../hooks/useFixtures'
 import { useGitHubInstallation } from '../hooks/useGitHubIntegration'
+import { useInteractions } from '../hooks/useInteractions'
+import { useService } from '../hooks/useServices'
+import { useServiceVersions } from '../hooks/useServices'
+import { usePendingVerificationTasks, useVerificationsByProvider } from '../hooks/useVerifications'
 
 function ProviderDetail() {
   const { name } = useParams<{ name: string }>()
@@ -149,8 +149,9 @@ function ProviderDetail() {
           <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
               <h2 className="card-title">Service Overview</h2>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-                <div className="md:col-span-4">
+              <div className="space-y-6">
+                {/* Description */}
+                <div>
                   <label className="label">
                     <span className="label-text">Description</span>
                   </label>
@@ -160,7 +161,9 @@ function ProviderDetail() {
                     </p>
                   </div>
                 </div>
-                <div className="space-y-4">
+
+                {/* Status, Last Updated, OpenAPI Spec row */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="label">
                       <span className="label-text">Status</span>
@@ -172,6 +175,17 @@ function ProviderDetail() {
                       <span className="label-text">Last Updated</span>
                     </label>
                     <TimestampDisplay timestamp={provider.updatedAt} />
+                  </div>
+                  <div>
+                    <label className="label">
+                      <span className="label-text">OpenAPI Spec</span>
+                    </label>
+                    <Link
+                      to={`/openapi/service/${provider.name}?version=latest`}
+                      className="btn btn-sm btn-primary"
+                    >
+                      View Latest Spec
+                    </Link>
                   </div>
                 </div>
               </div>

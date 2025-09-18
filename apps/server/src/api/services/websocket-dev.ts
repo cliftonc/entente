@@ -1,6 +1,6 @@
-import { WebSocketServer, WebSocket } from 'ws'
-import { IncomingMessage } from 'node:http'
+import type { IncomingMessage } from 'node:http'
 import { parse } from 'node:url'
+import { WebSocket, type WebSocketServer } from 'ws'
 
 export interface WebSocketConnection {
   id: string

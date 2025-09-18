@@ -23,6 +23,7 @@
     "migrate:service-versions": "tsx src/scripts/migrate-service-versions.ts"
   },
   "dependencies": {
+    "@entente/consumer": "workspace:*",
     "@entente/fixtures": "workspace:*",
     "@entente/types": "workspace:*",
     "@heroicons/react": "^2.2.0",
@@ -44,6 +45,7 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
     "react-syntax-highlighter": "^15.6.6",
+    "swagger-ui-react": "^5.29.0",
     "ws": "^8.18.3",
     "zod": "^3.25.0",
     "zustand": "^5.0.8"
@@ -53,6 +55,7 @@
     "@types/node": "^22.10.6",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
+    "@types/swagger-ui-react": "^5.18.0",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.0",
@@ -63,6 +66,7 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
+    "vite-plugin-node-polyfills": "^0.24.0",
     "vitest": "^2.1.8",
     "wrangler": "^4.36.0"
   },

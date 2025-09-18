@@ -1,7 +1,7 @@
 import { integer, jsonb, pgTable, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core'
 import { contracts } from './contracts'
-import { services } from './services'
 import { serviceVersions } from './service-versions'
+import { services } from './services'
 import { tenants } from './tenants'
 
 export const interactions = pgTable(

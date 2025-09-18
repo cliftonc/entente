@@ -5,20 +5,20 @@
 import type { Fixture } from '@entente/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
-import { fixtureApi } from '../utils/api'
-import { queryKeys, getInvalidationQueries } from '../lib/queryKeys'
+import { mergeHookConfig } from '../lib/hookUtils'
 import { defaultQueryOptions } from '../lib/queryClient'
+import { getInvalidationQueries, queryKeys } from '../lib/queryKeys'
 import type {
+  ApiError,
   FixtureFilters,
-  QueryOptions,
-  MutationOptions,
+  HookConfig,
   HookState,
   ListHookState,
   MutationHookState,
-  HookConfig,
-  ApiError,
+  MutationOptions,
+  QueryOptions,
 } from '../lib/types'
-import { mergeHookConfig } from '../lib/hookUtils'
+import { fixtureApi } from '../utils/api'
 
 /**
  * Hook to get all fixtures with filtering

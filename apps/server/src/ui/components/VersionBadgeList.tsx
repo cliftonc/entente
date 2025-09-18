@@ -48,10 +48,7 @@ function VersionBadgeList({
 
       {remainingCount > 0 && showMoreUrl && (
         <div className="text-center">
-          <Link
-            to={showMoreUrl}
-            className="text-xs text-primary hover:underline"
-          >
+          <Link to={showMoreUrl} className="text-xs text-primary hover:underline">
             Show {remainingCount} more version{remainingCount > 1 ? 's' : ''}
           </Link>
         </div>

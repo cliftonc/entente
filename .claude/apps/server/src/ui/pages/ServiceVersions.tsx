@@ -63,10 +63,7 @@ function ServiceVersions() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link
-          to={`/services/${serviceType}/${serviceName}`}
-          className="btn btn-ghost btn-sm"
-        >
+        <Link to={`/services/${serviceType}/${serviceName}`} className="btn btn-ghost btn-sm">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
@@ -80,15 +77,15 @@ function ServiceVersions() {
         <div>
           <h1 className="text-3xl font-bold text-base-content flex items-center gap-3">
             {serviceName} Versions
-            <div className={`badge ${
-              serviceType === 'consumer' ? 'badge-primary' : 'badge-secondary'
-            }`}>
+            <div
+              className={`badge ${
+                serviceType === 'consumer' ? 'badge-primary' : 'badge-secondary'
+              }`}
+            >
               {serviceType}
             </div>
           </h1>
-          <p className="text-base-content/70 mt-1">
-            All versions for this service
-          </p>
+          <p className="text-base-content/70 mt-1">All versions for this service</p>
         </div>
       </div>
 
@@ -134,16 +131,20 @@ function ServiceVersions() {
                         )}
                       </td>
                       <td>
-                        <div className={`badge badge-sm ${
-                          version.spec ? 'badge-success' : 'badge-warning'
-                        }`}>
+                        <div
+                          className={`badge badge-sm ${
+                            version.spec ? 'badge-success' : 'badge-warning'
+                          }`}
+                        >
                           {version.spec ? 'available' : 'missing'}
                         </div>
                       </td>
                       <td>
-                        <div className={`badge badge-sm ${
-                          version.packageJson ? 'badge-success' : 'badge-warning'
-                        }`}>
+                        <div
+                          className={`badge badge-sm ${
+                            version.packageJson ? 'badge-success' : 'badge-warning'
+                          }`}
+                        >
                           {version.packageJson ? 'available' : 'missing'}
                         </div>
                       </td>
@@ -211,9 +212,11 @@ function ServiceVersions() {
               </div>
               <div>
                 <span className="font-medium">Type:</span>{' '}
-                <span className={`badge badge-sm ${
-                  service.type === 'consumer' ? 'badge-primary' : 'badge-secondary'
-                }`}>
+                <span
+                  className={`badge badge-sm ${
+                    service.type === 'consumer' ? 'badge-primary' : 'badge-secondary'
+                  }`}
+                >
                   {service.type}
                 </span>
               </div>

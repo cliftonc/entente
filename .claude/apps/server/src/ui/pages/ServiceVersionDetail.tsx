@@ -162,15 +162,15 @@ function ServiceVersionDetail() {
         <div>
           <h1 className="text-3xl font-bold text-base-content flex items-center gap-3">
             {serviceVersion.serviceName} v{serviceVersion.version}
-            <div className={`badge ${
-              serviceVersion.serviceType === 'consumer' ? 'badge-primary' : 'badge-secondary'
-            }`}>
+            <div
+              className={`badge ${
+                serviceVersion.serviceType === 'consumer' ? 'badge-primary' : 'badge-secondary'
+              }`}
+            >
               {serviceVersion.serviceType}
             </div>
           </h1>
-          <p className="text-base-content/70 mt-1">
-            Service version details and related data
-          </p>
+          <p className="text-base-content/70 mt-1">Service version details and related data</p>
         </div>
       </div>
 
@@ -219,7 +219,9 @@ function ServiceVersionDetail() {
                   <label className="label">
                     <span className="label-text">OpenAPI Spec</span>
                   </label>
-                  <div className={`badge ${serviceVersion.spec ? 'badge-success' : 'badge-warning'}`}>
+                  <div
+                    className={`badge ${serviceVersion.spec ? 'badge-success' : 'badge-warning'}`}
+                  >
                     {serviceVersion.spec ? 'available' : 'not available'}
                   </div>
                 </div>
@@ -227,7 +229,9 @@ function ServiceVersionDetail() {
                   <label className="label">
                     <span className="label-text">Package Info</span>
                   </label>
-                  <div className={`badge ${serviceVersion.packageJson ? 'badge-success' : 'badge-warning'}`}>
+                  <div
+                    className={`badge ${serviceVersion.packageJson ? 'badge-success' : 'badge-warning'}`}
+                  >
                     {serviceVersion.packageJson ? 'available' : 'not available'}
                   </div>
                 </div>
@@ -265,7 +269,10 @@ function ServiceVersionDetail() {
             <div className="card-body">
               <div className="flex justify-between items-center">
                 <h3 className="card-title text-lg">Deployments (v{serviceVersion.version})</h3>
-                <Link to={`/deployments?service=${serviceVersion.serviceName}`} className="btn btn-ghost btn-xs">
+                <Link
+                  to={`/deployments?service=${serviceVersion.serviceName}`}
+                  className="btn btn-ghost btn-xs"
+                >
                   View All
                 </Link>
               </div>
@@ -275,7 +282,9 @@ function ServiceVersionDetail() {
                 <div className="space-y-3">
                   {versionDeployments.slice(0, 3).map((deployment, idx) => (
                     <div
-                      key={deployment.id || `${deployment.environment}-${deployment.version}-${idx}`}
+                      key={
+                        deployment.id || `${deployment.environment}-${deployment.version}-${idx}`
+                      }
                       className="bg-base-200 rounded-lg p-3"
                     >
                       <div className="flex justify-between items-center mb-1">

@@ -1,9 +1,20 @@
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    nodePolyfills({
+      // Minimal polyfills needed by Swagger UI React
+      globals: {
+        Buffer: false,
+        global: true,
+        process: false,
+      },
+    }),
+  ],
   root: 'src/ui',
   publicDir: '../../public',
   build: {
@@ -12,7 +23,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    allowedHosts: ["cliftonc.entente.dev", "localhost"],
+    allowedHosts: ['cliftonc.entente.dev', 'localhost'],
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

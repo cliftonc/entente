@@ -3,7 +3,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 interface CodeBlockProps {
   code: string
-  language: 'bash' | 'typescript' | 'javascript' | 'json'
+  language: 'bash' | 'typescript' | 'javascript' | 'json' | 'prisma'
   showLineNumbers?: boolean
 }
 
@@ -24,9 +24,10 @@ function CodeBlock({ code, language, showLineNumbers = true }: CodeBlockProps) {
       }}
       codeTagProps={{
         style: {
-          fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+          fontFamily:
+            'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
           textShadow: 'none',
-        }
+        },
       }}
       lineNumberStyle={{
         textShadow: 'none',

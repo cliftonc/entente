@@ -1,7 +1,7 @@
 import CodeBlock from '../CodeBlock'
 
 function ContractsExample() {
-  const bashCode = `npm install @entente/consumer`
+  const bashCode = `npm install @entente/consumer @entente/types`
 
   const testCode = `import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -18,18 +18,17 @@ describe('Consumer Contract Tests', () => {
     const localMockData: LocalMockData = JSON.parse(readFileSync(mockDataPath, 'utf-8'))
 
     client = createClient({
-      serviceUrl: process.env.ENTENTE_SERVICE_URL || '',
       apiKey: process.env.ENTENTE_API_KEY || '',
       consumer: 'my-consumer',
-      environment: 'test', // Test context (not deployment environment)
-      recordingEnabled: process.env.CI === 'true',
+      environment: 'test', // Test context (not deployment environment - reference only)
+      recordingEnabled: process.env.CI === 'true', // If true, upload recordings to entente
     })
 
     mock = await client.createMock('my-service', '1.0.0', {
-      useFixtures: true,
+      useFixtures: true, // Use fixtures already on entente.dev
       validateRequests: true,
       validateResponses: true,
-      localMockData,
+      localMockData, // Use local mock data for testing
     })
 
     apiClient = new ApiClient(mock.url)
@@ -37,10 +36,12 @@ describe('Consumer Contract Tests', () => {
 
   afterAll(async () => {
     if (mock) {
-      await mock.close()
+      await mock.close() // If recordingEnabled this is needed to upload
     }
   })
 
+  // Here you can add as many tests as you like to test real application functions
+  // Using the mock as you would any other mock
   it('should test API contract', async () => {
     const result = await apiClient.getData()
     expect(result).toHaveProperty('id')
@@ -50,7 +51,9 @@ describe('Consumer Contract Tests', () => {
   return (
     <div className="space-y-4">
       <div>
-        <h4 className="text-sm font-semibold text-base-content mb-2">Add Consumer & Create Mock Server</h4>
+        <h4 className="text-sm font-semibold text-base-content mb-2">
+          Add Consumer & Create Mock Server
+        </h4>
         <CodeBlock code={bashCode} language="bash" showLineNumbers={false} />
       </div>
 

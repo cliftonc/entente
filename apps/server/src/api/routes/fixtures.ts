@@ -12,10 +12,10 @@ import type {
 import { Hono } from 'hono'
 
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
-import { fixtures, fixtureServiceVersions } from '../../db/schema'
-import { ensureServiceVersion } from '../utils/service-versions'
-import { addServiceVersionToFixture } from '../utils/fixture-service-versions'
+import { fixtureServiceVersions, fixtures } from '../../db/schema'
 import { NotificationService } from '../services/notification'
+import { addServiceVersionToFixture } from '../utils/fixture-service-versions'
+import { ensureServiceVersion } from '../utils/service-versions'
 
 export const fixturesRouter = new Hono()
 

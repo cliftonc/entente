@@ -233,7 +233,6 @@ function Dashboard() {
                             version={deployment.version}
                             serviceName={deployment.service}
                             serviceType={(deployment.type as 'consumer' | 'provider') || 'provider'}
-
                           />
                           {deployment.status === 'failed' && (
                             <span className="text-error">• Blocked</span>

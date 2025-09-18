@@ -4,8 +4,8 @@ import {
   useGitHubAppName,
   useGitHubInstallation,
   useGitHubManageUrl,
+  useUninstallGitHubApp,
   useUpdateGitHubInstallation,
-  useUninstallGitHubApp
 } from '../../hooks/useGitHubIntegration'
 
 function GitHubSettings() {

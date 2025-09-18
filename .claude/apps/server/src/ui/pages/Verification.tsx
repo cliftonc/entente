@@ -280,7 +280,6 @@ function Verification() {
                           version={task.providerVersion}
                           serviceName={task.provider}
                           serviceType="provider"
-                          
                         />
                       </td>
                       <td>
@@ -296,7 +295,6 @@ function Verification() {
                           version={task.consumerVersion}
                           serviceName={task.consumer}
                           serviceType="consumer"
-                          
                         />
                       </td>
                       <td>
@@ -376,7 +374,6 @@ function Verification() {
                           version={result.providerVersion || result.version || '1.0.0'}
                           serviceName={result.providerName || result.provider}
                           serviceType="provider"
-                          
                         />
                       </td>
                       <td>
@@ -397,7 +394,6 @@ function Verification() {
                             version={result.consumerVersion || 'N/A'}
                             serviceName={result.consumerName || result.consumer}
                             serviceType="consumer"
-                            
                           />
                         ) : (
                           <span className="text-sm text-base-content/50">N/A</span>

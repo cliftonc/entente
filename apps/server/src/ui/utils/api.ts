@@ -225,11 +225,62 @@ export const deploymentApi = {
     const results = await Promise.all(deploymentPromises)
     return results.flat()
   },
+  getPaginated: (filters?: {
+    limit?: number
+    offset?: number
+    status?: string
+    provider?: string
+    consumer?: string
+    environment?: string
+  }) => {
+    const params = new URLSearchParams()
+    if (filters?.limit !== undefined) params.append('limit', filters.limit.toString())
+    if (filters?.offset !== undefined) params.append('offset', filters.offset.toString())
+    if (filters?.status) params.append('status', filters.status)
+    if (filters?.provider) params.append('provider', filters.provider)
+    if (filters?.consumer) params.append('consumer', filters.consumer)
+    if (filters?.environment) params.append('environment', filters.environment)
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+    return fetchApi<{
+      results: DeploymentState[]
+      totalCount: number
+      statistics: {
+        totalDeployments: number
+        activeDeployments: number
+        blockedDeployments: number
+      }
+      environmentBreakdown: Record<
+        string,
+        {
+          total: number
+          active: number
+          blocked: number
+        }
+      >
+    }>(`/deployments/paginated${queryString}`)
+  },
 }
 
 // Verification API functions
 export const verificationApi = {
-  getAll: () => fetchApi<ExtendedVerificationResult[]>('/verification'),
+  getAll: (limit?: number, offset?: number, startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams()
+    if (limit !== undefined) params.append('limit', limit.toString())
+    if (offset !== undefined) params.append('offset', offset.toString())
+    if (startDate) params.append('startDate', startDate)
+    if (endDate) params.append('endDate', endDate)
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+    return fetchApi<{
+      results: ExtendedVerificationResult[]
+      totalCount: number
+      statistics: {
+        totalVerifications: number
+        passedVerifications: number
+        failedVerifications: number
+        overallPassRate: number
+      }
+    }>(`/verification${queryString}`)
+  },
   getById: (id: string) => fetchApi<ExtendedVerificationResult>(`/verification/result/${id}`),
   getByProvider: (provider: string) =>
     fetchApi<ExtendedVerificationResult[]>(`/verification/${provider}/history`),
@@ -263,6 +314,24 @@ export const verificationApi = {
       failedTasks: number
       pendingTasks: number
     }>(`/verification/${provider}/stats`),
+  getRecent: (days?: number, limit?: number) => {
+    const params = new URLSearchParams()
+    if (days !== undefined) params.append('days', days.toString())
+    if (limit !== undefined) params.append('limit', limit.toString())
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+    return fetchApi<
+      Array<{
+        id: string
+        submittedAt: Date
+        status: 'passed' | 'failed'
+        provider: string
+        consumer?: string
+        passed: number
+        failed: number
+        total: number
+      }>
+    >(`/verification/recent${queryString}`)
+  },
 }
 
 // Spec API functions
@@ -328,6 +397,7 @@ export const contractApi = {
     environment?: string
     status?: string
     limit?: number
+    offset?: number
   }) => {
     const params = new URLSearchParams()
     if (filters?.provider) params.set('provider', filters.provider)
@@ -335,12 +405,40 @@ export const contractApi = {
     if (filters?.environment) params.set('environment', filters.environment)
     if (filters?.status) params.set('status', filters.status)
     if (filters?.limit) params.set('limit', filters.limit.toString())
+    if (filters?.offset) params.set('offset', filters.offset.toString())
     const queryString = params.toString()
-    return fetchApi<Contract[]>(`/contracts${queryString ? `?${queryString}` : ''}`)
+    return fetchApi<{
+      results: Contract[]
+      totalCount: number
+      statistics: {
+        totalContracts: number
+        activeContracts: number
+        archivedContracts: number
+        deprecatedContracts: number
+      }
+    }>(`/contracts${queryString ? `?${queryString}` : ''}`)
   },
   getById: (id: string) => fetchApi<Contract>(`/contracts/${id}`),
-  getByProvider: (provider: string) => fetchApi<Contract[]>(`/contracts?provider=${provider}`),
-  getByConsumer: (consumer: string) => fetchApi<Contract[]>(`/contracts?consumer=${consumer}`),
+  getByProvider: (provider: string) => fetchApi<{
+    results: Contract[]
+    totalCount: number
+    statistics: {
+      totalContracts: number
+      activeContracts: number
+      archivedContracts: number
+      deprecatedContracts: number
+    }
+  }>(`/contracts?provider=${provider}`),
+  getByConsumer: (consumer: string) => fetchApi<{
+    results: Contract[]
+    totalCount: number
+    statistics: {
+      totalContracts: number
+      activeContracts: number
+      archivedContracts: number
+      deprecatedContracts: number
+    }
+  }>(`/contracts?consumer=${consumer}`),
   getInteractions: (id: string, limit?: number) => {
     const params = limit ? `?limit=${limit}` : ''
     return fetchApi<ClientInteraction[]>(`/contracts/${id}/interactions${params}`)

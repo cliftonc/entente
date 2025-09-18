@@ -7,10 +7,10 @@ import type {
 } from '@entente/types'
 import { Hono } from 'hono'
 
-import { and, count, desc, eq, gte, ne } from 'drizzle-orm'
+import { and, count, desc, eq, gte, ne, or } from 'drizzle-orm'
 import { deployments, services } from '../../db/schema'
-import { findServiceVersion } from '../utils/service-versions'
 import { NotificationService } from '../services/notification'
+import { findServiceVersion } from '../utils/service-versions'
 
 export const deploymentsRouter = new Hono()
 
@@ -286,7 +286,7 @@ deploymentsRouter.get('/active', async c => {
     })
     .from(deployments)
     .leftJoin(services, eq(deployments.serviceId, services.id))
-    .where(and(...whereConditions))
+    .where(whereConditions.length > 0 ? and(...whereConditions.filter(Boolean)) : undefined)
     .orderBy(desc(deployments.deployedAt))
 
   const activeVersions = activeDeployments.map(d => ({
@@ -433,4 +433,157 @@ deploymentsRouter.get('/environments', async c => {
   const uniqueEnvironments = environments.map(e => e.environment)
 
   return c.json(uniqueEnvironments)
+})
+
+// Get paginated deployments (all environments)
+deploymentsRouter.get('/paginated', async c => {
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+  const limit = Number.parseInt(c.req.query('limit') || '10')
+  const offset = Number.parseInt(c.req.query('offset') || '0')
+  const statusFilter = c.req.query('status') // active, inactive, active-or-blocked, all
+  const providerFilter = c.req.query('provider')
+  const consumerFilter = c.req.query('consumer')
+  const environmentFilter = c.req.query('environment')
+
+  // Build where conditions for filters
+  const whereConditions = [eq(deployments.tenantId, tenantId)]
+
+  if (providerFilter) {
+    const condition = and(eq(deployments.service, providerFilter), eq(deployments.type, 'provider'))
+    if (condition) whereConditions.push(condition)
+  }
+  if (consumerFilter) {
+    const condition = and(eq(deployments.service, consumerFilter), eq(deployments.type, 'consumer'))
+    if (condition) whereConditions.push(condition)
+  }
+  if (environmentFilter && environmentFilter !== 'ALL')
+    whereConditions.push(eq(deployments.environment, environmentFilter))
+
+  // Apply status filter logic
+  if (statusFilter === 'active') {
+    whereConditions.push(eq(deployments.active, true))
+  } else if (statusFilter === 'inactive') {
+    whereConditions.push(eq(deployments.active, false))
+  } else if (statusFilter === 'active-or-blocked') {
+    const condition = or(eq(deployments.active, true), eq(deployments.status, 'failed'))
+    if (condition) whereConditions.push(condition)
+  }
+  // 'all' or undefined = no additional status filter
+
+  // Get total count for pagination (with filters applied)
+  const totalCountQuery = db
+    .select({ count: count() })
+    .from(deployments)
+    .where(whereConditions.length > 0 ? and(...whereConditions.filter(Boolean)) : undefined)
+
+  const [totalCountResult] = await totalCountQuery
+  const totalCount = totalCountResult.count
+
+  // Get paginated deployments with service info (with filters applied)
+  const deploymentsQuery = db
+    .select({
+      id: deployments.id,
+      type: deployments.type,
+      tenantId: deployments.tenantId,
+      service: deployments.service,
+      version: deployments.version,
+      environment: deployments.environment,
+      deployedAt: deployments.deployedAt,
+      deployedBy: deployments.deployedBy,
+      active: deployments.active,
+      status: deployments.status,
+      failureReason: deployments.failureReason,
+      failureDetails: deployments.failureDetails,
+      gitSha: deployments.gitSha,
+      // Service info
+      serviceType: services.type,
+      gitRepositoryUrl: services.gitRepositoryUrl,
+    })
+    .from(deployments)
+    .leftJoin(
+      services,
+      and(eq(services.name, deployments.service), eq(services.tenantId, tenantId))
+    )
+    .where(whereConditions.length > 0 ? and(...whereConditions.filter(Boolean)) : undefined)
+    .orderBy(desc(deployments.deployedAt))
+    .limit(limit)
+    .offset(offset)
+
+  const deploymentsWithService = await deploymentsQuery
+
+  const results = deploymentsWithService.map(d => ({
+    id: d.id,
+    type: d.type as 'provider' | 'consumer',
+    tenantId: d.tenantId,
+    service: d.service,
+    version: d.version,
+    environment: d.environment,
+    deployedAt: d.deployedAt,
+    deployedBy: d.deployedBy,
+    active: d.active,
+    status: d.status as DeploymentStatus,
+    failureReason: d.failureReason || undefined,
+    failureDetails: d.failureDetails,
+    gitSha: d.gitSha,
+    serviceType: d.serviceType,
+    gitRepositoryUrl: d.gitRepositoryUrl,
+  }))
+
+  // Calculate statistics based on filtered results (not paginated, but filtered)
+  const statsQuery = db
+    .select({
+      active: deployments.active,
+      status: deployments.status,
+    })
+    .from(deployments)
+    .where(whereConditions.length > 0 ? and(...whereConditions.filter(Boolean)) : undefined)
+
+  const filteredDeployments = await statsQuery
+
+  const totalDeployments = filteredDeployments.length
+  const activeDeployments = filteredDeployments.filter(d => d.active).length
+  const blockedDeployments = filteredDeployments.filter(d => d.status === 'failed').length
+
+  // Get environment breakdown from filtered results (for the environment cards)
+  const envBreakdownQuery = db
+    .select({
+      environment: deployments.environment,
+      active: deployments.active,
+      status: deployments.status,
+    })
+    .from(deployments)
+    .where(whereConditions.length > 0 ? and(...whereConditions.filter(Boolean)) : undefined)
+
+  const envBreakdownData = await envBreakdownQuery
+
+  // Calculate counts by environment
+  const environmentBreakdown = envBreakdownData.reduce(
+    (acc, deployment) => {
+      const env = deployment.environment
+      if (!acc[env]) {
+        acc[env] = { total: 0, active: 0, blocked: 0 }
+      }
+      acc[env].total++
+      if (deployment.active) acc[env].active++
+      if (deployment.status === 'failed') acc[env].blocked++
+      return acc
+    },
+    {} as Record<string, { total: number; active: number; blocked: number }>
+  )
+
+  return c.json({
+    results,
+    totalCount,
+    limit,
+    offset,
+    hasNextPage: offset + limit < totalCount,
+    hasPreviousPage: offset > 0,
+    statistics: {
+      totalDeployments,
+      activeDeployments,
+      blockedDeployments,
+    },
+    environmentBreakdown,
+  })
 })

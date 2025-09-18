@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import type { WebSocketEvent } from '../lib/types'
 import { websocketHelpers } from '../lib/queryClient'
-import { queryKeys, getInvalidationQueries } from '../lib/queryKeys'
+import { getInvalidationQueries, queryKeys } from '../lib/queryKeys'
+import type { WebSocketEvent } from '../lib/types'
 
 /**
  * WebSocket store for real-time features
@@ -58,8 +58,14 @@ interface WebSocketActions {
   // Subscription management
   subscribe: (channel: string) => void
   unsubscribe: (channel: string) => void
-  subscribeToEntity: (entityType: keyof WebSocketState['subscribedEntities'], entityId: string) => void
-  unsubscribeFromEntity: (entityType: keyof WebSocketState['subscribedEntities'], entityId: string) => void
+  subscribeToEntity: (
+    entityType: keyof WebSocketState['subscribedEntities'],
+    entityId: string
+  ) => void
+  unsubscribeFromEntity: (
+    entityType: keyof WebSocketState['subscribedEntities'],
+    entityId: string
+  ) => void
   clearSubscriptions: () => void
 
   // Event handling
@@ -74,9 +80,9 @@ interface WebSocketActions {
 
 type WebSocketStore = WebSocketState & WebSocketActions
 
-let websocketInstance: WebSocket | null = null
-let isConnecting = false
-let connectionId: string | null = null
+const websocketInstance: WebSocket | null = null
+const isConnecting = false
+const connectionId: string | null = null
 
 const initialState: WebSocketState = {
   isConnected: false,
@@ -111,7 +117,9 @@ export const useWebSocketStore = create<WebSocketStore>()(
 
       // Connection management - delegate to singleton (tenant ID provided by WebSocketProvider)
       connect: async () => {
-        console.log('WebSocket Store: This should not be called directly, use WebSocketProvider instead')
+        console.log(
+          'WebSocket Store: This should not be called directly, use WebSocketProvider instead'
+        )
         set({ connectionError: 'Connect called without tenant ID' }, false, 'connect.noTenant')
       },
 
@@ -128,7 +136,7 @@ export const useWebSocketStore = create<WebSocketStore>()(
         setTimeout(() => get().connect(), 100)
       },
 
-      setConnectionState: (state) => {
+      setConnectionState: state => {
         const updates: Partial<WebSocketState> = { isConnecting: false }
 
         if (state === 'connected') {
@@ -143,12 +151,16 @@ export const useWebSocketStore = create<WebSocketStore>()(
         set(updates, false, `setConnectionState.${state}`)
       },
 
-      setConnectionError: (error) => {
+      setConnectionError: error => {
         set({ connectionError: error }, false, 'setConnectionError')
       },
 
       incrementReconnectAttempts: () => {
-        set(state => ({ reconnectAttempts: state.reconnectAttempts + 1 }), false, 'incrementReconnectAttempts')
+        set(
+          state => ({ reconnectAttempts: state.reconnectAttempts + 1 }),
+          false,
+          'incrementReconnectAttempts'
+        )
       },
 
       resetReconnectAttempts: () => {
@@ -156,10 +168,14 @@ export const useWebSocketStore = create<WebSocketStore>()(
       },
 
       // Subscription management
-      subscribe: async (channel) => {
-        set(state => ({
-          subscriptions: new Set([...state.subscriptions, channel])
-        }), false, 'subscribe')
+      subscribe: async channel => {
+        set(
+          state => ({
+            subscriptions: new Set([...state.subscriptions, channel]),
+          }),
+          false,
+          'subscribe'
+        )
 
         const { websocketClient } = await import('../lib/websocketClient')
         websocketClient.send({
@@ -168,12 +184,16 @@ export const useWebSocketStore = create<WebSocketStore>()(
         })
       },
 
-      unsubscribe: async (channel) => {
-        set(state => {
-          const newSubscriptions = new Set(state.subscriptions)
-          newSubscriptions.delete(channel)
-          return { subscriptions: newSubscriptions }
-        }, false, 'unsubscribe')
+      unsubscribe: async channel => {
+        set(
+          state => {
+            const newSubscriptions = new Set(state.subscriptions)
+            newSubscriptions.delete(channel)
+            return { subscriptions: newSubscriptions }
+          },
+          false,
+          'unsubscribe'
+        )
 
         const { websocketClient } = await import('../lib/websocketClient')
         websocketClient.send({
@@ -183,27 +203,35 @@ export const useWebSocketStore = create<WebSocketStore>()(
       },
 
       subscribeToEntity: (entityType, entityId) => {
-        set(state => ({
-          subscribedEntities: {
-            ...state.subscribedEntities,
-            [entityType]: new Set([...state.subscribedEntities[entityType], entityId])
-          }
-        }), false, `subscribeToEntity.${entityType}`)
+        set(
+          state => ({
+            subscribedEntities: {
+              ...state.subscribedEntities,
+              [entityType]: new Set([...state.subscribedEntities[entityType], entityId]),
+            },
+          }),
+          false,
+          `subscribeToEntity.${entityType}`
+        )
 
         get().subscribe(`${entityType}:${entityId}`)
       },
 
       unsubscribeFromEntity: (entityType, entityId) => {
-        set(state => {
-          const newEntitySet = new Set(state.subscribedEntities[entityType])
-          newEntitySet.delete(entityId)
-          return {
-            subscribedEntities: {
-              ...state.subscribedEntities,
-              [entityType]: newEntitySet
+        set(
+          state => {
+            const newEntitySet = new Set(state.subscribedEntities[entityType])
+            newEntitySet.delete(entityId)
+            return {
+              subscribedEntities: {
+                ...state.subscribedEntities,
+                [entityType]: newEntitySet,
+              },
             }
-          }
-        }, false, `unsubscribeFromEntity.${entityType}`)
+          },
+          false,
+          `unsubscribeFromEntity.${entityType}`
+        )
 
         get().unsubscribe(`${entityType}:${entityId}`)
       },
@@ -213,20 +241,24 @@ export const useWebSocketStore = create<WebSocketStore>()(
         subscriptions.forEach(channel => {
           get().unsubscribe(channel)
         })
-        set({
-          subscriptions: new Set(),
-          subscribedEntities: {
-            services: new Set(),
-            contracts: new Set(),
-            fixtures: new Set(),
-            deployments: new Set(),
-            verifications: new Set(),
-          }
-        }, false, 'clearSubscriptions')
+        set(
+          {
+            subscriptions: new Set(),
+            subscribedEntities: {
+              services: new Set(),
+              contracts: new Set(),
+              fixtures: new Set(),
+              deployments: new Set(),
+              verifications: new Set(),
+            },
+          },
+          false,
+          'clearSubscriptions'
+        )
       },
 
       // Event handling
-      handleEvent: (event) => {
+      handleEvent: event => {
         // Handle system messages (welcome, ping, pong, etc.) - don't update lastEvent for these
         if (event.type === 'welcome' || event.type === 'ping' || event.type === 'pong') {
           console.log('WebSocket: Received system message:', event.type)
@@ -250,44 +282,100 @@ export const useWebSocketStore = create<WebSocketStore>()(
           switch (event.entity) {
             case 'service':
               if (event.action === 'create' || event.action === 'update') {
-                websocketHelpers.updateItemInList(queryKeys.services.lists(), event.data as { id: string })
+                websocketHelpers.updateItemInList(
+                  queryKeys.services.lists(),
+                  event.data as { id: string }
+                )
               } else if (event.action === 'delete') {
-                websocketHelpers.removeItemFromList(queryKeys.services.lists(), (event.data as { id: string }).id)
+                websocketHelpers.removeItemFromList(
+                  queryKeys.services.lists(),
+                  (event.data as { id: string }).id
+                )
               }
-              websocketHelpers.invalidateFromWebSocket(getInvalidationQueries.services.onServiceChange((event.data as { name: string }).name) as readonly (readonly string[])[])
+              websocketHelpers.invalidateFromWebSocket(
+                getInvalidationQueries.services.onServiceChange(
+                  (event.data as { name: string }).name
+                ) as readonly (readonly string[])[]
+              )
               break
 
             case 'contract':
               if (event.action === 'create' || event.action === 'update') {
-                websocketHelpers.updateItemInList(queryKeys.contracts.lists(), event.data as { id: string })
+                websocketHelpers.updateItemInList(
+                  queryKeys.contracts.lists(),
+                  event.data as { id: string }
+                )
               } else if (event.action === 'delete') {
-                websocketHelpers.removeItemFromList(queryKeys.contracts.lists(), (event.data as { id: string }).id)
+                websocketHelpers.removeItemFromList(
+                  queryKeys.contracts.lists(),
+                  (event.data as { id: string }).id
+                )
               }
-              websocketHelpers.invalidateFromWebSocket(getInvalidationQueries.contracts.onContractChange((event.data as { id: string; provider: string; consumer: string }).id, (event.data as { id: string; provider: string; consumer: string }).provider, (event.data as { id: string; provider: string; consumer: string }).consumer) as readonly (readonly string[])[])
+              websocketHelpers.invalidateFromWebSocket(
+                getInvalidationQueries.contracts.onContractChange(
+                  (event.data as { id: string; provider: string; consumer: string }).id,
+                  (event.data as { id: string; provider: string; consumer: string }).provider,
+                  (event.data as { id: string; provider: string; consumer: string }).consumer
+                ) as readonly (readonly string[])[]
+              )
               break
 
             case 'fixture':
-              if (event.action === 'create' || event.action === 'update' || event.action === 'status_change') {
-                websocketHelpers.updateItemInList(queryKeys.fixtures.lists(), event.data as { id: string })
+              if (
+                event.action === 'create' ||
+                event.action === 'update' ||
+                event.action === 'status_change'
+              ) {
+                websocketHelpers.updateItemInList(
+                  queryKeys.fixtures.lists(),
+                  event.data as { id: string }
+                )
               } else if (event.action === 'delete') {
-                websocketHelpers.removeItemFromList(queryKeys.fixtures.lists(), (event.data as { id: string }).id)
+                websocketHelpers.removeItemFromList(
+                  queryKeys.fixtures.lists(),
+                  (event.data as { id: string }).id
+                )
               }
-              websocketHelpers.invalidateFromWebSocket(getInvalidationQueries.fixtures.onFixtureChange((event.data as { id: string; service: string }).id, (event.data as { id: string; service: string }).service) as readonly (readonly string[])[])
+              websocketHelpers.invalidateFromWebSocket(
+                getInvalidationQueries.fixtures.onFixtureChange(
+                  (event.data as { id: string; service: string }).id,
+                  (event.data as { id: string; service: string }).service
+                ) as readonly (readonly string[])[]
+              )
               break
 
             case 'deployment':
               const deploymentData = event.data as { service: string; environment: string }
-              console.log('WebSocket: Processing deployment event - service:', deploymentData.service, 'environment:', deploymentData.environment)
+              console.log(
+                'WebSocket: Processing deployment event - service:',
+                deploymentData.service,
+                'environment:',
+                deploymentData.environment
+              )
 
               // Use standard query invalidation now that Deployments page uses proper hooks
-              const queriesToInvalidate = getInvalidationQueries.deployments.onDeploymentChange(deploymentData.service, deploymentData.environment)
+              const queriesToInvalidate = getInvalidationQueries.deployments.onDeploymentChange(
+                deploymentData.service,
+                deploymentData.environment
+              )
               console.log('WebSocket: Invalidating deployment queries:', queriesToInvalidate)
 
-              websocketHelpers.invalidateFromWebSocket(queriesToInvalidate as readonly (readonly string[])[])
+              websocketHelpers.invalidateFromWebSocket(
+                queriesToInvalidate as readonly (readonly string[])[]
+              )
               break
 
             case 'verification':
-              websocketHelpers.invalidateFromWebSocket(getInvalidationQueries.verification.onVerificationChange((event.data as { provider: string; consumer: string; contractId: string }).provider, (event.data as { provider: string; consumer: string; contractId: string }).consumer, (event.data as { provider: string; consumer: string; contractId: string }).contractId) as readonly (readonly string[])[])
+              websocketHelpers.invalidateFromWebSocket(
+                getInvalidationQueries.verification.onVerificationChange(
+                  (event.data as { provider: string; consumer: string; contractId: string })
+                    .provider,
+                  (event.data as { provider: string; consumer: string; contractId: string })
+                    .consumer,
+                  (event.data as { provider: string; consumer: string; contractId: string })
+                    .contractId
+                ) as readonly (readonly string[])[]
+              )
               break
 
             default:
@@ -298,11 +386,15 @@ export const useWebSocketStore = create<WebSocketStore>()(
         }
       },
 
-      addEventToHistory: (event) => {
-        set(state => {
-          const newHistory = [event, ...state.eventHistory].slice(0, state.config.maxEventHistory)
-          return { eventHistory: newHistory }
-        }, false, 'addEventToHistory')
+      addEventToHistory: event => {
+        set(
+          state => {
+            const newHistory = [event, ...state.eventHistory].slice(0, state.config.maxEventHistory)
+            return { eventHistory: newHistory }
+          },
+          false,
+          'addEventToHistory'
+        )
       },
 
       clearEventHistory: () => {
@@ -314,10 +406,14 @@ export const useWebSocketStore = create<WebSocketStore>()(
       },
 
       // Configuration
-      updateConfig: (config) => {
-        set(state => ({
-          config: { ...state.config, ...config }
-        }), false, 'updateConfig')
+      updateConfig: config => {
+        set(
+          state => ({
+            config: { ...state.config, ...config },
+          }),
+          false,
+          'updateConfig'
+        )
       },
     }),
     { name: 'websocket-store' }

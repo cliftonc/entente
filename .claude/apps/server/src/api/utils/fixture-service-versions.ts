@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
+import { fixtureServiceVersions, fixtures } from '../../db/schema'
 import type { Database } from '../../db/types'
-import { fixtures, fixtureServiceVersions } from '../../db/schema'
 import { ensureServiceVersion } from './service-versions'
 
 /**
@@ -14,13 +14,9 @@ export async function addServiceVersionToFixture(
   version: string
 ): Promise<string> {
   // Ensure the service version exists
-  const serviceVersionId = await ensureServiceVersion(
-    db,
-    tenantId,
-    serviceName,
-    version,
-    { createdBy: 'fixture-creation' }
-  )
+  const serviceVersionId = await ensureServiceVersion(db, tenantId, serviceName, version, {
+    createdBy: 'fixture-creation',
+  })
 
   // Check if the relationship already exists
   const existingRelation = await db.query.fixtureServiceVersions.findFirst({
@@ -60,20 +56,15 @@ export async function getFixtureServiceVersions(
   return relations.map(r => ({
     id: r.serviceVersionId,
     version: 'unknown', // Will be populated by joins
-    serviceName: 'unknown' // Will be populated by joins
+    serviceName: 'unknown', // Will be populated by joins
   }))
 }
 
 /**
  * Remove all service version associations from a fixture.
  */
-export async function clearFixtureServiceVersions(
-  db: Database,
-  fixtureId: string
-): Promise<void> {
-  await db
-    .delete(fixtureServiceVersions)
-    .where(eq(fixtureServiceVersions.fixtureId, fixtureId))
+export async function clearFixtureServiceVersions(db: Database, fixtureId: string): Promise<void> {
+  await db.delete(fixtureServiceVersions).where(eq(fixtureServiceVersions.fixtureId, fixtureId))
 }
 
 /**

@@ -378,7 +378,7 @@ interactionsRouter.post('/', async c => {
       interaction.consumerVersion,
       {
         gitSha: interaction.consumerGitSha,
-        createdBy: 'interaction-recording'
+        createdBy: 'interaction-recording',
       }
     )
 
@@ -721,7 +721,7 @@ interactionsRouter.post('/batch', async c => {
         interaction.consumerVersion,
         {
           gitSha: interaction.consumerGitSha,
-          createdBy: 'interaction-recording'
+          createdBy: 'interaction-recording',
         }
       )
 

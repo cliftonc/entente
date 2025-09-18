@@ -2,6 +2,7 @@ import type { VerificationResult } from '@entente/types'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import CodeBlock from '../components/CodeBlock'
 import ErrorDetails from '../components/ErrorDetails'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
@@ -286,10 +287,16 @@ function VerificationDetail() {
                     <tr key={result.interactionId || `result-${index}`}>
                       <td>#{index + 1}</td>
                       <td>
-                        <span className="badge badge-outline">{'N/A'}</span>
+                        <span className="badge badge-outline">
+                          {result.interaction?.request?.method || 'N/A'}
+                        </span>
                       </td>
-                      <td className="font-mono text-sm">{result.interactionId || 'N/A'}</td>
-                      <td className="text-sm">{'N/A'}</td>
+                      <td className="font-mono text-sm">{result.interaction?.request?.path || 'N/A'}</td>
+                      <td className="text-sm">
+                        <span className="font-mono text-sm">
+                          {result.interaction?.operation || 'N/A'}
+                        </span>
+                      </td>
                       <td>
                         <span
                           className={`badge ${
@@ -356,11 +363,17 @@ function VerificationDetail() {
                       {result.actualResponse?.body != null && (
                         <div className="bg-base-300/20 p-2 rounded mt-2">
                           <div className="text-xs font-semibold mb-1">Response Body:</div>
-                          <pre className="text-xs overflow-x-auto">
-                            {typeof result.actualResponse.body === 'string'
-                              ? result.actualResponse.body
-                              : JSON.stringify(result.actualResponse.body, null, 2) || ''}
-                          </pre>
+                          <div className="mt-1">
+                            <CodeBlock
+                              code={
+                                typeof result.actualResponse.body === 'string'
+                                  ? result.actualResponse.body
+                                  : JSON.stringify(result.actualResponse.body, null, 2) || ''
+                              }
+                              language="json"
+                              showLineNumbers={false}
+                            />
+                          </div>
                         </div>
                       )}
                       <ErrorDetails
@@ -378,7 +391,7 @@ function VerificationDetail() {
       {/* Raw JSON Modal */}
       {showModal && selectedResult && (
         <div className="modal modal-open">
-          <div className="modal-box max-w-4xl">
+          <div className="modal-box max-w-6xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">Raw Test Result JSON</h3>
               <button className="btn btn-sm btn-circle btn-ghost" onClick={closeModal}>
@@ -391,13 +404,19 @@ function VerificationDetail() {
               <div className="bg-base-200 p-3 rounded">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <strong>Method:</strong> N/A
+                    <strong>Method:</strong>{' '}
+                    <span className="badge badge-outline">{selectedResult.interaction?.request?.method}</span>
                   </div>
                   <div>
-                    <strong>Path:</strong> N/A
+                    <strong>Path:</strong>{' '}
+                    <span className="font-mono text-sm">{selectedResult.interaction?.request?.path}</span>
                   </div>
                   <div>
-                    <strong>Operation:</strong> N/A
+                    <strong>Operation:</strong>
+                    <span className="font-mono text-sm">
+                      {' '}
+                      {selectedResult.interaction?.operation}
+                    </span>
                   </div>
                   <div>
                     <strong>Success:</strong>
@@ -424,8 +443,12 @@ function VerificationDetail() {
               {/* Full JSON Data */}
               <div>
                 <h4 className="font-semibold mb-2">Complete Test Result:</h4>
-                <div className="bg-base-300 p-4 rounded max-h-96 overflow-auto">
-                  <pre className="text-xs">{JSON.stringify(selectedResult, null, 2)}</pre>
+                <div className="bg-base-300 p-1 rounded max-h-96 overflow-auto">
+                  <CodeBlock
+                    code={JSON.stringify(selectedResult, null, 2)}
+                    language="json"
+                    showLineNumbers={true}
+                  />
                 </div>
               </div>
             </div>

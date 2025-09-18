@@ -193,7 +193,6 @@ function ContractDetail() {
                 version={contract.consumerVersion}
                 serviceName={contract.consumerName}
                 serviceType="consumer"
-                
               />
             </div>
 
@@ -217,7 +216,6 @@ function ContractDetail() {
                 version={contract.providerVersion}
                 serviceName={contract.providerName}
                 serviceType="provider"
-                
               />
             </div>
 
@@ -279,7 +277,6 @@ function ContractDetail() {
                                 version={task.providerVersion}
                                 serviceName={contract.providerName}
                                 serviceType="provider"
-                                
                               />
                             </td>
                             <td>
@@ -287,7 +284,6 @@ function ContractDetail() {
                                 version={task.consumerVersion}
                                 serviceName={contract.consumerName}
                                 serviceType="consumer"
-                                
                               />
                             </td>
                             <td>
@@ -334,7 +330,6 @@ function ContractDetail() {
                                 version={result.providerVersion}
                                 serviceName={contract.providerName}
                                 serviceType="provider"
-                                
                               />
                             </td>
                             <td>
@@ -342,7 +337,6 @@ function ContractDetail() {
                                 version={result.consumerVersion || 'N/A'}
                                 serviceName={contract.consumerName}
                                 serviceType="consumer"
-                                
                               />
                             </td>
                             <td>

@@ -5,18 +5,24 @@
 import type { GitHubAppInstallation, GitHubAppInstallationUpdate } from '@entente/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { githubSettingsApi } from '../utils/api'
-import { queryKeys, getInvalidationQueries } from '../lib/queryKeys'
-import { createOptimisticMutationOptions, defaultQueryOptions } from '../lib/queryClient'
-import type { QueryOptions, MutationOptions, HookState, MutationHookState, HookConfig, ApiError, OptimisticContext } from '../lib/types'
 import { mergeHookConfig } from '../lib/hookUtils'
+import { createOptimisticMutationOptions, defaultQueryOptions } from '../lib/queryClient'
+import { getInvalidationQueries, queryKeys } from '../lib/queryKeys'
+import type {
+  ApiError,
+  HookConfig,
+  HookState,
+  MutationHookState,
+  MutationOptions,
+  OptimisticContext,
+  QueryOptions,
+} from '../lib/types'
+import { githubSettingsApi } from '../utils/api'
 
 /**
  * Hook to get GitHub app name
  */
-export function useGitHubAppName(
-  options?: HookConfig
-): HookState<{ appName: string }> {
+export function useGitHubAppName(options?: HookConfig): HookState<{ appName: string }> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({
@@ -67,9 +73,7 @@ export function useGitHubInstallation(
 /**
  * Hook to get GitHub manage URL
  */
-export function useGitHubManageUrl(
-  options?: HookConfig
-): HookState<{ manageUrl: string }> {
+export function useGitHubManageUrl(options?: HookConfig): HookState<{ manageUrl: string }> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({

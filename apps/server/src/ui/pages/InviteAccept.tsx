@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { useInvitationDetails, useAcceptInvitation } from '../hooks/useInvitations'
+import { useAcceptInvitation, useInvitationDetails } from '../hooks/useInvitations'
 
 interface InvitationDetails {
   id: string
@@ -289,7 +289,8 @@ function InviteAccept() {
                 <div>
                   <div className="font-bold">Email Mismatch</div>
                   <div className="text-sm">
-                    This invitation is for {invitation.email}, but you're logged in as {user?.email}.
+                    This invitation is for {invitation.email}, but you're logged in as {user?.email}
+                    .
                   </div>
                 </div>
               </div>
