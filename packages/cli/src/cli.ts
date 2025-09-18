@@ -27,15 +27,10 @@ const program = new Command()
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'))
 
-program.name('entente').description('CLI for Entente contract testing').version(packageJson.version)
+program.name('entente').description('CLI for Entente contract testing')
 
-// Add entente-version flag
-program.option('--entente-version', 'show CLI version').action(options => {
-  if (options.ententeVersion) {
-    console.log(`@entente/cli version ${packageJson.version}`)
-    process.exit(0)
-  }
-})
+// Disable Commander's default version option and add our own
+program.option('--entente-version', 'show CLI version')
 
 // Authentication commands
 program
@@ -444,6 +439,17 @@ program
       process.exit(1)
     }
   })
+
+// Show help if no arguments provided
+if (process.argv.length === 2) {
+  program.help()
+}
+
+// Handle --entente-version flag before parsing
+if (process.argv.includes('--entente-version')) {
+  console.log(`@entente/cli version ${packageJson.version}`)
+  process.exit(0)
+}
 
 // Parse command line arguments
 program.parse()
