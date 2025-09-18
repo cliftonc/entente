@@ -399,34 +399,6 @@ export const registerService = async (options: {
   }
 }
 
-// Legacy provider registration function for backward compatibility
-export const registerProvider = async (options: {
-  name: string
-  packagePath: string
-  description?: string
-}): Promise<void> => {
-  return registerService({
-    name: options.name,
-    type: 'provider',
-    packagePath: options.packagePath,
-    description: options.description,
-  })
-}
-
-// Legacy consumer registration function for backward compatibility
-export const registerConsumer = async (options: {
-  name: string
-  packagePath: string
-  description?: string
-}): Promise<void> => {
-  return registerService({
-    name: options.name,
-    type: 'consumer',
-    packagePath: options.packagePath,
-    description: options.description,
-  })
-}
-
 // Consumer deployment with dependencies
 export const deployConsumer = async (options: {
   name: string

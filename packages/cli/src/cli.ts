@@ -14,9 +14,6 @@ import {
   deployProvider,
   getDeploymentStatus,
   listFixtures,
-  recordDeployment,
-  registerConsumer,
-  registerProvider,
   registerService,
   uploadSpec,
 } from './index.js'
@@ -78,6 +75,7 @@ program
   )
   .requiredOption('-s, --service <service>', 'Service name')
   .requiredOption('-t, --type <type>', 'Service type: consumer or provider')
+  .requiredOption('-v, --version <version>', 'Provider version')
   .option('-p, --package <path>', 'Path to package.json', './package.json')
   .option('-d, --description <desc>', 'Service description')
   .option('--spec <file>', 'Path to OpenAPI spec file to upload (providers only)')
@@ -117,75 +115,9 @@ program
           environment: options.environment,
           spec: options.spec,
           branch: options.branch,
+          version: options.version
         })
       }
-    } catch (error) {
-      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
-      process.exit(1)
-    }
-  })
-
-program
-  .command('register-provider')
-  .description('Register a provider with package.json and optionally upload OpenAPI spec')
-  .requiredOption('-s, --service <service>', 'Provider service name')
-  .option('-p, --package <path>', 'Path to package.json', './package.json')
-  .option('-d, --description <desc>', 'Provider description')
-  .option('--spec <file>', 'Path to OpenAPI spec file to upload')
-  .option('-v, --version <version>', 'Provider version (required if --spec provided)')
-  .option(
-    '-e, --environment <environment>',
-    'Environment for spec (required if --spec provided)',
-    'development'
-  )
-  .option('-b, --branch <branch>', 'Git branch for spec', 'main')
-  .action(async options => {
-    try {
-      console.log(chalk.blue('📦'), `Registering provider ${options.service}...`)
-      await registerProvider({
-        name: options.service,
-        packagePath: options.package,
-        description: options.description,
-      })
-
-      // If spec provided, upload it
-      if (options.spec) {
-        if (!options.version) {
-          throw new Error('--version is required when --spec is provided')
-        }
-
-        console.log(
-          chalk.blue('📤'),
-          `Uploading OpenAPI spec for ${options.service}@${options.version}...`
-        )
-        await uploadSpec({
-          service: options.service,
-          version: options.version,
-          environment: options.environment,
-          spec: options.spec,
-          branch: options.branch,
-        })
-      }
-    } catch (error) {
-      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
-      process.exit(1)
-    }
-  })
-
-program
-  .command('register-consumer')
-  .description('Register a consumer with package.json')
-  .requiredOption('-s, --service <service>', 'Consumer service name')
-  .requiredOption('-p, --package <path>', 'Path to package.json', './package.json')
-  .option('-d, --description <desc>', 'Consumer description')
-  .action(async options => {
-    try {
-      console.log(chalk.blue('📱'), `Registering consumer ${options.service}...`)
-      await registerConsumer({
-        name: options.service,
-        packagePath: options.package,
-        description: options.description,
-      })
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
       process.exit(1)
