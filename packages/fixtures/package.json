@@ -1,6 +1,6 @@
 {
   "name": "@entente/fixtures",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Fixture management utilities for Entente contract testing",
   "type": "module",
   "main": "./dist/index.js",
