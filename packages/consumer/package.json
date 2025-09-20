@@ -1,6 +1,6 @@
 {
   "name": "@entente/consumer",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Consumer testing library for Entente contract testing",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,7 +11,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -29,5 +31,10 @@
     "vitest": "^2.1.8",
     "@types/ws": "^8.5.10"
   },
-  "keywords": ["contract-testing", "consumer", "testing", "mocking"]
+  "keywords": [
+    "contract-testing",
+    "consumer",
+    "testing",
+    "mocking"
+  ]
 }
