@@ -8,7 +8,7 @@ import {
   convertOpenAPIMockDataToFixtures,
   matchOpenAPIOperation,
   generateOpenAPIResponseV2
-} from '../../src/spec-handlers/openapi'
+} from '../../src/spec-handlers/openapi.js'
 import type { OpenAPISpec, FixtureReference } from '@entente/types'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'

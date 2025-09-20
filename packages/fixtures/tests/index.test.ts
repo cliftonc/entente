@@ -7,7 +7,7 @@ import {
   generateInteractionHash,
   prioritizeFixtures,
   validateFixtureData,
-} from '../src/index'
+} from '../src/index.js'
 
 // Mock fetch globally
 global.fetch = vi.fn()

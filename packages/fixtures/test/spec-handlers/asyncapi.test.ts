@@ -7,7 +7,7 @@ import {
   generateAsyncAPIResponseV2,
   validateAsyncAPIResponse,
   createAsyncAPIHandler
-} from '../../src/spec-handlers/asyncapi'
+} from '../../src/spec-handlers/asyncapi.js'
 import type { Fixture } from '@entente/types'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'

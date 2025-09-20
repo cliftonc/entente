@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { createSpecRegistry, findSpecType } from '../../src/spec-handlers/registry'
-import { createOpenAPIHandler } from '../../src/spec-handlers/openapi'
+import { createSpecRegistry, findSpecType } from '../../src/spec-handlers/registry.js'
+import { createOpenAPIHandler } from '../../src/spec-handlers/openapi.js'
 import type { SpecRegistry } from '@entente/types'
 
 describe('Functional Spec Registry', () => {

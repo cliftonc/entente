@@ -37,8 +37,8 @@ import type {
 } from '@entente/types'
 import { debugLog } from '@entente/types'
 import { getGitSha } from './git-utils.js'
-import { createWebSocketMockServer, extractChannelsFromOperations } from './websocket-handler'
-import type { WebSocketMockServer } from './websocket-handler'
+import { createWebSocketMockServer, extractChannelsFromOperations } from './websocket-handler.js'
+import type { WebSocketMockServer } from './websocket-handler.js'
 
 // Type alias for all supported specification formats
 type SupportedSpec = OpenAPISpec | GraphQLSchema | AsyncAPISpec | GRPCProto | SOAPWsdl
@@ -1344,4 +1344,4 @@ const pathMatchesSpec = (specPath: string, requestPath: string): boolean => {
 export type { MockServer, MockRequest, MockResponse }
 
 // Export auto-detection utilities
-export { detectRequestType, createRequestDetector, defaultRequestDetector } from './mock-detector'
+export { detectRequestType, createRequestDetector, defaultRequestDetector } from './mock-detector.js'

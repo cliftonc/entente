@@ -4,7 +4,7 @@ import {
   parseGraphQLSpec,
   extractGraphQLOperations,
   createGraphQLHandler
-} from '../src/spec-handlers/graphql'
+} from '../src/spec-handlers/graphql.js'
 import type { APISpec } from '@entente/types'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'

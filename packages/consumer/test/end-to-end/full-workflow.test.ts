@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { createClient } from '../../src'
+import { createClient } from '../../src/index.js'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import WebSocket from 'ws'

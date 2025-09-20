@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { specRegistry } from '../../src/spec-handlers'
+import { specRegistry } from '../../src/spec-handlers/index.js'
 import WebSocket from 'ws'
 
 describe('Multi-Spec Integration Tests', () => {

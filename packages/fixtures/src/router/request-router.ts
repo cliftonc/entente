@@ -10,7 +10,7 @@ import type {
   UnifiedResponse,
 } from '@entente/types'
 import { debugLog } from '@entente/types'
-import { scoreFixturesDefault } from '../scoring/fixture-scoring'
+import { scoreFixturesDefault } from '../scoring/fixture-scoring.js'
 
 export interface RequestRouterOptions {
   debug?: boolean
