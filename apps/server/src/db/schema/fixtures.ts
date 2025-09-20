@@ -1,5 +1,7 @@
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import {
+  check,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -10,6 +12,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
+import { specTypeEnum } from './services'
 import { tenants } from './tenants'
 
 export const fixtureStatusEnum = pgEnum('fixture_status', ['draft', 'approved', 'rejected'])
@@ -25,6 +28,10 @@ export const fixtures = pgTable(
     service: varchar('service', { length: 255 }).notNull(),
     serviceVersion: varchar('service_version', { length: 100 }).notNull(),
     serviceVersions: jsonb('service_versions').notNull(), // Array of versions where this fixture appears
+
+    // NEW: Support for different specification types
+    specType: specTypeEnum('spec_type').notNull().default('openapi'), // enum spec type
+
     operation: varchar('operation', { length: 255 }).notNull(),
     hash: varchar('hash', { length: 64 }).notNull(), // SHA-256 hash for deduplication
     status: fixtureStatusEnum('status').default('draft').notNull(),
@@ -40,6 +47,14 @@ export const fixtures = pgTable(
   table => ({
     // Unique constraint to prevent duplicate fixtures within a tenant
     tenantHashUnique: unique().on(table.tenantId, table.hash),
+    // Check constraint for valid spec types
+    specTypeCheck: check(
+      'fixtures_spec_type_check',
+      sql`${table.specType} IN ('openapi', 'graphql', 'asyncapi', 'grpc', 'soap')`
+    ),
+    // Indexes for better query performance
+    specTypeIdx: index('idx_fixtures_spec_type').on(table.specType),
+    serviceSpecTypeIdx: index('idx_fixtures_service_spec_type').on(table.service, table.specType),
   })
 )
 

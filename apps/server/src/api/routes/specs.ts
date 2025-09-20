@@ -1,24 +1,34 @@
-import type { OpenAPISpec, SpecMetadata } from '@entente/types'
+import { specRegistry } from '@entente/fixtures'
+import type { OpenAPISpec, SpecMetadata, SpecType, SupportedSpec } from '@entente/types'
+import { debugLog } from '@entente/types'
 import { and, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { deployments, services, specs } from '../../db/schema'
 import type { DbSpec } from '../../db/types'
+import { injectMockServerUrls } from '../utils/openapi'
 import { findBestSemverMatch, getLatestVersion } from '../utils/semver-match'
 import { ensureServiceVersion, getServiceVersions } from '../utils/service-versions'
-import { injectMockServerUrls } from '../utils/openapi'
 
 export const specsRouter = new Hono()
 
-// Upload OpenAPI specification
+// Upload API specification (OpenAPI, GraphQL, AsyncAPI, gRPC, SOAP)
 specsRouter.post('/:service', async c => {
   const service = c.req.param('service')
   const body = await c.req.json()
 
-  const { spec, metadata }: { spec: OpenAPISpec; metadata: SpecMetadata } = body
+  const { spec, metadata }: { spec: SupportedSpec; metadata: SpecMetadata } = body
 
   if (!spec || !metadata) {
     return c.json({ error: 'Missing spec or metadata' }, 400)
   }
+
+  // Auto-detect spec type
+  const detectedSpecType = specRegistry.detectType(spec)
+  if (!detectedSpecType) {
+    return c.json({ error: 'Unsupported specification format' }, 400)
+  }
+
+  debugLog(`🔍 Detected spec type: ${detectedSpecType} for service ${service}`)
 
   const db = c.get('db')
   const { tenantId } = c.get('session')
@@ -50,6 +60,7 @@ specsRouter.post('/:service', async c => {
     metadata.version,
     {
       spec: spec,
+      specType: detectedSpecType, // Include the detected spec type
       gitSha: undefined,
       packageJson: undefined,
       createdBy: user?.name || 'spec-upload',
@@ -76,6 +87,7 @@ specsRouter.post('/:service', async c => {
       .update(specs)
       .set({
         spec,
+        specType: detectedSpecType, // Update spec type in case it changed
         uploadedBy: metadata.uploadedBy,
         uploadedAt: new Date(),
       })
@@ -83,7 +95,7 @@ specsRouter.post('/:service', async c => {
       .returning()
 
     resultSpec = updated
-    console.log(`📋 Updated spec for ${service}@${metadata.version} (${metadata.environment})`)
+    debugLog(`📋 Updated spec for ${service}@${metadata.version} (${metadata.environment})`)
   } else {
     // Create new spec
     const [created] = await db
@@ -95,6 +107,7 @@ specsRouter.post('/:service', async c => {
         version: metadata.version,
         branch: metadata.branch,
         environment: metadata.environment,
+        specType: detectedSpecType, // Include the detected spec type
         spec,
         uploadedBy: metadata.uploadedBy,
       })
@@ -102,7 +115,22 @@ specsRouter.post('/:service', async c => {
 
     resultSpec = created
     isNew = true
-    console.log(`📋 Uploaded new spec for ${service}@${metadata.version} (${metadata.environment})`)
+    debugLog(`📋 Uploaded new spec for ${service}@${metadata.version} (${metadata.environment})`)
+  }
+
+  // Update service specType if it's different from detected type
+  if (provider.specType !== detectedSpecType) {
+    await db
+      .update(services)
+      .set({
+        specType: detectedSpecType,
+        updatedAt: new Date(),
+      })
+      .where(eq(services.id, provider.id))
+
+    debugLog(
+      `🔄 Updated service ${service} specType from ${provider.specType} to ${detectedSpecType}`
+    )
   }
 
   return c.json(
@@ -132,23 +160,63 @@ specsRouter.get('/:service', async c => {
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
-  const spec = await db.query.specs.findFirst({
-    where: and(
-      eq(specs.tenantId, tenantId),
-      eq(specs.service, service),
-      eq(specs.version, version),
-      eq(specs.branch, branch)
-    ),
-  })
+  let spec
+
+  if (version === 'latest') {
+    // Find the latest spec for this service
+    const allSpecs = await db.query.specs.findMany({
+      where: and(
+        eq(specs.tenantId, tenantId),
+        eq(specs.service, service),
+        eq(specs.branch, branch)
+      ),
+      orderBy: desc(specs.uploadedAt),
+    })
+
+    spec = allSpecs[0] // Most recent by upload time
+  } else {
+    // Find specific version
+    spec = await db.query.specs.findFirst({
+      where: and(
+        eq(specs.tenantId, tenantId),
+        eq(specs.service, service),
+        eq(specs.version, version),
+        eq(specs.branch, branch)
+      ),
+    })
+  }
 
   if (!spec) {
     return c.json({ error: 'Spec not found' }, 404)
   }
 
-  // Inject mock server URLs into the spec (specific version endpoint)
-  const specWithMock = injectMockServerUrls(spec.spec as OpenAPISpec, service, 'latest')
+  // Inject mock server URLs only for OpenAPI specs
+  if (spec.specType === 'openapi') {
+    const specWithMock = injectMockServerUrls(spec.spec as OpenAPISpec, service, 'latest')
+    return c.json(specWithMock)
+  }
 
-  return c.json(specWithMock)
+  // For non-OpenAPI specs (GraphQL, AsyncAPI, etc.), return the spec with appropriate endpoint info
+  const response: any = {
+    specType: spec.specType,
+    spec: spec.spec,
+    service: spec.service,
+    version: spec.version,
+    branch: spec.branch,
+    environment: spec.environment,
+    uploadedAt: spec.uploadedAt,
+  }
+
+  // Add endpoint information for GraphQL
+  if (spec.specType === 'graphql') {
+    response.endpoints = {
+      mock: `/api/mock/service/${service}`, // Mock GraphQL endpoint
+      latest: `/api/mock/service/${service}`, // Latest version mock
+      version: `/api/mock/version/${spec.id}`, // Specific version mock
+    }
+  }
+
+  return c.json(response)
 })
 
 // List available versions for a service
@@ -214,7 +282,7 @@ specsRouter.get('/:service/by-provider-version', async c => {
       const match = findBestSemverMatch(requestedVersion, allVersions)
       if (match) {
         selectedVersion = allVersions.find(v => v.id === match.id)
-        console.log(
+        debugLog(
           `🔍 Version ${requestedVersion} not found for ${service}, using best semver match: ${match.version}`
         )
       }
@@ -249,25 +317,32 @@ specsRouter.get('/:service/by-provider-version', async c => {
     ),
   })
 
-  // Inject mock server URLs into the spec
-  const rawSpec = (selectedVersion as any).spec || {}
+  // Inject mock server URLs only for OpenAPI specs
+  const rawSpec = selectedVersion.spec || {}
   const urlType = requestedVersion === 'latest' ? 'latest' : 'version'
-  const specWithMock = rawSpec && Object.keys(rawSpec).length > 0
-    ? injectMockServerUrls(rawSpec as OpenAPISpec, service, urlType, selectedVersion.id)
-    : rawSpec
+  let specWithMock = rawSpec
 
-  // Return spec from ServiceVersion
+  if (rawSpec && Object.keys(rawSpec).length > 0 && selectedVersion.specType === 'openapi') {
+    specWithMock = injectMockServerUrls(
+      rawSpec as OpenAPISpec,
+      service,
+      urlType,
+      selectedVersion.id
+    )
+  }
+
   return c.json({
-    spec: specWithMock, // Return spec with mock server URLs injected
+    spec: specWithMock,
     metadata: {
-      providerVersion: selectedVersion.version, // Return actual version used
+      providerVersion: selectedVersion.version,
       serviceVersionId: selectedVersion.id,
+      specType: selectedVersion.specType,
       environment,
       branch,
-      hasSpec: !!(selectedVersion as any).spec,
-      createdAt: (selectedVersion as any).createdAt,
+      hasSpec: !!selectedVersion.spec,
+      createdAt: selectedVersion.createdAt,
       resolvedFromLatest: requestedVersion === 'latest',
-      isDeployed: !!deployment, // Indicates if this version is actually deployed
+      isDeployed: !!deployment,
     },
   })
 })

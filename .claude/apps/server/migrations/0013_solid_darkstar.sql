@@ -1,2 +1,0 @@
-ALTER TABLE "interactions" DROP COLUMN "service_version";--> statement-breakpoint
-ALTER TABLE "verification_tasks" ADD CONSTRAINT "verification_tasks_tenant_id_consumer_id_consumer_version_provider_id_unique" UNIQUE("tenant_id","consumer_id","consumer_version","provider_id");

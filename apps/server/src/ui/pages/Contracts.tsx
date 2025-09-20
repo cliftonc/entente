@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import ConsumerFilter from '../components/ConsumerFilter'
 import GetStartedButton from '../components/GetStartedButton'
 import ProviderFilter from '../components/ProviderFilter'
+import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
 import ContractsExample from '../components/get-started-examples/ContractsExample'
@@ -128,7 +129,7 @@ function Contracts() {
   }
 
   const handleShowMore = () => {
-    console.log(`Loading more contracts: offset ${currentOffset} -> ${currentOffset + pageSize}`)
+    // Loading more contracts...
     setCurrentOffset(prev => prev + pageSize)
   }
 
@@ -314,6 +315,7 @@ function Contracts() {
                   <th>Version</th>
                   <th>Provider</th>
                   <th>Provider Version</th>
+                  <th>Spec Type</th>
                   <th>Interactions</th>
                   <th>Status</th>
                   <th>Last Activity</th>
@@ -323,7 +325,7 @@ function Contracts() {
               <tbody>
                 {!contractsToDisplay || contractsToDisplay.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center text-base-content/70 py-8">
+                    <td colSpan={9} className="text-center text-base-content/70 py-8">
                       {selectedProvider || selectedConsumer || selectedStatus
                         ? 'No contracts found with current filters'
                         : 'No contracts found. Contracts will appear here after interactions are recorded.'}
@@ -361,6 +363,9 @@ function Contracts() {
                           serviceName={contract.providerName}
                           serviceType="provider"
                         />
+                      </td>
+                      <td>
+                        <SpecBadge specType={contract.specType} size="sm" />
                       </td>
                       <td>
                         <span className="font-mono text-sm">{contract.interactionCount}</span>

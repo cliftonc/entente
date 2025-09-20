@@ -13,6 +13,7 @@ import type {
   VerificationTask,
   VerifyOptions,
 } from '@entente/types'
+import { debugLog } from '@entente/types'
 import { getGitSha } from './git-utils.js'
 
 export interface ProviderVerificationResults {
@@ -76,7 +77,7 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
     verify: async (options: VerifyOptions): Promise<ProviderVerificationResults> => {
       // Skip verification if using fallback values
       if (usingFallbackName || usingFallbackVersion) {
-        console.log('🚫 Skipping provider verification - provider info unavailable')
+        debugLog('🚫 Skipping provider verification - provider info unavailable')
 
         return {
           taskId: null,
@@ -88,7 +89,7 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
 
       // Download and setup normalized fixtures if enabled
       if (resolvedConfig.useNormalizedFixtures && resolvedConfig.dataSetupCallback) {
-        console.log('📦 Downloading normalized fixtures for provider setup...')
+        debugLog('📦 Downloading normalized fixtures for provider setup...')
         try {
           const normalizedFixtures = await downloadNormalizedFixtures(
             resolvedConfig.serviceUrl,
@@ -97,11 +98,11 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
             resolvedConfig.providerVersion
           )
 
-          console.log(
+          debugLog(
             `🔧 Setting up ${Object.keys(normalizedFixtures.entities).length} entity types from ${normalizedFixtures.metadata.totalFixtures} fixtures...`
           )
           await resolvedConfig.dataSetupCallback(normalizedFixtures)
-          console.log('✅ Normalized fixture data setup completed')
+          debugLog('✅ Normalized fixture data setup completed')
         } catch (error) {
           console.error('❌ Failed to setup normalized fixtures:', error)
           // Continue with verification even if fixture setup fails
@@ -135,6 +136,7 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
 
             // Replay the recorded request against real provider
             const actualResponse = await replayRequest(options.baseUrl, interaction.request)
+
 
             // Validate response matches recorded response
             const validation = validateResponse(interaction.response, actualResponse)
@@ -183,6 +185,7 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
               consumer: task.consumer,
               consumerVersion: task.consumerVersion,
               consumerGitSha: task.consumerGitSha,
+              specType: task.specType, // Include specType from the task
               results: taskResults,
             }
           )
@@ -213,7 +216,7 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
     getVerificationTasks: (environment?: string): Promise<VerificationTask[]> => {
       // Skip getting tasks if using fallback values
       if (usingFallbackName || usingFallbackVersion) {
-        console.log('🚫 Skipping verification task retrieval - provider info unavailable')
+        debugLog('🚫 Skipping verification task retrieval - provider info unavailable')
         return Promise.resolve([])
       }
 
@@ -245,10 +248,13 @@ export const replayRequest = async (
     body: request.body ? JSON.stringify(request.body) : undefined,
   })
 
+  const contentType = response.headers.get('content-type') || ''
+  const isJsonResponse = contentType.includes('application/json') || contentType.includes('application/graphql-response+json')
+
   return {
     status: response.status,
     headers: Object.fromEntries(response.headers.entries()),
-    body: response.headers.get('content-type')?.includes('application/json')
+    body: isJsonResponse
       ? await response.json()
       : await response.text(),
   }

@@ -2,37 +2,53 @@ import { readFileSync } from 'node:fs'
 import type { Server } from 'node:http'
 import { resolve } from 'node:path'
 import {
-  createFixtureManager,
-  extractOperationFromPath,
-  extractOperationFromSpec,
-  generateFixtureHash,
-  generateInteractionHash,
-  prioritizeFixtures,
-  createOpenAPIMockHandler,
-  handleMockRequest,
   type MockRequest as FixtureMockRequest,
   type MockResponse as FixtureMockResponse,
-  type MockHandler
+  type MockHandler,
+  convertHTTPToUnified,
+  convertUnifiedToHTTP,
+  createFixtureManager,
+  createOpenAPIMockHandler,
+  createUnifiedMockHandler,
+  generateFixtureHash,
+  generateInteractionHash,
+  handleMockRequest,
+  handleUnifiedMockRequest,
+  prioritizeFixtures,
+  // NEW: Multi-spec support imports
+  specRegistry,
 } from '@entente/fixtures'
 import type {
+  APISpec,
+  AsyncAPISpec,
   ClientConfig,
   ClientInteraction,
   Fixture,
   FixtureProposal,
+  GRPCProto,
+  GraphQLSchema,
   HTTPRequest,
   HTTPResponse,
   LocalMockData,
   MockOptions,
   OpenAPISpec,
+  SOAPWsdl,
+  SpecType,
 } from '@entente/types'
+import { debugLog } from '@entente/types'
 import { getGitSha } from './git-utils.js'
+import { createWebSocketMockServer, extractChannelsFromOperations } from './websocket-handler'
+import type { WebSocketMockServer } from './websocket-handler'
+
+// Type alias for all supported specification formats
+type SupportedSpec = OpenAPISpec | GraphQLSchema | AsyncAPISpec | GRPCProto | SOAPWsdl
 
 export interface EntenteClient {
   createMock: (service: string, version: string, options?: MockOptions) => Promise<EntenteMock>
   uploadSpec: (
     service: string,
     version: string,
-    spec: OpenAPISpec,
+    spec: SupportedSpec,
     metadata: {
       branch?: string
       environment: string
@@ -49,6 +65,11 @@ export interface EntenteMock {
     operation: string,
     data: { request?: unknown; response: unknown }
   ) => Promise<void>
+
+  // AsyncAPI-specific methods
+  websocket?: WebSocketMockServer
+  sendEvent?: (channel: string, data: any) => void
+  getChannels?: () => string[]
 }
 
 interface FixtureCollector {
@@ -81,6 +102,7 @@ const getPackageInfo = (): { name: string; version: string } => {
     }
   }
 }
+
 
 export const createClient = (config: ClientConfig): EntenteClient => {
   // Get package info for fallbacks
@@ -119,8 +141,8 @@ export const createClient = (config: ClientConfig): EntenteClient => {
       // Dependencies should be registered at deployment time using the CLI:
       // entente deploy-consumer -n my-app -v 1.0.0 -e production -D order-service:2.1.0
 
-      // Fetch OpenAPI spec from central service using provider deployment version
-      const { spec, providerVersion: actualProviderVersion } = await fetchSpec(
+      // Fetch spec from central service using provider deployment version
+      const { spec, providerVersion: actualProviderVersion, specType } = await fetchSpec(
         resolvedConfig.serviceUrl,
         resolvedConfig.apiKey,
         service,
@@ -142,17 +164,23 @@ export const createClient = (config: ClientConfig): EntenteClient => {
         )
       }
 
+      // Use spec type from API response (preferred) or auto-detect as fallback
+      const detectedSpecType = specType || specRegistry.detectType(spec) || 'openapi'
+      debugLog(`🔍 [Consumer] Spec type: ${detectedSpecType} for service ${service} (from API: ${specType})`)
+
       // Convert LocalMockData to fixtures if provided
       let allFixtures = fixtures
       if (options?.localMockData && fixtures.length === 0) {
-        console.log(
+        debugLog(
           `📋 Converting local mock data to fixtures for ${service}@${actualProviderVersion}`
         )
+
         const convertedFixtures = convertMockDataToFixtures(
           options.localMockData,
           service,
           actualProviderVersion,
-          spec
+          spec,
+          detectedSpecType as SpecType
         )
         allFixtures = prioritizeFixtures(convertedFixtures)
       }
@@ -171,7 +199,7 @@ export const createClient = (config: ClientConfig): EntenteClient => {
       if (resolvedConfig.recordingEnabled && !usingFallbackName && !usingFallbackVersion) {
         recorder = createInteractionRecorder(resolvedConfig)
       } else if (resolvedConfig.recordingEnabled && (usingFallbackName || usingFallbackVersion)) {
-        console.log('🚫 Skipping interaction recording - consumer info unavailable')
+        debugLog('🚫 Skipping interaction recording - consumer info unavailable')
       }
 
       return createEntenteMock({
@@ -184,13 +212,14 @@ export const createClient = (config: ClientConfig): EntenteClient => {
         hasFixtures: allFixtures.length > 0,
         config: resolvedConfig, // Pass the resolved config for access to consumer info
         skipOperations: usingFallbackName || usingFallbackVersion, // Skip operations if using fallbacks
+        specType: detectedSpecType, // Pass spec type for operation extraction
       })
     },
 
     uploadSpec: async (
       service: string,
       version: string,
-      spec: OpenAPISpec,
+      spec: SupportedSpec,
       metadata: {
         branch?: string
         environment: string
@@ -198,7 +227,7 @@ export const createClient = (config: ClientConfig): EntenteClient => {
     ): Promise<void> => {
       // Skip upload if using fallback values
       if (usingFallbackName || usingFallbackVersion) {
-        console.log(`🚫 Skipping spec upload for ${service}@${version} - consumer info unavailable`)
+        debugLog(`🚫 Skipping spec upload for ${service}@${version} - consumer info unavailable`)
         return
       }
 
@@ -235,7 +264,7 @@ const fetchSpec = async (
   providerVersion: string,
   environment: string,
   branch = 'main'
-): Promise<{ spec: OpenAPISpec; providerVersion: string }> => {
+): Promise<{ spec: SupportedSpec; providerVersion: string; specType?: string }> => {
   // Use the new endpoint that looks up specs by provider deployment version
   const params = new URLSearchParams({
     providerVersion,
@@ -279,16 +308,16 @@ const fetchSpec = async (
   // Show helpful messages (safely check for metadata)
   const resolvedVersion = data.metadata?.providerVersion || providerVersion
 
-  console.log(
+  debugLog(
     `🔍 Provider version resolution: requested="${providerVersion}" → resolved="${resolvedVersion}" for ${service}`
   )
 
   if (data.metadata?.resolvedFromLatest) {
-    console.log(`📋 Using latest provider version: ${resolvedVersion} for ${service}`)
+    debugLog(`📋 Using latest provider version: ${resolvedVersion} for ${service}`)
   }
 
   if (data.metadata && !data.metadata.isDeployed) {
-    console.log(
+    debugLog(
       `ℹ️  Using spec for ${service}@${resolvedVersion} (not currently deployed in ${environment})`
     )
   }
@@ -296,6 +325,7 @@ const fetchSpec = async (
   return {
     spec: data.spec || data, // Support both new format (data.spec) and old format (data directly)
     providerVersion: resolvedVersion, // Use resolved version consistently
+    specType: data.metadata?.specType, // Extract spec type from metadata
   }
 }
 
@@ -304,139 +334,20 @@ const convertMockDataToFixtures = (
   mockData: LocalMockData,
   service: string,
   version: string,
-  spec: OpenAPISpec
+  spec: SupportedSpec,
+  specType: SpecType = 'openapi'
 ): Fixture[] => {
-  const fixtures: Fixture[] = []
-  let fixtureId = 1
+  // Get the appropriate handler for this spec type
+  const handler = specRegistry.getHandler(specType)
 
-  // Create mapping from operation ID to path and method
-  const operationMap = new Map<string, { path: string; method: string }>()
-  for (const [path, pathItem] of Object.entries(spec.paths)) {
-    for (const [method, operation] of Object.entries(pathItem as any)) {
-      if (typeof operation === 'object' && operation && (operation as any).operationId) {
-        operationMap.set((operation as any).operationId, { path, method: method.toUpperCase() })
-      }
-    }
+  // All handlers now have convertMockDataToFixtures method
+  if (handler && handler.convertMockDataToFixtures) {
+    return handler.convertMockDataToFixtures(mockData, service, version)
   }
 
-  for (const [operationId, scenarios] of Object.entries(mockData)) {
-    const operationInfo = operationMap.get(operationId)
-    if (!operationInfo) {
-      console.warn(`⚠️  Operation ${operationId} not found in OpenAPI spec, skipping fixture`)
-      continue
-    }
-
-    for (const [scenarioName, mockResponse] of Object.entries(scenarios)) {
-      // Generate request data based on operation info and scenario
-      const requestData = generateRequestDataForOperation(
-        operationId,
-        scenarioName,
-        operationInfo,
-        mockResponse
-      )
-
-      const fixture: Fixture = {
-        id: `local_${fixtureId++}`,
-        service,
-        serviceVersion: version,
-        serviceVersions: [version],
-        operation: operationId,
-        status: 'approved',
-        source: 'manual',
-        priority: scenarioName === 'success' || scenarioName === 'default' ? 1 : 2,
-        data: {
-          request: requestData,
-          response: {
-            status: mockResponse.status,
-            headers: mockResponse.headers || { 'content-type': 'application/json' },
-            body: mockResponse.body,
-          },
-        },
-        createdFrom: {
-          type: 'manual',
-          timestamp: new Date(),
-          generatedBy: 'local-mock-data',
-        },
-        createdAt: new Date(),
-        notes: `Local mock data for ${operationId} - ${scenarioName}`,
-      }
-      fixtures.push(fixture)
-    }
-  }
-
-  return fixtures
-}
-
-// Generate request data for a given operation and scenario
-const generateRequestDataForOperation = (
-  operationId: string,
-  scenarioName: string,
-  operationInfo: { path: string; method: string },
-  mockResponse: any
-): HTTPRequest => {
-  let path = operationInfo.path
-  let body: unknown = null
-
-  // Handle different scenarios and operations
-  switch (operationId) {
-    case 'getCastle':
-      // For getCastle, we need to replace {id} with actual ID based on scenario
-      if (scenarioName === 'notFound') {
-        path = path.replace('{id}', 'non-existent-id')
-      } else {
-        // Use the ID from the response body if available
-        const responseBody = mockResponse.body
-        const id = responseBody?.id || '550e8400-e29b-41d4-a716-446655440000'
-        path = path.replace('{id}', id)
-      }
-      break
-
-    case 'deleteCastle':
-      // For deleteCastle, replace {id} with actual ID
-      if (scenarioName === 'notFound') {
-        path = path.replace('{id}', 'non-existent-id')
-      } else {
-        path = path.replace('{id}', '550e8400-e29b-41d4-a716-446655440000')
-      }
-      break
-
-    case 'createCastle':
-      // For createCastle, set request body based on scenario
-      if (scenarioName === 'validationError') {
-        body = {
-          name: '',
-          region: 'Test Region',
-          yearBuilt: 999,
-        }
-      } else {
-        body = {
-          name: 'Château de Test',
-          region: 'Test Region',
-          yearBuilt: 1500,
-        }
-      }
-      break
-
-    case 'listCastles':
-      // For listCastles, no special handling needed
-      break
-
-    default:
-      console.warn(`⚠️  Unknown operation ${operationId}, using default request data`)
-  }
-
-  const headers: Record<string, string> = {}
-  if (operationInfo.method === 'POST' || operationInfo.method === 'PUT') {
-    headers['content-type'] = 'application/json'
-  }
-
-  return {
-    method: operationInfo.method,
-    path,
-    headers,
-    query: {},
-    body,
-  }
+  // This should not happen since all handlers implement this method
+  console.warn(`⚠️  No convertMockDataToFixtures method found for spec type: ${specType}`)
+  return []
 }
 
 const fetchFixtures = async (
@@ -450,7 +361,7 @@ const fetchFixtures = async (
   try {
     // Handle new LocalMockData format (preferred)
     if (localMockData) {
-      console.log(`📋 Using local mock data for ${service}@${version}`)
+      debugLog(`📋 Using local mock data for ${service}@${version}`)
       // We need the spec to generate proper request data, but we don't have it yet at this point
       // This will be handled in createMockServer where we have the spec available
       return []
@@ -458,7 +369,7 @@ const fetchFixtures = async (
 
     // Handle legacy local fixtures format (deprecated)
     if (localFixtures && localFixtures.length > 0) {
-      console.log(
+      debugLog(
         `⚠️  Using legacy local fixtures format - consider migrating to localMockData format`
       )
 
@@ -505,6 +416,7 @@ interface MockServer {
   close: () => Promise<void>
   onRequest: (handler: (req: MockRequest, res: MockResponse) => Promise<void>) => void
   getOperations: () => SpecOperation[]
+  websocket?: WebSocketMockServer
 }
 
 // OpenAPI operation from spec
@@ -530,82 +442,76 @@ interface MockResponse {
 }
 
 const createMockServer = async (config: {
-  spec: OpenAPISpec
+  spec: SupportedSpec
   fixtures: Fixture[]
   port: number
   validateRequest: boolean
   validateResponse: boolean
 }): Promise<MockServer> => {
-  // This is a simplified implementation
-  // In practice, this would use Prism or similar tool
-
-  let server: MockServer
-
-  if (config.fixtures.length > 0) {
-    // Use fixtures for deterministic responses
-    server = await createFixtureBasedMockServer(config.spec, config.fixtures, config.port)
-  } else {
-    // Use dynamic schema-based mocking
-    server = await createSchemaMockServer(config.spec, config.port)
+  // Auto-detect spec type and parse
+  const parsedSpec = specRegistry.parseSpec(config.spec)
+  if (!parsedSpec) {
+    throw new Error('Unsupported specification format')
   }
 
-  return server
-}
+  debugLog(`🔍 Detected spec type: ${parsedSpec.type}`)
 
-const createFixtureBasedMockServer = async (
-  spec: OpenAPISpec,
-  fixtures: Fixture[],
-  port: number
-): Promise<MockServer> => {
-  return await createBasicMockServer(spec, fixtures, port)
-}
+  // Create unified mock handlers (legacy path retained for now)
+  const mockHandlers = createUnifiedMockHandler(parsedSpec, config.fixtures)
 
-const createSchemaMockServer = async (spec: OpenAPISpec, port: number): Promise<MockServer> => {
-  // Schema-based (no fixtures) - the mock handler will fall back to OpenAPI examples or 501 responses
-  return await createBasicMockServer(spec, [], port)
-}
-
-const extractOperationsFromSpec = (spec: OpenAPISpec): SpecOperation[] => {
-  const operations: SpecOperation[] = []
-
-  for (const [path, pathItem] of Object.entries(spec.paths)) {
-    for (const [method, operation] of Object.entries(pathItem as any)) {
-      if (typeof operation === 'object' && operation) {
-        operations.push({
-          method: method.toUpperCase(),
-          path,
-          operationId: (operation as any).operationId
-        })
-      }
+  // NEW: Create request router for HTTP-style specs (non-asyncapi) using V2 matcher
+  // For asyncapi we currently rely on existing websocket handling; router integration later
+  if (parsedSpec.type !== 'asyncapi') {
+    try {
+      debugLog(`🚀 [Consumer] Creating V2 router for ${parsedSpec.type} spec`)
+      const { createRequestRouter } = await import('@entente/fixtures')
+      const router = createRequestRouter({
+        spec: parsedSpec as any,
+        fixtures: config.fixtures,
+        handler: specRegistry.getHandler(parsedSpec.type) as any,
+        options: { debug: process.env.ENTENTE_DEBUG === 'true' },
+      })
+      ;(parsedSpec as any).__router = router
+      debugLog(`✅ [Consumer] V2 router created successfully for ${parsedSpec.type}`)
+    } catch (e) {
+      console.warn('[entente][consumer] failed to initialize request router, falling back', e)
     }
   }
 
-  return operations
+  // Create the appropriate server based on spec type
+  if (parsedSpec.type === 'asyncapi') {
+    return await createAsyncAPIMockServer(parsedSpec, mockHandlers, config.port)
+  } else {
+    return await createUnifiedMockServer(parsedSpec, mockHandlers, config.port)
+  }
 }
 
-const createBasicMockServer = async (
-  spec: OpenAPISpec,
-  fixtures: Fixture[],
+// Replace createBasicMockServer with createUnifiedMockServer
+const createUnifiedMockServer = async (
+  spec: APISpec,
+  mockHandlers: any[],
   port: number
 ): Promise<MockServer> => {
   const { createServer } = await import('node:http')
   const actualPort = port || 3000 + Math.floor(Math.random() * 1000)
 
-  // Extract operations from OpenAPI spec
-  const operations: SpecOperation[] = extractOperationsFromSpec(spec)
+  // Get spec handler for operation extraction
+  const handler = specRegistry.getHandler(spec.type)
+  if (!handler) {
+    throw new Error(`No handler found for spec type: ${spec.type}`)
+  }
 
-  // Create mock handlers using the fixtures package
-  const mockHandlers = createOpenAPIMockHandler(spec, fixtures)
+  const operations = handler.extractOperations(spec)
 
   let httpServer: Server | null = null
-  const handlers: Array<(req: MockRequest, res: MockResponse) => Promise<void>> = []
+  const requestHandlers: Array<(req: MockRequest, res: MockResponse) => Promise<void>> = []
 
   const startServer = async () => {
     httpServer = createServer(async (req, res) => {
       const startTime = Date.now()
 
       try {
-        // Parse request
+        // Parse request (same as before)
         const url = new URL(req.url || '/', `http://localhost:${actualPort}`)
         const method = req.method || 'GET'
 
@@ -648,56 +554,120 @@ const createBasicMockServer = async (
           }
         }
 
-        // Create mock request
-        const mockRequest: FixtureMockRequest = {
-          method,
-          path: url.pathname,
-          headers,
-          query,
-          body
+        // Convert to unified request format
+        const unifiedRequest = convertHTTPToUnified(method, url.pathname, headers, query, body)
+
+        // Handle SSE requests
+        const acceptHeader = headers['accept'] || headers['Accept'] || ''
+        if (acceptHeader.includes('text/event-stream')) {
+          res.setHeader('content-type', 'text/event-stream')
+          res.setHeader('cache-control', 'no-cache')
+          res.setHeader('connection', 'keep-alive')
+          res.setHeader('x-detected-type', 'asyncapi')
+          res.statusCode = 200
+          res.end('data: {"message": "SSE endpoint active"}\n\n')
+          return
         }
 
-        // Handle request with mock handlers
-        const mockResponse = handleMockRequest(mockRequest, mockHandlers)
-        const duration = Date.now() - startTime
+        // Handle WebSocket upgrade requests
+        if (
+          headers['upgrade'] === 'websocket' ||
+          headers['connection']?.toLowerCase().includes('upgrade')
+        ) {
+          res.setHeader('x-detected-type', 'asyncapi')
+          res.statusCode = 101
+          res.setHeader('upgrade', 'websocket')
+          res.setHeader('connection', 'upgrade')
+          res.end()
+          return
+        }
+
+        // Handle request - prefer new router if attached to spec
+        let unifiedResponse
+        let matchOutcome: any | undefined
+        const router = (spec as any).__router
+        if (router && typeof router.handle === 'function') {
+          try {
+            debugLog(`🔄 [Consumer] Using V2 router for ${method} ${url.pathname}`)
+            matchOutcome = router.handle(unifiedRequest)
+            unifiedResponse = matchOutcome.response
+            debugLog(`✅ [Consumer] V2 router handled request successfully`)
+            // Attach lightweight match metadata for downstream handlers
+            ;(unifiedRequest as any).__match = matchOutcome
+          } catch (e) {
+            console.warn('[entente][consumer] router handling failed, falling back', e)
+            unifiedResponse = handleUnifiedMockRequest(unifiedRequest, mockHandlers)
+          }
+        } else {
+          debugLog(`⚠️ [Consumer] No V2 router available, using legacy handlers`)
+          unifiedResponse = handleUnifiedMockRequest(unifiedRequest, mockHandlers)
+        }
+        const httpResponse = convertUnifiedToHTTP(unifiedResponse)
+
+        // Add spec type header for debugging
+        res.setHeader('x-spec-type', spec.type)
+
+        // Add detected type header based on request
+        if (
+          url.pathname.includes('/events') ||
+          url.pathname.includes('/ws') ||
+          url.pathname.includes('/stream')
+        ) {
+          res.setHeader('x-detected-type', 'asyncapi')
+        }
 
         // Set response headers
-        res.statusCode = mockResponse.status
-        for (const [key, value] of Object.entries(mockResponse.headers)) {
-          res.setHeader(key, value)
+        res.statusCode = httpResponse.status
+        for (const [key, value] of Object.entries(httpResponse.headers || {})) {
+          res.setHeader(key, String(value))
         }
 
         // Send response
-        const responseBody = typeof mockResponse.body === 'string'
-          ? mockResponse.body
-          : JSON.stringify(mockResponse.body)
+        const responseBody =
+          typeof httpResponse.body === 'string'
+            ? httpResponse.body
+            : JSON.stringify(httpResponse.body)
         res.end(responseBody)
 
-        // Create mock objects for handlers
+        const duration = Date.now() - startTime
+
+        // Create mock objects for backward compatibility
         const mockReq: MockRequest = {
           method,
           path: url.pathname,
           headers,
           query,
-          body
+          body,
+        }
+        // Attach match metadata if router was used
+        if (matchOutcome) {
+          ;(mockReq as any).__match = {
+            selectedOperationId: matchOutcome.match.selected?.operation.id,
+            candidates: matchOutcome.match.candidates?.map((c: any) => ({
+              operationId: c.operation.id,
+              confidence: c.confidence,
+              reasons: c.reasons,
+            })),
+            fixture: matchOutcome.fixtureSelection?.selected?.fixtureId,
+            fixtureReasons: matchOutcome.fixtureSelection?.selected?.reasons,
+          }
         }
 
         const mockRes: MockResponse = {
-          status: mockResponse.status,
-          headers: mockResponse.headers,
-          body: mockResponse.body,
-          duration
+          status: httpResponse.status,
+          headers: httpResponse.headers,
+          body: httpResponse.body,
+          duration,
         }
 
         // Invoke all registered handlers
-        for (const handler of handlers) {
+        for (const requestHandler of requestHandlers) {
           try {
-            await handler(mockReq, mockRes)
+            await requestHandler(mockReq, mockRes)
           } catch (handlerError) {
             console.error('Handler error:', handlerError)
           }
         }
-
       } catch (error) {
         console.error('Mock server error:', error)
         res.statusCode = 500
@@ -728,19 +698,67 @@ const createBasicMockServer = async (
       }
     },
     onRequest: handler => {
-      handlers.push(handler)
+      requestHandlers.push(handler)
     },
-    getOperations: () => operations
+    getOperations: () =>
+      operations.map(op => ({
+        method: op.method || '',
+        path: op.path || '',
+        operationId: op.id,
+      })),
   }
 }
 
-// Legacy Prism types and functions removed - functionality moved to fixtures package
+// New function to create AsyncAPI mock server
+const createAsyncAPIMockServer = async (
+  spec: APISpec,
+  mockHandlers: any[],
+  port: number
+): Promise<MockServer> => {
+  // Get AsyncAPI handler for operation extraction
+  const handler = specRegistry.getHandler('asyncapi')
+  if (!handler) {
+    throw new Error('AsyncAPI handler not found')
+  }
+
+  const operations = handler.extractOperations(spec)
+
+  // Create WebSocket server for real-time communication on available port
+  const wsPort = port > 0 ? port + 1000 : 0 // Use different port range for WS
+  const wsServer = await createWebSocketMockServer(wsPort, operations)
+
+  // Also create HTTP server for REST-like endpoints (SSE, webhooks)
+  const httpServer = await createUnifiedMockServer(spec, mockHandlers, port)
+
+  return {
+    ...httpServer,
+    websocket: wsServer,
+
+    // Override close to close both servers
+    close: async () => {
+      await Promise.all([httpServer.close(), wsServer.close()])
+    },
+
+    // Override getOperations to include AsyncAPI operations
+    getOperations: () => [
+      ...httpServer.getOperations(),
+      ...operations.map(op => ({
+        method: 'WS',
+        path: op.channel || '',
+        operationId: op.id,
+      })),
+    ],
+  }
+}
+
+// Legacy functions removed - functionality moved to unified system
 
 const createFixtureCollector = (
   service: string,
   providerVersion: string,
   serviceUrl: string,
-  apiKey: string
+  apiKey: string,
+  specType: SpecType = 'openapi'
 ): FixtureCollector => {
   const collectedFixtures = new Map<
     string,
@@ -767,6 +785,7 @@ const createFixtureCollector = (
         ({ operation, data }) => ({
           service,
           serviceVersion: providerVersion,
+          specType,
           operation,
           source: 'consumer' as const,
           data,
@@ -793,7 +812,7 @@ const createFixtureCollector = (
 
         if (response.ok) {
           const result = await response.json()
-          console.log(
+          debugLog(
             `✅ Batch uploaded ${fixtureProposals.length} fixtures: ${result.created} created, ${result.duplicates} duplicates`
           )
         } else {
@@ -822,21 +841,23 @@ const createEntenteMock = (mockConfig: {
   hasFixtures: boolean
   config: ClientConfig & { consumer: string; consumerVersion: string } // Resolved config with required fields
   skipOperations: boolean // Skip operations when using fallback values
+  specType?: string // Specification type for operation extraction
 }): EntenteMock => {
   // Create fixture collector for deduplication
   const fixtureCollector = createFixtureCollector(
     mockConfig.service,
     mockConfig.providerVersion,
     mockConfig.config.serviceUrl,
-    mockConfig.config.apiKey
+    mockConfig.config.apiKey,
+    (mockConfig.specType as SpecType) || 'openapi'
   )
 
   // Set up recording if enabled
   if (mockConfig.recorder) {
     mockConfig.mockServer.onRequest(async (request, response) => {
-      // Get operations from the mock server for spec-based operation extraction
-      const operations = mockConfig.mockServer.getOperations()
-      const operation = extractOperationFromSpec(request.method, request.path, operations)
+      // Get operation from router match metadata - router is now always used
+      const matchMeta = (request as any).__match
+      const operation = matchMeta?.selectedOperationId || 'unknown'
 
       await mockConfig.recorder?.record({
         service: mockConfig.service,
@@ -857,6 +878,14 @@ const createEntenteMock = (mockConfig: {
           headers: response.headers,
           body: response.body,
         },
+        matchContext: matchMeta
+          ? {
+              selectedOperationId: matchMeta.selectedOperationId,
+              candidates: matchMeta.candidates,
+              fixtureId: matchMeta.fixture,
+              fixtureReasons: matchMeta.fixtureReasons,
+            }
+          : undefined,
         duration: response.duration,
       })
     })
@@ -867,9 +896,9 @@ const createEntenteMock = (mockConfig: {
     mockConfig.mockServer.onRequest(async (request, response) => {
       // Only collect fixtures for successful responses
       if (response.status >= 200 && response.status < 300) {
-        // Get operations from the mock server for spec-based operation extraction
-        const operations = mockConfig.mockServer.getOperations()
-        const operation = extractOperationFromSpec(request.method, request.path, operations)
+        // Get operation from router match metadata - router is now always used
+        const matchMeta = (request as any).__match
+        const operation = matchMeta?.selectedOperationId || 'unknown'
 
         await fixtureCollector.collect(operation, {
           request: {
@@ -888,10 +917,10 @@ const createEntenteMock = (mockConfig: {
       }
     })
   } else if (process.env.CI && mockConfig.skipOperations) {
-    console.log('🚫 Skipping fixture collection - consumer info unavailable')
+    debugLog('🚫 Skipping fixture collection - consumer info unavailable')
   }
 
-  return {
+  const result: EntenteMock = {
     url: mockConfig.mockServer.url,
     port: mockConfig.mockServer.port,
     close: async () => {
@@ -907,13 +936,14 @@ const createEntenteMock = (mockConfig: {
     getFixtures: () => mockConfig.fixtures,
     proposeFixture: async (operation: string, data: { request?: unknown; response: unknown }) => {
       if (mockConfig.skipOperations) {
-        console.log(`🚫 Skipping fixture proposal for ${operation} - consumer info unavailable`)
+        debugLog(`🚫 Skipping fixture proposal for ${operation} - consumer info unavailable`)
         return
       }
 
       await mockConfig.fixtureManager.propose({
         service: mockConfig.service,
         serviceVersion: mockConfig.providerVersion,
+        specType: (mockConfig.specType as SpecType) || 'openapi',
         operation,
         source: 'consumer',
         data,
@@ -926,6 +956,29 @@ const createEntenteMock = (mockConfig: {
       })
     },
   }
+
+  // Add AsyncAPI-specific features if WebSocket server is available
+  if (mockConfig.mockServer.websocket) {
+    result.websocket = mockConfig.mockServer.websocket
+    result.sendEvent = (channel: string, data: any) => {
+      if (mockConfig.mockServer.websocket) {
+        mockConfig.mockServer.websocket.sendEvent(channel, data)
+      }
+    }
+    result.getChannels = () => {
+      const wsOperations = mockConfig.mockServer
+        .getOperations()
+        .filter(op => op.method === 'WS')
+        .map(op => ({
+          id: op.operationId || 'unknown',
+          type: 'event' as const,
+          channel: op.path,
+        }))
+      return extractChannelsFromOperations(wsOperations)
+    }
+  }
+
+  return result
 }
 
 const createInteractionRecorder = (
@@ -951,7 +1004,7 @@ const createInteractionRecorder = (
 
       if (response.ok) {
         const result = await response.json()
-        console.log(
+        debugLog(
           `✅ Batch uploaded ${pendingInteractions.length} interactions: ${result.results.recorded} recorded, ${result.results.duplicates} duplicates`
         )
       } else {
@@ -1289,3 +1342,6 @@ const pathMatchesSpec = (specPath: string, requestPath: string): boolean => {
 
 // Export mock server utilities for use by other packages
 export type { MockServer, MockRequest, MockResponse }
+
+// Export auto-detection utilities
+export { detectRequestType, createRequestDetector, defaultRequestDetector } from './mock-detector'

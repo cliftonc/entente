@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import CodeBlock from '../components/CodeBlock'
+import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
 import { contractApi, interactionApi } from '../utils/api'
@@ -181,6 +182,12 @@ function InteractionDetails() {
                   serviceName={interaction.consumer}
                   serviceType="consumer"
                 />
+              </div>
+              <div>
+                <strong>Spec Type:</strong>
+                <div className="mt-1">
+                  <SpecBadge specType={interaction?.specType || 'openapi'} size="sm" />
+                </div>
               </div>
             </div>
             <div className="space-y-2">

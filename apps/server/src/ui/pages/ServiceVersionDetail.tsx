@@ -2,6 +2,7 @@ import type { Contract } from '@entente/types'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import ContractsPanel from '../components/ContractsPanel'
+import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VerificationPanel from '../components/VerificationPanel'
 import VersionBadge from '../components/VersionBadge'
@@ -12,6 +13,7 @@ import {
   serviceVersionApi,
   verificationApi,
 } from '../utils/api'
+import { getSpecViewerButtonText, getSpecViewerRoute } from '../utils/specRouting'
 
 function ServiceVersionDetail() {
   const { id } = useParams<{ id: string }>()
@@ -207,6 +209,12 @@ function ServiceVersionDetail() {
                   </label>
                   <TimestampDisplay timestamp={serviceVersion.createdAt} />
                 </div>
+                <div>
+                  <label className="label">
+                    <span className="label-text">Spec Type</span>
+                  </label>
+                  <SpecBadge specType={serviceVersion.specType || 'openapi'} size="sm" />
+                </div>
                 {serviceVersion.gitSha && (
                   <div>
                     <label className="label">
@@ -235,10 +243,15 @@ function ServiceVersionDetail() {
                     </div>
                     {serviceVersion.spec && (
                       <Link
-                        to={`/openapi/service/${serviceVersion.serviceName}?version=${serviceVersion.id}`}
+                        to={getSpecViewerRoute(serviceVersion.specType, {
+                          serviceName: serviceVersion.serviceName,
+                          serviceId: serviceVersion.serviceId,
+                          version: serviceVersion.version,
+                          versionId: serviceVersion.id,
+                        })}
                         className="btn btn-xs btn-primary"
                       >
-                        View Spec
+                        {getSpecViewerButtonText(serviceVersion.specType)}
                       </Link>
                     )}
                   </div>
@@ -308,6 +321,25 @@ function ServiceVersionDetail() {
                       <div className="flex justify-between items-center mb-1">
                         <span className="font-medium text-sm">{deployment.environment}</span>
                         <div className="flex items-center gap-2">
+                          {deployment.specType && (
+                            <span
+                              className={`badge badge-outline badge-xs ${
+                                deployment.specType === 'openapi'
+                                  ? 'badge-primary'
+                                  : deployment.specType === 'graphql'
+                                    ? 'badge-secondary'
+                                    : deployment.specType === 'asyncapi'
+                                      ? 'badge-accent'
+                                      : deployment.specType === 'grpc'
+                                        ? 'badge-info'
+                                        : deployment.specType === 'soap'
+                                          ? 'badge-neutral'
+                                          : 'badge-ghost'
+                              }`}
+                            >
+                              {deployment.specType}
+                            </span>
+                          )}
                           <div
                             className={`badge badge-sm px-2 ${
                               deployment.active ? 'badge-success' : 'badge-error'

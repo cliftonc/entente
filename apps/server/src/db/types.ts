@@ -1,4 +1,4 @@
-import type { VerificationResult } from '@entente/types'
+import type { SpecType, VerificationResult } from '@entente/types'
 import type { InferSelectModel } from 'drizzle-orm'
 import type { createDatabase } from './client'
 import type { fixtures, services, specs, verificationResults, verificationTasks } from './schema'
@@ -21,11 +21,16 @@ export interface DbVerificationTaskWithTypes extends Omit<DbVerificationTask, 'i
 }
 
 export interface DbFixtureWithTypes
-  extends Omit<DbFixture, 'data' | 'status' | 'source' | 'createdFrom'> {
+  extends Omit<DbFixture, 'data' | 'status' | 'source' | 'createdFrom' | 'specType'> {
   data: unknown
   status: 'draft' | 'approved' | 'rejected'
   source: 'consumer' | 'provider' | 'manual'
+  specType: SpecType // NEW: Add spec type field
   createdFrom: unknown
+}
+
+export interface DbSpecWithTypes extends Omit<DbSpec, 'specType'> {
+  specType: SpecType // NEW: Add typed spec type field
 }
 
 // Database connection type

@@ -315,71 +315,10 @@ authRouter.get('/github/callback', async c => {
 
     // Handle CLI flow
     if (cliRedirectUri) {
-      // Get user's tenant for API key creation
-      const userTenant = await db
-        .select({ tenantId: tenantUsers.tenantId })
-        .from(tenantUsers)
-        .where(eq(tenantUsers.userId, user[0].id))
-        .limit(1)
-
-      if (userTenant.length === 0) {
-        // Clear CLI cookie
-        c.header('Set-Cookie', clearCookieHeader('cli_redirect_uri'), { append: true })
-        return c.redirect(
-          `${cliRedirectUri}?error=${encodeURIComponent('User has no associated tenant')}`
-        )
-      }
-
-      const keyName = `user-${user[0].username}`
-
-      // Create or update API key for CLI
-      const { keys } = await import('../../db/schema')
-      const { and } = await import('drizzle-orm')
-
-      // Check if API key already exists
-      const existingKey = await db
-        .select()
-        .from(keys)
-        .where(
-          and(
-            eq(keys.tenantId, userTenant[0].tenantId),
-            eq(keys.name, keyName),
-            eq(keys.isActive, true)
-          )
-        )
-        .limit(1)
-
-      // Always create a new API key with proper format
-      const { generateApiKey } = await import('../utils/keys')
-      const keyData = generateApiKey()
-
-      if (existingKey.length > 0) {
-        // Update existing key with new key data
-        await db
-          .update(keys)
-          .set({
-            keyHash: keyData.keyHash,
-            keyPrefix: keyData.keyPrefix,
-            lastUsedAt: new Date(),
-          })
-          .where(eq(keys.id, existingKey[0].id))
-      } else {
-        // Create new API key
-        await db.insert(keys).values({
-          tenantId: userTenant[0].tenantId,
-          name: keyName,
-          keyHash: keyData.keyHash,
-          keyPrefix: keyData.keyPrefix,
-          createdBy: user[0].username,
-          permissions: 'read,write',
-        })
-      }
-
-      const apiKey = keyData.fullKey
-
-      // Clear CLI cookie and redirect to CLI callback with API key
-      c.header('Set-Cookie', clearCookieHeader('cli_redirect_uri'), { append: true })
-      return c.redirect(`${cliRedirectUri}?key=${encodeURIComponent(apiKey)}`)
+      // Redirect to tenant selection page which will handle API key generation
+      return c.redirect(
+        `/auth/cli/select-tenant?redirect_uri=${encodeURIComponent(cliRedirectUri)}`
+      )
     }
 
     // Check for pending invitation
@@ -795,62 +734,8 @@ authRouter.get('/cli', async c => {
     const { user, session } = await validateSession(db, sessionId)
 
     if (user && session) {
-      // User is already authenticated, get or create API key
-      const { keys } = await import('../../db/schema')
-      const { eq, and } = await import('drizzle-orm')
-
-      // Get user's tenant
-      const userTenant = await db
-        .select({ tenantId: tenantUsers.tenantId })
-        .from(tenantUsers)
-        .where(eq(tenantUsers.userId, user.id))
-        .limit(1)
-
-      if (userTenant.length === 0) {
-        return c.json({ error: 'User has no associated tenant' }, 500)
-      }
-
-      const keyName = `user-${user.username}`
-
-      // Check if API key already exists
-      const existingKey = await db
-        .select()
-        .from(keys)
-        .where(
-          and(
-            eq(keys.tenantId, userTenant[0].tenantId),
-            eq(keys.name, keyName),
-            eq(keys.isActive, true)
-          )
-        )
-        .limit(1)
-
-      let apiKey: string
-      if (existingKey.length > 0) {
-        // Return the existing key since we now store it in plaintext
-        apiKey = existingKey[0].keyHash
-
-        // Update last used timestamp
-        await db.update(keys).set({ lastUsedAt: new Date() }).where(eq(keys.id, existingKey[0].id))
-      } else {
-        // Create new API key
-        const { generateApiKey } = await import('../utils/keys')
-        const keyData = generateApiKey()
-
-        await db.insert(keys).values({
-          tenantId: userTenant[0].tenantId,
-          name: keyName,
-          keyHash: keyData.keyHash,
-          keyPrefix: keyData.keyPrefix,
-          createdBy: user.username,
-          permissions: 'read,write',
-        })
-
-        apiKey = keyData.fullKey
-      }
-
-      // Redirect to CLI callback with API key
-      return c.redirect(`${redirectUri}?key=${encodeURIComponent(apiKey)}`)
+      // User is already authenticated, check tenant count and redirect appropriately
+      return c.redirect(`/auth/cli/select-tenant?redirect_uri=${encodeURIComponent(redirectUri)}`)
     }
   }
 
@@ -943,6 +828,267 @@ authRouter.get('/cli', async c => {
   `
 
   return c.html(html)
+})
+
+// CLI Tenant Selection endpoint
+authRouter.get('/cli/select-tenant', async c => {
+  const redirectUri = c.req.query('redirect_uri')
+
+  if (!redirectUri) {
+    return c.json({ error: 'redirect_uri parameter required' }, 400)
+  }
+
+  // Check if user is authenticated
+  const sessionId = getCookie(c, 'sessionId')
+  if (!sessionId) {
+    return c.json({ error: 'Authentication required' }, 401)
+  }
+
+  const db = c.get('db')
+  const { user, session } = await validateSession(db, sessionId)
+
+  if (!user || !session) {
+    return c.json({ error: 'Invalid session' }, 401)
+  }
+
+  // Get user's tenants
+  const userTenants = await db
+    .select({
+      tenant: tenants,
+      role: tenantUsers.role,
+      joinedAt: tenantUsers.joinedAt,
+    })
+    .from(tenantUsers)
+    .innerJoin(tenants, eq(tenantUsers.tenantId, tenants.id))
+    .where(eq(tenantUsers.userId, user.id))
+
+  if (userTenants.length === 0) {
+    return c.json({ error: 'User has no associated tenant' }, 500)
+  }
+
+  // If only one tenant, redirect directly to generate API key
+  if (userTenants.length === 1) {
+    const tenantId = userTenants[0].tenant.id
+    return c.redirect(
+      `/auth/cli/generate-key?redirect_uri=${encodeURIComponent(redirectUri)}&tenant_id=${tenantId}`
+    )
+  }
+
+  // Store CLI redirect URI in a cookie
+  const expires = new Date(Date.now() + 1000 * 60 * 10) // 10 minutes
+  c.header(
+    'Set-Cookie',
+    `cli_redirect_uri=${encodeURIComponent(redirectUri)}; HttpOnly; SameSite=Lax; Path=/; Expires=${expires.toUTCString()}${isProduction ? '; Secure' : ''}`
+  )
+
+  const tenantOptions = userTenants
+    .map(
+      ({ tenant, role }) => `
+    <div class="tenant-option">
+      <button onclick="selectTenant('${tenant.id}', '${tenant.name}')" class="tenant-btn">
+        <div class="tenant-info">
+          <div class="tenant-name">${tenant.name}</div>
+          <div class="tenant-role">Role: ${role}</div>
+          <div class="tenant-slug">@${tenant.slug}</div>
+        </div>
+      </button>
+    </div>
+  `
+    )
+    .join('')
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Select Tenant - Entente CLI</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            background: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+          }
+          h1 {
+            color: #1f2937;
+            margin-bottom: 16px;
+            font-size: 24px;
+            font-weight: 600;
+          }
+          p {
+            color: #6b7280;
+            margin-bottom: 32px;
+            line-height: 1.5;
+          }
+          .tenant-option {
+            margin-bottom: 12px;
+          }
+          .tenant-btn {
+            width: 100%;
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+          }
+          .tenant-btn:hover {
+            background: #f3f4f6;
+            border-color: #3b82f6;
+          }
+          .tenant-name {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+          }
+          .tenant-role {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 2px;
+          }
+          .tenant-slug {
+            font-size: 12px;
+            color: #9ca3af;
+            font-family: monospace;
+          }
+          .cli-info {
+            background: #f3f4f6;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            color: #4b5563;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>🏢 Select Tenant</h1>
+          <div class="cli-info">
+            Choose which organization to authenticate with for the Entente CLI.
+          </div>
+          <p>You have access to multiple tenants. Please select the one you want to use:</p>
+          ${tenantOptions}
+        </div>
+        <script>
+          function selectTenant(tenantId, tenantName) {
+            window.location.href = '/auth/cli/generate-key?redirect_uri=${encodeURIComponent(redirectUri)}&tenant_id=' + tenantId;
+          }
+        </script>
+      </body>
+    </html>
+  `
+
+  return c.html(html)
+})
+
+// CLI API Key Generation endpoint
+authRouter.get('/cli/generate-key', async c => {
+  const redirectUri = c.req.query('redirect_uri')
+  const tenantId = c.req.query('tenant_id')
+
+  if (!redirectUri) {
+    return c.json({ error: 'redirect_uri parameter required' }, 400)
+  }
+
+  if (!tenantId) {
+    return c.json({ error: 'tenant_id parameter required' }, 400)
+  }
+
+  // Check if user is authenticated
+  const sessionId = getCookie(c, 'sessionId')
+  if (!sessionId) {
+    return c.json({ error: 'Authentication required' }, 401)
+  }
+
+  const db = c.get('db')
+  const { user, session } = await validateSession(db, sessionId)
+
+  if (!user || !session) {
+    return c.json({ error: 'Invalid session' }, 401)
+  }
+
+  // Verify user has access to this tenant
+  const userTenant = await db
+    .select({
+      tenant: tenants,
+      role: tenantUsers.role,
+    })
+    .from(tenantUsers)
+    .innerJoin(tenants, eq(tenantUsers.tenantId, tenants.id))
+    .where(and(eq(tenantUsers.userId, user.id), eq(tenantUsers.tenantId, tenantId)))
+    .limit(1)
+
+  if (userTenant.length === 0) {
+    return c.json({ error: 'Access denied to this tenant' }, 403)
+  }
+
+  const keyName = `user-${user.username}`
+
+  // Check if API key already exists for this tenant
+  const { keys } = await import('../../db/schema')
+  const existingKey = await db
+    .select()
+    .from(keys)
+    .where(and(eq(keys.tenantId, tenantId), eq(keys.name, keyName), eq(keys.isActive, true)))
+    .limit(1)
+
+  let apiKey: string
+  if (existingKey.length > 0) {
+    // Update existing key with new key data for security
+    const { generateApiKey } = await import('../utils/keys')
+    const keyData = generateApiKey()
+
+    await db
+      .update(keys)
+      .set({
+        keyHash: keyData.keyHash,
+        keyPrefix: keyData.keyPrefix,
+        lastUsedAt: new Date(),
+      })
+      .where(eq(keys.id, existingKey[0].id))
+
+    apiKey = keyData.fullKey
+  } else {
+    // Create new API key
+    const { generateApiKey } = await import('../utils/keys')
+    const keyData = generateApiKey()
+
+    await db.insert(keys).values({
+      tenantId,
+      name: keyName,
+      keyHash: keyData.keyHash,
+      keyPrefix: keyData.keyPrefix,
+      createdBy: user.username,
+      permissions: 'read,write',
+    })
+
+    apiKey = keyData.fullKey
+  }
+
+  // Clear CLI cookie and redirect to CLI callback with API key and tenant info
+  c.header('Set-Cookie', clearCookieHeader('cli_redirect_uri'), { append: true })
+
+  const tenant = userTenant[0].tenant
+  const callbackUrl = `${redirectUri}?key=${encodeURIComponent(apiKey)}&tenant_id=${encodeURIComponent(tenantId)}&tenant_name=${encodeURIComponent(tenant.name)}`
+
+  return c.redirect(callbackUrl)
 })
 
 // Get invitation details (for frontend)

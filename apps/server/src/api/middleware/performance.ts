@@ -1,4 +1,5 @@
 import type { Context, Next } from 'hono'
+import { debugLog } from '@entente/types'
 
 // Performance timing context
 declare module 'hono' {
@@ -20,10 +21,10 @@ export async function performanceMiddleware(c: Context, next: Next) {
 
   // Log detailed timings if we have them
   const env = c.get('env')
-  if (Object.keys(timings).length > 0 && env?.DEBUG === 'true') {
-    console.log('📊 Detailed timings:')
+  if (Object.keys(timings).length > 0 && env?.ENTENTE_DEBUG === 'true') {
+    debugLog('📊 Detailed timings:')
     for (const [operation, duration] of Object.entries(timings)) {
-      console.log(`   ${operation}: ${duration}ms`)
+      debugLog(`   ${operation}: ${duration}ms`)
     }
   }
 }
@@ -44,8 +45,8 @@ export function timeOperation<T>(
       c.set('timings', timings)
 
       const env = c.get('env')
-      if (env?.DEBUG === 'true') {
-        console.log(`⏱️  ${operationName}: ${duration}ms`)
+      if (env?.ENTENTE_DEBUG === 'true') {
+        debugLog(`⏱️  ${operationName}: ${duration}ms`)
       }
       return result
     })
@@ -56,8 +57,8 @@ export function timeOperation<T>(
       c.set('timings', timings)
 
       const env = c.get('env')
-      if (env?.DEBUG === 'true') {
-        console.log(`❌ ${operationName}: ${duration}ms (ERROR: ${error.message})`)
+      if (env?.ENTENTE_DEBUG === 'true') {
+        debugLog(`❌ ${operationName}: ${duration}ms (ERROR: ${error.message})`)
       }
       throw error
     })

@@ -14,6 +14,7 @@ import Deployments from './pages/Deployments'
 import FixtureDetails from './pages/FixtureDetails'
 import Fixtures from './pages/Fixtures'
 import GitHubEmailRequired from './pages/GitHubEmailRequired'
+import GraphQLPlayground from './pages/GraphQLPlayground'
 import InteractionDetails from './pages/InteractionDetails'
 import InviteAccept from './pages/InviteAccept'
 import OpenAPIViewer from './pages/OpenAPIViewer'
@@ -59,6 +60,10 @@ function App() {
                       <Route path="/verification" element={<Verification />} />
                       <Route path="/verification/:id" element={<VerificationDetail />} />
                       <Route path="/openapi/service/:serviceName" element={<OpenAPIViewer />} />
+                      <Route
+                        path="/graphql/service/:serviceName/:version"
+                        element={<GraphQLPlayground />}
+                      />
                       <Route path="/settings/*" element={<Settings />} />
                     </Routes>
                   </AdminLayout>

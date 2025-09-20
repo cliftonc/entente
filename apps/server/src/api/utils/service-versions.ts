@@ -1,9 +1,11 @@
+import type { SpecType } from '@entente/types'
 import { and, eq } from 'drizzle-orm'
 import { serviceVersions, services } from '../../db/schema'
 import type { Database } from '../../db/types'
 
 export interface ServiceVersionMetadata {
-  spec?: any // OpenAPI spec
+  spec?: any // OpenAPI spec payload (OpenAPI/GraphQL/etc.)
+  specType?: SpecType | null // Enumerated spec type
   gitSha?: string
   packageJson?: any
   createdBy?: string
@@ -68,6 +70,7 @@ export async function ensureServiceVersion(
         serviceId: service.id,
         version,
         spec: metadata?.spec || null,
+        specType: metadata?.specType || null,
         gitSha: metadata?.gitSha || null,
         packageJson: metadata?.packageJson || null,
         createdBy: metadata?.createdBy || 'auto-created',
@@ -82,6 +85,7 @@ export async function ensureServiceVersion(
       .update(serviceVersions)
       .set({
         spec: metadata.spec,
+        specType: metadata.specType || serviceVersion.specType,
         gitSha: metadata.gitSha || serviceVersion.gitSha,
         packageJson: metadata.packageJson || serviceVersion.packageJson,
         updatedAt: new Date(),
@@ -101,7 +105,13 @@ export async function findServiceVersion(
   tenantId: string,
   serviceName: string,
   version: string
-): Promise<{ id: string; version: string; spec: any } | null> {
+): Promise<{
+  id: string
+  version: string
+  spec: any
+  specType: SpecType | null
+  createdAt: Date
+} | null> {
   const service = await db.query.services.findFirst({
     where: and(eq(services.tenantId, tenantId), eq(services.name, serviceName)),
   })
@@ -126,6 +136,8 @@ export async function findServiceVersion(
     id: serviceVersion.id,
     version: serviceVersion.version,
     spec: serviceVersion.spec,
+    specType: serviceVersion.specType as SpecType | null,
+    createdAt: serviceVersion.createdAt,
   }
 }
 
@@ -136,7 +148,9 @@ export async function getServiceVersions(
   db: Database,
   tenantId: string,
   serviceName: string
-): Promise<Array<{ id: string; version: string; spec: any; createdAt: Date }>> {
+): Promise<
+  Array<{ id: string; version: string; spec: any; specType: SpecType | null; createdAt: Date }>
+> {
   const service = await db.query.services.findFirst({
     where: and(eq(services.tenantId, tenantId), eq(services.name, serviceName)),
   })
@@ -154,6 +168,7 @@ export async function getServiceVersions(
     id: v.id,
     version: v.version,
     spec: v.spec,
+    specType: v.specType as SpecType | null,
     createdAt: v.createdAt,
   }))
 }

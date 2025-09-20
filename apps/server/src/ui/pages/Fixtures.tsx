@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import GetStartedButton from '../components/GetStartedButton'
 import ProviderFilter from '../components/ProviderFilter'
+import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import FixturesExample from '../components/get-started-examples/FixturesExample'
 import { useAuth } from '../hooks/useAuth'
@@ -371,6 +372,7 @@ function Fixtures() {
                               <thead>
                                 <tr>
                                   <th className="w-1/4">Operation</th>
+                                  <th className="w-20">Spec Type</th>
                                   <th className="w-16">Status</th>
                                   <th className="w-20">Source</th>
                                   <th className="w-32">Date</th>
@@ -384,6 +386,12 @@ function Fixtures() {
                                       <code className="font-mono text-sm text-base-content/80">
                                         {fixture.operation}
                                       </code>
+                                    </td>
+                                    <td>
+                                      <SpecBadge
+                                        specType={fixture.specType || 'openapi'}
+                                        size="sm"
+                                      />
                                     </td>
                                     <td>
                                       <span

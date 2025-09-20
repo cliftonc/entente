@@ -1,1 +1,0 @@
-ALTER TABLE "services" ADD COLUMN "github_verify_workflow_path" varchar(500);

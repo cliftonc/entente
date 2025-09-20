@@ -42,8 +42,87 @@ export const setupDefaultMocks = () => {
   )
 
   // Setup default fetch responses
-  mocks.fetch.fetch.mockImplementation((url: string, _options?: any) => {
+  mocks.fetch.fetch.mockImplementation((url: string, options?: any) => {
+    // Handle uploadSpec POST requests
+    if (url.includes('/api/specs/') && options?.method === 'POST') {
+      return Promise.resolve(mocks.fetch.mockSuccess({ uploaded: true }))
+    }
+
+    // Handle spec fetching GET requests
     if (url.includes('/api/specs/')) {
+      // Return AsyncAPI spec for castle-events service
+      if (url.includes('castle-events')) {
+        return Promise.resolve(
+          mocks.fetch.mockSuccess({
+            spec: {
+              asyncapi: '2.6.0',
+              info: { title: 'Castle Events API', version: '1.0.0' },
+              channels: {
+                'castle/created': {
+                  description: 'Event fired when a new castle is created',
+                  subscribe: {
+                    operationId: 'subscribeCastleCreated',
+                    message: {
+                      payload: {
+                        type: 'object',
+                        properties: {
+                          eventId: { type: 'string' },
+                          eventType: { type: 'string' },
+                          castle: { type: 'object' }
+                        }
+                      }
+                    }
+                  }
+                },
+                'castle/deleted': {
+                  description: 'Event fired when a castle is deleted',
+                  subscribe: {
+                    operationId: 'subscribeCastleDeleted',
+                    message: {
+                      payload: {
+                        type: 'object',
+                        properties: {
+                          eventId: { type: 'string' },
+                          eventType: { type: 'string' },
+                          castleId: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                },
+                'castle/status': {
+                  description: 'Castle status updates',
+                  subscribe: {
+                    operationId: 'subscribeCastleStatus',
+                    message: {
+                      payload: {
+                        type: 'object',
+                        properties: {
+                          eventId: { type: 'string' },
+                          castleId: { type: 'string' },
+                          status: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            metadata: {
+              providerVersion: '1.0.0',
+              serviceVersionId: 'sv_async_123',
+              environment: 'test',
+              branch: 'main',
+              hasSpec: true,
+              createdAt: '2024-01-01T00:00:00Z',
+              resolvedFromLatest: false,
+              isDeployed: true,
+            },
+          })
+        )
+      }
+
+      // Default OpenAPI spec for other services
       return Promise.resolve(
         mocks.fetch.mockSuccess({
           spec: {
@@ -89,6 +168,28 @@ export const setupDefaultMocks = () => {
       return Promise.resolve(
         mocks.fetch.mockSuccess({
           results: { recorded: 1, duplicates: 0 },
+        })
+      )
+    }
+
+    // Handle mock server requests with special headers
+    if (url.includes('/api/ws')) {
+      return Promise.resolve(
+        mocks.fetch.mockResponse({}, {
+          headers: { 'x-detected-type': 'asyncapi' }
+        })
+      )
+    }
+
+    if (url.includes('/events')) {
+      return Promise.resolve(
+        mocks.fetch.mockResponse({}, {
+          headers: {
+            'content-type': 'text/event-stream',
+            'x-detected-type': 'asyncapi',
+            'cache-control': 'no-cache',
+            'connection': 'keep-alive'
+          }
         })
       )
     }

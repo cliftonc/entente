@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import GitShaLink from '../components/GitShaLink'
+import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
 import { contractApi, verificationApi } from '../utils/api'
@@ -221,6 +222,13 @@ function ContractDetail() {
 
             <div>
               <label className="label">
+                <span className="label-text font-medium">Spec Type</span>
+              </label>
+              <SpecBadge specType={contract?.specType || 'openapi'} size="sm" />
+            </div>
+
+            <div>
+              <label className="label">
                 <span className="label-text font-medium">Status</span>
               </label>
               <span className={`badge ${getStatusBadgeClass(contract.status)}`}>
@@ -254,6 +262,7 @@ function ContractDetail() {
                 <tr>
                   <th>Operation</th>
                   <th>Method & Path</th>
+                  <th>Spec Type</th>
                   <th>Status</th>
                   <th>Duration</th>
                   <th>Timestamp</th>
@@ -263,7 +272,7 @@ function ContractDetail() {
               <tbody>
                 {!interactions || interactions.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center text-base-content/70 py-8">
+                    <td colSpan={7} className="text-center text-base-content/70 py-8">
                       No interactions recorded for this contract yet.
                     </td>
                   </tr>
@@ -277,6 +286,9 @@ function ContractDetail() {
                         <span className="font-mono text-sm text-base-content/70">
                           {interaction.request.method} {interaction.request.path}
                         </span>
+                      </td>
+                      <td>
+                        <SpecBadge specType={contract?.specType || 'openapi'} size="sm" />
                       </td>
                       <td>
                         <span

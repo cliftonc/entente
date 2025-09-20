@@ -1,5 +1,6 @@
 import { devWebSocketBroadcaster } from './websocket-dev'
 import { createWorkerWebSocketBroadcaster } from './websocket-worker'
+import { debugLog } from '../utils/logger'
 
 // Broadcaster interface (sync or async implementations supported)
 export interface Broadcaster {
@@ -78,6 +79,7 @@ export class NotificationService {
       deployedAt: Date
       deployedBy: string
       gitSha?: string
+      specType?: string
     },
     options?: { env?: any }
   ) {
@@ -95,10 +97,11 @@ export class NotificationService {
     const channelName = `deployments:${deploymentData.environment}`
     await toPromise(broadcaster.broadcastToChannel(tenantId, channelName, event))
 
-    console.log(`📡 Broadcasted deployment ${action} event`, {
+    debugLog(`📡 Broadcasted deployment ${action} event`, {
       service: deploymentData.service,
       version: deploymentData.version,
       environment: deploymentData.environment,
+      specType: deploymentData.specType,
       tenantId,
     })
   }
@@ -126,7 +129,7 @@ export class NotificationService {
     const broadcaster = getResolvedBroadcaster(options?.env)
     await toPromise(broadcaster.broadcastToTenant(tenantId, event))
 
-    console.log(`📡 Broadcasted service ${action} event`, {
+    debugLog(`📡 Broadcasted service ${action} event`, {
       name: serviceData.name,
       type: serviceData.type,
       tenantId,
@@ -156,7 +159,7 @@ export class NotificationService {
     const broadcaster = getResolvedBroadcaster(options?.env)
     await toPromise(broadcaster.broadcastToTenant(tenantId, event))
 
-    console.log(`📡 Broadcasted contract ${action} event`, {
+    debugLog(`📡 Broadcasted contract ${action} event`, {
       id: contractData.id,
       provider: contractData.provider,
       consumer: contractData.consumer,
@@ -191,7 +194,7 @@ export class NotificationService {
     const broadcaster = getResolvedBroadcaster(options?.env)
     await toPromise(broadcaster.broadcastToTenant(tenantId, event))
 
-    console.log(`📡 Broadcasted fixture ${action} event`, {
+    debugLog(`📡 Broadcasted fixture ${action} event`, {
       id: fixtureData.id,
       service: fixtureData.service,
       operation: fixtureData.operation,
@@ -226,7 +229,7 @@ export class NotificationService {
     const broadcaster = getResolvedBroadcaster(options?.env)
     await toPromise(broadcaster.broadcastToTenant(tenantId, event))
 
-    console.log(`📡 Broadcasted verification ${action} event`, {
+    debugLog(`📡 Broadcasted verification ${action} event`, {
       id: verificationData.id,
       provider: verificationData.provider,
       consumer: verificationData.consumer,

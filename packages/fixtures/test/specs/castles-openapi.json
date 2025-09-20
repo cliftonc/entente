@@ -1,0 +1,220 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Castle Service API",
+    "version": "1.0.0",
+    "description": "A simple API for managing French castles"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4001",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/castles": {
+      "get": {
+        "operationId": "listCastles",
+        "summary": "List all castles",
+        "responses": {
+          "200": {
+            "description": "List of castles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Castle"
+                  }
+                },
+                "example": [
+                  {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "name": "Château de Versailles",
+                    "region": "Île-de-France",
+                    "yearBuilt": 1623
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCastle",
+        "summary": "Create a new castle",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCastleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Castle created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Castle"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/castles/{id}": {
+      "get": {
+        "operationId": "getCastle",
+        "summary": "Get a castle by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Castle details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Castle"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Castle not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteCastle",
+        "summary": "Delete a castle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Castle deleted successfully"
+          },
+          "404": {
+            "description": "Castle not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Castle": {
+        "type": "object",
+        "required": ["id", "name", "region", "yearBuilt"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the castle"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the castle"
+          },
+          "region": {
+            "type": "string",
+            "description": "French region where the castle is located"
+          },
+          "yearBuilt": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 2100,
+            "description": "Year the castle was built"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional description of the castle"
+          }
+        }
+      },
+      "CreateCastleRequest": {
+        "type": "object",
+        "required": ["name", "region", "yearBuilt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Name of the castle"
+          },
+          "region": {
+            "type": "string",
+            "minLength": 1,
+            "description": "French region where the castle is located"
+          },
+          "yearBuilt": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 2100,
+            "description": "Year the castle was built"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional description of the castle"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error", "message"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error code"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message"
+          }
+        }
+      }
+    }
+  }
+}

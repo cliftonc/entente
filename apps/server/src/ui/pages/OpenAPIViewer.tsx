@@ -1,7 +1,7 @@
 import 'swagger-ui-react/swagger-ui.css'
-import SwaggerUI from 'swagger-ui-react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import SwaggerUI from 'swagger-ui-react'
 import { useServiceVersions } from '../hooks/useServices'
 import { serviceVersionApi } from '../utils/api'
 

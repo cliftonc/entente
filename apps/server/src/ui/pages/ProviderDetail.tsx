@@ -2,6 +2,7 @@ import type { Contract } from '@entente/types'
 import { Link, useParams } from 'react-router-dom'
 import ContractsPanel from '../components/ContractsPanel'
 import GitHubIntegrationPanel from '../components/GitHubIntegrationPanel'
+import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VerificationPanel from '../components/VerificationPanel'
 import VersionBadge from '../components/VersionBadge'
@@ -13,6 +14,7 @@ import { useInteractions } from '../hooks/useInteractions'
 import { useService } from '../hooks/useServices'
 import { useServiceVersions } from '../hooks/useServices'
 import { usePendingVerificationTasks, useVerificationsByProvider } from '../hooks/useVerifications'
+import { getSpecViewerButtonText, getSpecViewerRoute } from '../utils/specRouting'
 
 function ProviderDetail() {
   const { name } = useParams<{ name: string }>()
@@ -162,8 +164,8 @@ function ProviderDetail() {
                   </div>
                 </div>
 
-                {/* Status, Last Updated, OpenAPI Spec row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Status, Last Updated, Spec Type, API Spec row */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div>
                     <label className="label">
                       <span className="label-text">Status</span>
@@ -178,13 +180,23 @@ function ProviderDetail() {
                   </div>
                   <div>
                     <label className="label">
-                      <span className="label-text">OpenAPI Spec</span>
+                      <span className="label-text">Spec Type</span>
+                    </label>
+                    <SpecBadge specType={provider.specType || 'openapi'} size="sm" />
+                  </div>
+                  <div>
+                    <label className="label">
+                      <span className="label-text">API Spec</span>
                     </label>
                     <Link
-                      to={`/openapi/service/${provider.name}?version=latest`}
+                      to={getSpecViewerRoute(provider.specType, {
+                        serviceName: provider.name,
+                        serviceId: provider.id,
+                        version: 'latest',
+                      })}
                       className="btn btn-sm btn-primary"
                     >
-                      View Latest Spec
+                      {getSpecViewerButtonText(provider.specType)}
                     </Link>
                   </div>
                 </div>
@@ -261,6 +273,25 @@ function ProviderDetail() {
                       <div className="flex justify-between items-center mb-1">
                         <span className="font-medium text-sm">{deployment.environment}</span>
                         <div className="flex items-center gap-2">
+                          {deployment.specType && (
+                            <span
+                              className={`badge badge-outline badge-xs ${
+                                deployment.specType === 'openapi'
+                                  ? 'badge-primary'
+                                  : deployment.specType === 'graphql'
+                                    ? 'badge-secondary'
+                                    : deployment.specType === 'asyncapi'
+                                      ? 'badge-accent'
+                                      : deployment.specType === 'grpc'
+                                        ? 'badge-info'
+                                        : deployment.specType === 'soap'
+                                          ? 'badge-neutral'
+                                          : 'badge-ghost'
+                              }`}
+                            >
+                              {deployment.specType}
+                            </span>
+                          )}
                           <VersionBadge
                             version={deployment.version}
                             serviceName={name || ''}
@@ -343,6 +374,25 @@ function ProviderDetail() {
                       <div className="flex justify-between items-center mb-1">
                         <span className="font-medium text-sm">{deployment.environment}</span>
                         <div className="flex items-center gap-2">
+                          {deployment.specType && (
+                            <span
+                              className={`badge badge-outline badge-xs ${
+                                deployment.specType === 'openapi'
+                                  ? 'badge-primary'
+                                  : deployment.specType === 'graphql'
+                                    ? 'badge-secondary'
+                                    : deployment.specType === 'asyncapi'
+                                      ? 'badge-accent'
+                                      : deployment.specType === 'grpc'
+                                        ? 'badge-info'
+                                        : deployment.specType === 'soap'
+                                          ? 'badge-neutral'
+                                          : 'badge-ghost'
+                              }`}
+                            >
+                              {deployment.specType}
+                            </span>
+                          )}
                           <span className="font-mono text-xs bg-error/20 px-2 py-1 rounded">
                             {deployment.version}
                           </span>

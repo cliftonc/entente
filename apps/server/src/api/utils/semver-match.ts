@@ -6,6 +6,10 @@
 export interface VersionCandidate {
   id: string
   version: string
+  // Pass-through metadata (optional) used by callers
+  spec?: any
+  specType?: string | null
+  createdAt?: Date
 }
 
 /**

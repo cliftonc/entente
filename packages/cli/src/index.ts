@@ -51,13 +51,20 @@ async function makeAuthenticatedRequest(url: string, options: RequestInit = {}):
 export const uploadSpec = async (options: UploadOptions): Promise<void> => {
   const { service, version = '0.0.0', branch = 'main', environment, spec: specPath } = options
 
-  // Read OpenAPI spec from file
+  // Read spec file from path
   const fs = await import('node:fs/promises')
 
-  let spec: OpenAPISpec
+  let spec: any
   try {
     const specContent = await fs.readFile(specPath, 'utf-8')
-    spec = JSON.parse(specContent)
+
+    // For JSON files, parse as JSON; otherwise send as raw string
+    // Let the server auto-detect the spec type
+    if (specPath.endsWith('.json')) {
+      spec = JSON.parse(specContent)
+    } else {
+      spec = specContent.trim()
+    }
   } catch (error) {
     throw new Error(
       `Failed to read spec file ${specPath}: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -159,13 +166,10 @@ export const uploadSpec = async (options: UploadOptions): Promise<void> => {
   if (result.isNew) {
     console.log(
       chalk.green('✅'),
-      `Uploaded new OpenAPI spec for ${service}@${version} to ${environment}`
+      `Uploaded new API spec for ${service}@${version} to ${environment}`
     )
   } else {
-    console.log(
-      chalk.green('✅'),
-      `Updated OpenAPI spec for ${service}@${version} in ${environment}`
-    )
+    console.log(chalk.green('✅'), `Updated API spec for ${service}@${version} in ${environment}`)
   }
 }
 

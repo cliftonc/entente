@@ -11,9 +11,7 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -22,17 +20,14 @@
   },
   "dependencies": {
     "@entente/fixtures": "workspace:*",
-    "@entente/types": "workspace:*"
+    "@entente/types": "workspace:*",
+    "ws": "^8.14.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.6",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "@types/ws": "^8.5.10"
   },
-  "keywords": [
-    "contract-testing",
-    "consumer",
-    "testing",
-    "mocking"
-  ]
+  "keywords": ["contract-testing", "consumer", "testing", "mocking"]
 }

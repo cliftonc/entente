@@ -6,6 +6,8 @@ export interface EntenteConfig {
   apiKey?: string
   serverUrl?: string
   username?: string
+  tenantId?: string
+  tenantName?: string
 }
 
 const CONFIG_DIR = join(homedir(), '.entente')

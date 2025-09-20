@@ -14,9 +14,7 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -35,10 +33,5 @@
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
-  "keywords": [
-    "contract-testing",
-    "cli",
-    "deployment",
-    "fixtures"
-  ]
+  "keywords": ["contract-testing", "cli", "deployment", "fixtures"]
 }

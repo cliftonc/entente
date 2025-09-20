@@ -1,0 +1,226 @@
+asyncapi: 2.6.0
+info:
+  title: Castle Events API
+  version: 1.0.0
+  description: Event-driven API for castle lifecycle events
+  contact:
+    name: Castle Service Team
+    email: castles@example.com
+  license:
+    name: MIT
+
+servers:
+  development:
+    url: ws://localhost:4001/ws
+    protocol: ws
+    description: Development WebSocket server
+  production:
+    url: wss://api.castles.example.com/ws
+    protocol: wss
+    description: Production WebSocket server
+
+channels:
+  castle/created:
+    description: Event fired when a new castle is created
+    publish:
+      operationId: publishCastleCreated
+      summary: Publish castle created event
+      message:
+        $ref: '#/components/messages/CastleCreated'
+    subscribe:
+      operationId: subscribeCastleCreated
+      summary: Subscribe to castle created events
+      message:
+        $ref: '#/components/messages/CastleCreated'
+
+  castle/updated:
+    description: Event fired when a castle is updated
+    publish:
+      operationId: publishCastleUpdated
+      summary: Publish castle updated event
+      message:
+        $ref: '#/components/messages/CastleUpdated'
+    subscribe:
+      operationId: subscribeCastleUpdated
+      summary: Subscribe to castle updated events
+      message:
+        $ref: '#/components/messages/CastleUpdated'
+
+  castle/deleted:
+    description: Event fired when a castle is deleted
+    publish:
+      operationId: publishCastleDeleted
+      summary: Publish castle deleted event
+      message:
+        $ref: '#/components/messages/CastleDeleted'
+    subscribe:
+      operationId: subscribeCastleDeleted
+      summary: Subscribe to castle deleted events
+      message:
+        $ref: '#/components/messages/CastleDeleted'
+
+  castle/status:
+    description: Castle status updates (maintenance, renovation, etc.)
+    parameters:
+      castleId:
+        description: The castle ID to get status updates for
+        schema:
+          type: string
+          pattern: '^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$'
+    subscribe:
+      operationId: subscribeCastleStatus
+      summary: Subscribe to status updates for a specific castle
+      message:
+        $ref: '#/components/messages/CastleStatusUpdate'
+
+components:
+  messages:
+    CastleCreated:
+      name: CastleCreated
+      title: Castle Created Event
+      summary: A new castle has been created
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/CastleEvent'
+
+    CastleUpdated:
+      name: CastleUpdated
+      title: Castle Updated Event
+      summary: An existing castle has been updated
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/CastleEvent'
+
+    CastleDeleted:
+      name: CastleDeleted
+      title: Castle Deleted Event
+      summary: A castle has been deleted
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/CastleDeletedEvent'
+
+    CastleStatusUpdate:
+      name: CastleStatusUpdate
+      title: Castle Status Update
+      summary: Status update for a castle
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/CastleStatusEvent'
+
+  schemas:
+    Castle:
+      type: object
+      required:
+        - id
+        - name
+        - region
+        - yearBuilt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the castle
+        name:
+          type: string
+          description: Name of the castle
+        region:
+          type: string
+          description: French region where the castle is located
+        yearBuilt:
+          type: integer
+          minimum: 1000
+          maximum: 2100
+          description: Year the castle was built
+        description:
+          type: string
+          description: Optional description of the castle
+        status:
+          type: string
+          enum: [active, maintenance, renovation, closed]
+          description: Current status of the castle
+
+    CastleEvent:
+      type: object
+      required:
+        - eventId
+        - eventType
+        - timestamp
+        - castle
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          description: Unique identifier for this event
+        eventType:
+          type: string
+          enum: [created, updated]
+          description: Type of event
+        timestamp:
+          type: string
+          format: date-time
+          description: When the event occurred
+        castle:
+          $ref: '#/components/schemas/Castle'
+        previousData:
+          $ref: '#/components/schemas/Castle'
+          description: Previous castle data (only for update events)
+
+    CastleDeletedEvent:
+      type: object
+      required:
+        - eventId
+        - eventType
+        - timestamp
+        - castleId
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          description: Unique identifier for this event
+        eventType:
+          type: string
+          enum: [deleted]
+          description: Type of event
+        timestamp:
+          type: string
+          format: date-time
+          description: When the event occurred
+        castleId:
+          type: string
+          format: uuid
+          description: ID of the deleted castle
+        castleName:
+          type: string
+          description: Name of the deleted castle
+
+    CastleStatusEvent:
+      type: object
+      required:
+        - eventId
+        - castleId
+        - status
+        - timestamp
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          description: Unique identifier for this event
+        castleId:
+          type: string
+          format: uuid
+          description: ID of the castle
+        status:
+          type: string
+          enum: [active, maintenance, renovation, closed]
+          description: New status of the castle
+        previousStatus:
+          type: string
+          enum: [active, maintenance, renovation, closed]
+          description: Previous status of the castle
+        timestamp:
+          type: string
+          format: date-time
+          description: When the status changed
+        reason:
+          type: string
+          description: Reason for the status change

@@ -5,6 +5,7 @@ import type {
   GitHubWorkflow,
   OpenAPISpec,
 } from '@entente/types'
+import { debugLog } from '@entente/types'
 import { zValidator } from '@hono/zod-validator'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
@@ -12,7 +13,6 @@ import { z } from 'zod'
 // Remove unused Env import
 import { serviceVersions, services } from '../../db/schema'
 import type { DbService } from '../../db/types'
-import { injectMockServerUrls } from '../utils/openapi'
 import {
   findRepositoryByName,
   getRepositories,
@@ -63,7 +63,7 @@ servicesRouter.post('/', async c => {
       githubRepositoryOwner = repoInfo.owner
       githubRepositoryName = repoInfo.repo
       githubAutoLinked = true
-      console.log(`🔗 Auto-linked GitHub repo: ${repoInfo.owner}/${repoInfo.repo}`)
+      debugLog(`🔗 Auto-linked GitHub repo: ${repoInfo.owner}/${repoInfo.repo}`)
     }
   }
 
@@ -111,11 +111,11 @@ servicesRouter.post('/', async c => {
 
     service = updated
     if (shouldUpdateGitHubFields && repositoryUrlChanged) {
-      console.log(
+      debugLog(
         `🔄 Updated GitHub auto-linking for ${registration.type}: ${registration.name} (repository URL changed)`
       )
     }
-    console.log(`📦 Updated existing ${registration.type}: ${registration.name}`)
+    debugLog(`📦 Updated existing ${registration.type}: ${registration.name}`)
   } else {
     // Create new service
     const [created] = await db
@@ -136,7 +136,7 @@ servicesRouter.post('/', async c => {
 
     service = created
     isNew = true
-    console.log(`📦 Registered new ${registration.type}: ${registration.name}`)
+    debugLog(`📦 Registered new ${registration.type}: ${registration.name}`)
   }
 
   // Extract version from packageJson and create service version
@@ -153,7 +153,7 @@ servicesRouter.post('/', async c => {
           createdBy: user?.name || 'service-registration',
         }
       )
-      console.log(
+      debugLog(
         `📋 Created service version: ${registration.name}@${registration.packageJson.version}`
       )
     } catch (error) {
@@ -220,37 +220,21 @@ servicesRouter.get('/:name/versions', async c => {
     })
 
     // Map to include service info for the frontend
-    const versionsWithService = versions.map((v, index) => {
-      // Inject appropriate mock server URLs based on whether this is the latest version
-      const isLatest = index === 0 // First version is latest since ordered by desc creation date
-      const latestVersionWithSpec = versions.find(version => version.spec)
-      const isLatestWithSpec = v.id === latestVersionWithSpec?.id
-
-      let specWithUrls = v.spec
-      if (v.spec && Object.keys(v.spec).length > 0) {
-        specWithUrls = injectMockServerUrls(
-          v.spec as OpenAPISpec,
-          service.name,
-          isLatestWithSpec ? 'latest' : 'version',
-          v.id
-        )
-      }
-
-      return {
-        id: v.id,
-        tenantId: v.tenantId,
-        serviceId: v.serviceId,
-        serviceName: service.name,
-        serviceType: service.type,
-        version: v.version,
-        spec: specWithUrls,
-        gitSha: v.gitSha,
-        packageJson: v.packageJson,
-        createdBy: v.createdBy,
-        createdAt: v.createdAt,
-        updatedAt: v.updatedAt,
-      }
-    })
+    const versionsWithService = versions.map(v => ({
+      id: v.id,
+      tenantId: v.tenantId,
+      serviceId: v.serviceId,
+      serviceName: service.name,
+      serviceType: service.type,
+      version: v.version,
+      specType: v.specType,
+      spec: v.spec,
+      gitSha: v.gitSha,
+      packageJson: v.packageJson,
+      createdBy: v.createdBy,
+      createdAt: v.createdAt,
+      updatedAt: v.updatedAt,
+    }))
 
     return c.json(versionsWithService)
   } catch (error) {
@@ -315,7 +299,7 @@ servicesRouter.put('/:name/:type', async c => {
     .where(and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)))
     .returning()
 
-  console.log(`📦 Updated ${type}: ${name}`)
+  debugLog(`📦 Updated ${type}: ${name}`)
 
   return c.json(updated)
 })
@@ -341,7 +325,7 @@ servicesRouter.delete('/:name/:type', async c => {
     return c.json({ error: 'Service not found' }, 404)
   }
 
-  console.log(`🗑️ Deleted ${type}: ${name}`)
+  debugLog(`🗑️ Deleted ${type}: ${name}`)
   return c.json({ message: 'Service deleted successfully' })
 })
 
@@ -429,7 +413,7 @@ servicesRouter.put(
       .where(and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)))
       .returning()
 
-    console.log(`🔧 Updated GitHub config for ${type}: ${name}`)
+    debugLog(`🔧 Updated GitHub config for ${type}: ${name}`)
 
     const result: GitHubServiceConfig = {
       repositoryOwner: updated.githubRepositoryOwner || undefined,
@@ -481,7 +465,7 @@ servicesRouter.delete('/:name/:type/github/config', async c => {
     })
     .where(and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)))
 
-  console.log(`🧹 Cleared GitHub config for ${type}: ${name}`)
+  debugLog(`🧹 Cleared GitHub config for ${type}: ${name}`)
   return c.json({ message: 'GitHub configuration cleared successfully' })
 })
 
@@ -573,7 +557,7 @@ servicesRouter.post(
       return c.json({ error: 'GitHub verification workflow not configured for this service' }, 400)
     }
 
-    console.log(
+    debugLog(
       `🔍 Service GitHub config: owner="${service.githubRepositoryOwner}", repo="${service.githubRepositoryName}", path="${service.githubVerifyWorkflowPath}"`
     )
 
@@ -588,7 +572,7 @@ servicesRouter.post(
         tenantId
       )
 
-      console.log(`🚀 Triggered verification workflow for ${type}: ${name}`)
+      debugLog(`🚀 Triggered verification workflow for ${type}: ${name}`)
       return c.json({ message: 'Verification workflow triggered successfully' })
     } catch (error) {
       console.error('Error triggering workflow:', error)

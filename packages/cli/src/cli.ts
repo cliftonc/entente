@@ -71,14 +71,14 @@ program
 program
   .command('register-service')
   .description(
-    'Register a service (consumer or provider) with package.json and optionally upload OpenAPI spec'
+    'Register a service (consumer or provider) with package.json and optionally upload API spec'
   )
   .requiredOption('-s, --service <service>', 'Service name')
   .requiredOption('-t, --type <type>', 'Service type: consumer or provider')
   .requiredOption('-v, --version <version>', 'Provider version')
   .option('-p, --package <path>', 'Path to package.json', './package.json')
   .option('-d, --description <desc>', 'Service description')
-  .option('--spec <file>', 'Path to OpenAPI spec file to upload (providers only)')
+  .option('--spec <file>', 'Path to API spec file to upload (providers only)')
   .option(
     '-e, --environment <environment>',
     'Environment for spec (required if --spec provided)',
@@ -109,13 +109,13 @@ program
           return
         }
 
-        console.log(chalk.blue('📤'), `Uploading OpenAPI spec for ${options.service}...`)
+        console.log(chalk.blue('📤'), `Uploading API spec for ${options.service}...`)
         await uploadSpec({
           service: options.service,
           environment: options.environment,
           spec: options.spec,
           branch: options.branch,
-          version: options.version
+          version: options.version,
         })
       }
     } catch (error) {
@@ -168,22 +168,22 @@ program
     }
   })
 
-// Upload OpenAPI specification (with auto-registration)
+// Upload API specification (with auto-registration)
 program
   .command('upload-spec')
   .description(
-    'Upload OpenAPI specification to central service (auto-registers provider if needed)'
+    'Upload API specification (OpenAPI, GraphQL, AsyncAPI) to central service (auto-registers provider if needed)'
   )
   .requiredOption('-s, --service <service>', 'Service name')
   .requiredOption('-v, --version <version>', 'Service version')
   .requiredOption('-e, --environment <environment>', 'Target environment')
-  .requiredOption('--spec <file>', 'Path to OpenAPI spec file')
+  .requiredOption('--spec <file>', 'Path to API spec file (JSON, GraphQL, etc.)')
   .option('-b, --branch <branch>', 'Git branch', 'main')
   .action(async options => {
     try {
       console.log(
         chalk.blue('📤'),
-        `Uploading OpenAPI spec for ${options.service}@${options.version} to ${options.environment}...`
+        `Uploading API spec for ${options.service}@${options.version} to ${options.environment}...`
       )
       await uploadSpec({
         service: options.service,

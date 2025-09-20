@@ -5,6 +5,7 @@ import type {
   VerificationResults,
   VerificationTask,
 } from '@entente/types'
+import { debugLog } from '@entente/types'
 import { Hono } from 'hono'
 
 import { and, count, desc, eq, gte, isNull, lte } from 'drizzle-orm'
@@ -40,10 +41,13 @@ verificationRouter.get('/result/:id', async c => {
       consumer: verificationResults.consumer,
       consumerVersion: verificationResults.consumerVersion,
       consumerGitSha: verificationResults.consumerGitSha,
+      // Spec type from verification results
+      specType: verificationResults.specType,
       // Fallback to task info if result fields are null (backward compatibility)
       taskConsumer: verificationTasks.consumer,
       taskConsumerVersion: verificationTasks.consumerVersion,
       taskConsumerGitSha: verificationTasks.consumerGitSha,
+      taskSpecType: verificationTasks.specType,
       // Contract ID from task
       contractId: verificationTasks.contractId,
     })
@@ -106,6 +110,8 @@ verificationRouter.get('/result/:id', async c => {
     consumerVersion: dbResult.consumerVersion || dbResult.taskConsumerVersion,
     consumerGitSha: dbResult.consumerGitSha || dbResult.taskConsumerGitSha,
     consumerGitRepositoryUrl: null, // TODO: Get from consumer service JOIN
+    // Spec type (from results with fallback to task, default to openapi)
+    specType: dbResult.specType || dbResult.taskSpecType || 'openapi',
     // Contract ID from task
     contractId: dbResult.contractId,
   }
@@ -135,6 +141,7 @@ verificationRouter.get('/pending', async c => {
       consumerVersion: verificationTasks.consumerVersion,
       consumerGitSha: verificationTasks.consumerGitSha,
       environment: verificationTasks.environment,
+      specType: verificationTasks.specType,
       interactions: verificationTasks.interactions,
       createdAt: verificationTasks.createdAt,
       // Provider git repository URL
@@ -175,6 +182,7 @@ verificationRouter.get('/pending', async c => {
     consumerVersion: task.consumerVersion,
     consumerGitSha: task.consumerGitSha,
     environment: task.environment,
+    specType: task.specType || 'openapi',
     interactions: task.interactions,
     createdAt: task.createdAt,
   }))
@@ -249,10 +257,13 @@ verificationRouter.get('/', async c => {
       consumer: verificationResults.consumer,
       consumerVersion: verificationResults.consumerVersion,
       consumerGitSha: verificationResults.consumerGitSha,
+      // Spec type from verification results
+      specType: verificationResults.specType,
       // Fallback to task info if result fields are null (backward compatibility)
       taskConsumer: verificationTasks.consumer,
       taskConsumerVersion: verificationTasks.consumerVersion,
       taskConsumerGitSha: verificationTasks.consumerGitSha,
+      taskSpecType: verificationTasks.specType,
       // Contract ID from task
       contractId: verificationTasks.contractId,
     })
@@ -295,6 +306,8 @@ verificationRouter.get('/', async c => {
       consumerVersion: result.consumerVersion || result.taskConsumerVersion,
       consumerGitSha: result.consumerGitSha || result.taskConsumerGitSha,
       consumerGitRepositoryUrl: null, // TODO: Get from consumer service JOIN
+      // Spec type (from results with fallback to task, default to openapi)
+      specType: result.specType || result.taskSpecType || 'openapi',
       // Contract ID from task
       contractId: result.contractId,
     }
@@ -357,10 +370,10 @@ verificationRouter.get('/recent', async c => {
   endOfToday.setUTCHours(23, 59, 59, 999)
   const daysAgo = new Date(endOfToday.getTime() - days * 24 * 60 * 60 * 1000)
 
-  console.log(`🔍 Querying recent verifications for tenant ${tenantId}`)
-  console.log(`📅 Days: ${days}, Limit: ${limit}`)
-  console.log(`⏰ End of today: ${endOfToday.toISOString()}`)
-  console.log(`⏰ Cutoff date: ${daysAgo.toISOString()}`)
+  debugLog(`🔍 Querying recent verifications for tenant ${tenantId}`)
+  debugLog(`📅 Days: ${days}, Limit: ${limit}`)
+  debugLog(`⏰ End of today: ${endOfToday.toISOString()}`)
+  debugLog(`⏰ Cutoff date: ${daysAgo.toISOString()}`)
 
   const recentResults = await db
     .select({
@@ -379,7 +392,7 @@ verificationRouter.get('/recent', async c => {
     .orderBy(desc(verificationResults.submittedAt))
     .limit(limit)
 
-  console.log(`📊 Found ${recentResults.length} recent verification results`)
+  debugLog(`📊 Found ${recentResults.length} recent verification results`)
 
   const formattedResults = recentResults.map(result => {
     const resultData = result.results as VerificationResult[]
@@ -433,11 +446,12 @@ verificationRouter.get('/:provider', async c => {
     consumerVersion: task.consumerVersion,
     consumerGitSha: task.consumerGitSha,
     environment: task.environment,
+    specType: task.specType as any, // Cast to SpecType
     interactions: task.interactions as ClientInteraction[],
     createdAt: task.createdAt,
   }))
 
-  console.log(
+  debugLog(
     `🔍 Retrieved ${tasks.length} verification task(s) for ${provider} (all environments)`
   )
 
@@ -520,6 +534,7 @@ verificationRouter.post('/:provider', async c => {
       consumer: task.consumer,
       consumerVersion: task.consumerVersion,
       consumerGitSha: task.consumerGitSha || null,
+      specType: task.specType, // Inherit specType from the verification task
       taskId: results.taskId,
       results: results.results,
     })
@@ -555,10 +570,10 @@ verificationRouter.post('/:provider', async c => {
     // Note: serviceDependencies table structure changed, status field removed
     // Status is now tracked via verificationResults table
 
-    console.log(`📋 Updated dependency ${task.dependencyId} status to ${newStatus}`)
+    debugLog(`📋 Updated dependency ${task.dependencyId} status to ${newStatus}`)
   }
 
-  console.log(`✅ Received verification results for ${provider}: ${passed}/${total} passed`)
+  debugLog(`✅ Received verification results for ${provider}: ${passed}/${total} passed`)
 
   return c.json(
     {
@@ -869,7 +884,7 @@ verificationRouter.get('/consumer/:consumer/history', async c => {
     }
   })
 
-  console.log(`🔍 Retrieved ${history.length} verification results for consumer ${consumer}`)
+  debugLog(`🔍 Retrieved ${history.length} verification results for consumer ${consumer}`)
 
   return c.json(history)
 })

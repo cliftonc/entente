@@ -2,21 +2,22 @@ import { Hono } from 'hono'
 import { authMiddleware } from '../middleware/auth'
 import { databaseMiddleware } from '../middleware/database'
 import { withGitHub } from '../utils/github-helper'
+import { debugLog } from '@entente/types'
 
 export const githubRoutes = new Hono()
 
-console.log('📂 GitHub routes module loaded')
-console.log('🔍 withGitHub function:', typeof withGitHub)
+debugLog('📂 GitHub routes module loaded')
+debugLog('🔍 withGitHub function:', typeof withGitHub)
 
 // Apply middleware (auth and database already applied at main app level)
 githubRoutes.use('*', withGitHub())
 
 // Debug endpoint
 githubRoutes.get('/debug', async c => {
-  console.log('🐛 GitHub debug endpoint reached')
-  console.log('🔍 Context keys available:', Object.keys(c.var))
+  debugLog('🐛 GitHub debug endpoint reached')
+  debugLog('🔍 Context keys available:', Object.keys(c.var))
   const github = c.get('github')
-  console.log('🔍 GitHub helper in context:', github ? 'available' : 'null')
+  debugLog('🔍 GitHub helper in context:', github ? 'available' : 'null')
   return c.json({
     message: 'GitHub routes are working',
     timestamp: new Date().toISOString(),
@@ -24,7 +25,7 @@ githubRoutes.get('/debug', async c => {
   })
 })
 
-console.log('✅ GitHub debug route registered')
+debugLog('✅ GitHub debug route registered')
 
 // Get all repositories accessible to the tenant
 githubRoutes.get('/repositories', async c => {

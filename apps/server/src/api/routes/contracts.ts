@@ -1,7 +1,7 @@
 import type { Contract } from '@entente/types'
 import { and, count, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { contracts, interactions } from '../../db/schema'
+import { contracts, interactions, services, specs } from '../../db/schema'
 import type { DbConnection } from '../../db/types'
 import { NotificationService } from '../services/notification'
 
@@ -47,6 +47,7 @@ contractsRouter.get('/', async c => {
       providerName: contracts.providerName,
       providerVersion: contracts.providerVersion,
       environment: contracts.environment,
+      specType: contracts.specType,
       status: contracts.status,
       firstSeen: contracts.firstSeen,
       lastSeen: contracts.lastSeen,
@@ -68,6 +69,7 @@ contractsRouter.get('/', async c => {
       contracts.providerName,
       contracts.providerVersion,
       contracts.environment,
+      contracts.specType,
       contracts.status,
       contracts.firstSeen,
       contracts.lastSeen,
@@ -89,6 +91,7 @@ contractsRouter.get('/', async c => {
     providerName: contract.providerName,
     providerVersion: contract.providerVersion,
     environment: contract.environment,
+    specType: contract.specType,
     status: contract.status as 'active' | 'archived' | 'deprecated',
     interactionCount: contract.interactionCount,
     firstSeen: contract.firstSeen,
@@ -150,6 +153,7 @@ contractsRouter.get('/:id', async c => {
       providerName: contracts.providerName,
       providerVersion: contracts.providerVersion,
       environment: contracts.environment,
+      specType: contracts.specType,
       status: contracts.status,
       firstSeen: contracts.firstSeen,
       lastSeen: contracts.lastSeen,
@@ -171,6 +175,7 @@ contractsRouter.get('/:id', async c => {
       contracts.providerName,
       contracts.providerVersion,
       contracts.environment,
+      contracts.specType,
       contracts.status,
       contracts.firstSeen,
       contracts.lastSeen,
@@ -193,6 +198,7 @@ contractsRouter.get('/:id', async c => {
     providerName: contract.providerName,
     providerVersion: contract.providerVersion,
     environment: contract.environment,
+    specType: contract.specType,
     status: contract.status as 'active' | 'archived' | 'deprecated',
     interactionCount: contract.interactionCount,
     firstSeen: contract.firstSeen,
@@ -301,6 +307,7 @@ contractsRouter.patch('/:id', async c => {
       providerName: contracts.providerName,
       providerVersion: contracts.providerVersion,
       environment: contracts.environment,
+      specType: contracts.specType,
       status: contracts.status,
       firstSeen: contracts.firstSeen,
       lastSeen: contracts.lastSeen,
@@ -322,6 +329,7 @@ contractsRouter.patch('/:id', async c => {
       contracts.providerName,
       contracts.providerVersion,
       contracts.environment,
+      contracts.specType,
       contracts.status,
       contracts.firstSeen,
       contracts.lastSeen,
@@ -340,6 +348,7 @@ contractsRouter.patch('/:id', async c => {
     providerName: contractWithCount.providerName,
     providerVersion: contractWithCount.providerVersion,
     environment: contractWithCount.environment,
+    specType: contractWithCount.specType,
     status: contractWithCount.status as 'active' | 'archived' | 'deprecated',
     interactionCount: contractWithCount.interactionCount,
     firstSeen: contractWithCount.firstSeen,
@@ -404,6 +413,21 @@ export async function createOrUpdateContract(
   environment: string,
   env: any
 ): Promise<string> {
+  // Get specType from the provider service
+  const providerService = await db.query.services.findFirst({
+    where: and(eq(services.tenantId, tenantId), eq(services.id, providerId)),
+  })
+
+  if (!providerService) {
+    throw new Error(`Provider service with ID ${providerId} not found`)
+  }
+
+  if (!providerService.specType) {
+    throw new Error(`Provider service ${providerName} has no specType`)
+  }
+
+  const specType = providerService.specType
+
   // Try to find existing contract
   const existingContract = await db.query.contracts.findFirst({
     where: and(
@@ -441,6 +465,7 @@ export async function createOrUpdateContract(
       providerName,
       providerVersion,
       environment,
+      specType,
       status: 'active',
       firstSeen: new Date(),
       lastSeen: new Date(),

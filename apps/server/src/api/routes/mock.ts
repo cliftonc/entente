@@ -1,11 +1,11 @@
-import type { Fixture, OpenAPISpec, HTTPRequest } from '@entente/types'
 import {
-  createOpenAPIMockHandler,
-  handleMockRequest,
+  type MockHandler,
   type MockRequest,
   type MockResponse,
-  type MockHandler
+  createOpenAPIMockHandler,
+  handleMockRequest,
 } from '@entente/fixtures'
+import type { Fixture, HTTPRequest, OpenAPISpec } from '@entente/types'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { serviceVersions, services } from '../../db/schema'
@@ -15,6 +15,62 @@ export const mockRouter = new Hono()
 
 // Cache for mock handlers to avoid recreating them for each request
 const mockHandlerCache = new Map<string, MockHandler[]>()
+
+// GraphQL endpoint for service by name (latest version) - must come before the catch-all route
+mockRouter.post('/service/:serviceName/graphql', async c => {
+  const serviceName = c.req.param('serviceName')
+
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+
+  try {
+    // Get latest service version
+    const allVersions = await getServiceVersions(db, tenantId, serviceName)
+
+    if (allVersions.length === 0) {
+      return c.json({ error: 'Service not found' }, 404)
+    }
+
+    // Get the latest GraphQL service version (specType==='graphql')
+    const latestVersionWithSpec = allVersions
+      .filter(v => v.specType === 'graphql' && v.spec && typeof v.spec === 'string')
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+
+    if (!latestVersionWithSpec) {
+      return c.json({ error: 'No GraphQL spec available for this service' }, 404)
+    }
+
+    // For now, return a simple mock response since we don't have GraphQL mock handling yet
+    // TODO: Implement proper GraphQL mock handling with fixtures
+    const { query, variables } = await c.req.json()
+
+    // Simple mock response for testing
+    const mockData = {
+      data: {
+        message: 'This is a mock GraphQL response',
+        service: serviceName,
+        version: latestVersionWithSpec.version,
+        query: query,
+        variables: variables,
+      },
+    }
+
+    return c.json(mockData)
+  } catch (error) {
+    console.error('GraphQL Mock API error:', error)
+    return c.json(
+      {
+        errors: [
+          {
+            message: 'Internal server error',
+            extensions: { code: 'INTERNAL_ERROR' },
+          },
+        ],
+      },
+      500
+    )
+  }
+})
 
 // Mock API for service by name (latest version)
 mockRouter.all('/service/:serviceName/*', async c => {
@@ -38,11 +94,26 @@ mockRouter.all('/service/:serviceName/*', async c => {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
 
     if (!latestVersionWithSpec) {
-      return c.json({ error: 'No OpenAPI spec available for this service' }, 404)
+      return c.json({ error: 'No spec available for this service' }, 404)
+    }
+
+    // Only support OpenAPI for REST-style mock route
+    if (latestVersionWithSpec.specType && latestVersionWithSpec.specType !== 'openapi') {
+      return c.json(
+        {
+          error: `Spec type '${latestVersionWithSpec.specType}' not supported on REST mock endpoint. Use protocol-specific mock interfaces instead.`,
+        },
+        400
+      )
     }
 
     // Get fixtures for this service and version
-    const fixtures = await fetchFixturesForVersion(db, tenantId, serviceName, latestVersionWithSpec.version)
+    const fixtures = await fetchFixturesForVersion(
+      db,
+      tenantId,
+      serviceName,
+      latestVersionWithSpec.version
+    )
 
     // Create or get cached mock handlers
     const cacheKey = `${serviceName}:${latestVersionWithSpec.version}`
@@ -55,7 +126,6 @@ mockRouter.all('/service/:serviceName/*', async c => {
 
     // Handle the request directly
     return await handleMockRequestInWorker(c, mockHandlers, requestPath)
-
   } catch (error) {
     console.error('Mock API error:', error)
     return c.json({ error: 'Internal server error' }, 500)
@@ -73,13 +143,10 @@ mockRouter.all('/version/:serviceVersionId/*', async c => {
   try {
     // Get specific service version
     const serviceVersion = await db.query.serviceVersions.findFirst({
-      where: and(
-        eq(serviceVersions.tenantId, tenantId),
-        eq(serviceVersions.id, serviceVersionId)
-      ),
+      where: and(eq(serviceVersions.tenantId, tenantId), eq(serviceVersions.id, serviceVersionId)),
       with: {
-        service: true
-      }
+        service: true,
+      },
     })
 
     if (!serviceVersion) {
@@ -87,7 +154,16 @@ mockRouter.all('/version/:serviceVersionId/*', async c => {
     }
 
     if (!serviceVersion.spec) {
-      return c.json({ error: 'No OpenAPI spec available for this service version' }, 404)
+      return c.json({ error: 'No spec available for this service version' }, 404)
+    }
+
+    if (serviceVersion.specType && serviceVersion.specType !== 'openapi') {
+      return c.json(
+        {
+          error: `Spec type '${serviceVersion.specType}' not supported on REST mock endpoint. Use protocol-specific mock interfaces instead.`,
+        },
+        400
+      )
     }
 
     // Get fixtures for this service and version
@@ -109,7 +185,6 @@ mockRouter.all('/version/:serviceVersionId/*', async c => {
 
     // Handle the request directly
     return await handleMockRequestInWorker(c, mockHandlers, requestPath)
-
   } catch (error) {
     console.error('Mock API error:', error)
     return c.json({ error: 'Internal server error' }, 500)
@@ -209,7 +284,7 @@ async function handleMockRequestInWorker(c: any, mockHandlers: MockHandler[], re
       path: requestPath,
       headers,
       query,
-      body
+      body,
     }
 
     // Handle the request using the mock handlers
@@ -217,7 +292,6 @@ async function handleMockRequestInWorker(c: any, mockHandlers: MockHandler[], re
 
     // Return response
     return c.json(mockResponse.body, mockResponse.status, mockResponse.headers)
-
   } catch (error) {
     console.error('Mock request handling error:', error)
     return c.json({ error: 'Failed to handle mock request' }, 500)

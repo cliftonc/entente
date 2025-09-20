@@ -1,5 +1,11 @@
 import { generateInteractionHash } from '@entente/fixtures'
-import type { ClientInfo, ClientInteraction, HTTPRequest, HTTPResponse } from '@entente/types'
+import type {
+  ClientInfo,
+  ClientInteraction,
+  HTTPRequest,
+  HTTPResponse,
+  SpecType,
+} from '@entente/types'
 import { and, avg, count, desc, eq, gte } from 'drizzle-orm'
 import { Hono } from 'hono'
 import {
@@ -90,6 +96,18 @@ async function createVerificationTaskFromInteraction(
     // Get the provider version from the most recent interaction
     const providerVersion = allInteractions[0]?.providerVersion || 'latest'
 
+    // Get specType from the contract
+    let specType: SpecType = 'openapi' // default fallback
+    if (contractId) {
+      const contract = await db.query.contracts.findFirst({
+        where: eq(contracts.id, contractId),
+        columns: { specType: true },
+      })
+      if (contract) {
+        specType = contract.specType
+      }
+    }
+
     try {
       const [newTask] = await db
         .insert(verificationTasks)
@@ -103,6 +121,7 @@ async function createVerificationTaskFromInteraction(
           consumer: consumerName,
           consumerVersion,
           environment,
+          specType, // Include the specType from the contract
           interactions: allInteractions,
         })
         .returning()
@@ -219,7 +238,7 @@ interactionsRouter.get('/', async c => {
 
   const db = c.get('db')
 
-  // Use a SQL query with JOIN to get consumer git repository URL
+  // Use a SQL query with JOIN to get consumer git repository URL and specType from contract
   const dbInteractions = await db
     .select({
       id: interactions.id,
@@ -236,12 +255,14 @@ interactionsRouter.get('/', async c => {
       duration: interactions.duration,
       clientInfo: interactions.clientInfo,
       consumerGitRepositoryUrl: services.gitRepositoryUrl,
+      specType: contracts.specType,
     })
     .from(interactions)
     .leftJoin(
       services,
       and(eq(interactions.consumerId, services.id), eq(services.type, 'consumer'))
     )
+    .leftJoin(contracts, eq(interactions.contractId, contracts.id))
     .where(and(...whereConditions))
     .orderBy(desc(interactions.timestamp))
     .limit(limit)
@@ -262,6 +283,7 @@ interactionsRouter.get('/', async c => {
     duration: interaction.duration,
     clientInfo: interaction.clientInfo as ClientInfo,
     provider: interaction.service,
+    specType: interaction.specType ?? 'openapi', // Default only if null
   }))
 
   console.log(
@@ -277,14 +299,33 @@ interactionsRouter.get('/by-id/:id', async c => {
   const { tenantId } = c.get('session')
 
   const db = c.get('db')
-  const interaction = await db.query.interactions.findFirst({
-    where: and(eq(interactions.tenantId, tenantId), eq(interactions.id, id)),
-  })
+  const dbInteraction = await db
+    .select({
+      id: interactions.id,
+      service: interactions.service,
+      consumer: interactions.consumer,
+      consumerVersion: interactions.consumerVersion,
+      consumerGitSha: interactions.consumerGitSha,
+      providerVersion: interactions.providerVersion,
+      environment: interactions.environment,
+      operation: interactions.operation,
+      request: interactions.request,
+      response: interactions.response,
+      timestamp: interactions.timestamp,
+      duration: interactions.duration,
+      clientInfo: interactions.clientInfo,
+      specType: contracts.specType,
+    })
+    .from(interactions)
+    .leftJoin(contracts, eq(interactions.contractId, contracts.id))
+    .where(and(eq(interactions.tenantId, tenantId), eq(interactions.id, id)))
+    .limit(1)
 
-  if (!interaction) {
+  if (!dbInteraction.length) {
     return c.json({ error: 'Interaction not found' }, 404)
   }
 
+  const interaction = dbInteraction[0]
   const clientInteraction: ClientInteraction = {
     id: interaction.id,
     service: interaction.service,
@@ -299,6 +340,7 @@ interactionsRouter.get('/by-id/:id', async c => {
     timestamp: interaction.timestamp,
     duration: interaction.duration,
     clientInfo: interaction.clientInfo as ClientInfo,
+    specType: interaction.specType ?? 'openapi', // Default only if null
   }
 
   return c.json(clientInteraction)
@@ -526,10 +568,26 @@ interactionsRouter.get('/:service', async c => {
   if (environment) whereConditions.push(eq(interactions.environment, environment))
 
   const db = c.get('db')
-  const dbInteractions = await db.query.interactions.findMany({
-    where: and(...whereConditions),
-    orderBy: desc(interactions.timestamp),
-  })
+  const dbInteractions = await db
+    .select({
+      id: interactions.id,
+      service: interactions.service,
+      consumer: interactions.consumer,
+      consumerVersion: interactions.consumerVersion,
+      providerVersion: interactions.providerVersion,
+      environment: interactions.environment,
+      operation: interactions.operation,
+      request: interactions.request,
+      response: interactions.response,
+      timestamp: interactions.timestamp,
+      duration: interactions.duration,
+      clientInfo: interactions.clientInfo,
+      specType: contracts.specType,
+    })
+    .from(interactions)
+    .leftJoin(contracts, eq(interactions.contractId, contracts.id))
+    .where(and(...whereConditions))
+    .orderBy(desc(interactions.timestamp))
 
   const clientInteractions: ClientInteraction[] = dbInteractions.map(interaction => ({
     id: interaction.id,
@@ -544,6 +602,7 @@ interactionsRouter.get('/:service', async c => {
     timestamp: interaction.timestamp,
     duration: interaction.duration,
     clientInfo: interaction.clientInfo as ClientInfo,
+    specType: interaction.specType ?? 'openapi',
   }))
 
   return c.json(clientInteractions)
@@ -643,10 +702,26 @@ interactionsRouter.get('/consumer/:consumer', async c => {
   if (environment) whereConditions.push(eq(interactions.environment, environment))
 
   const db = c.get('db')
-  const dbInteractions = await db.query.interactions.findMany({
-    where: and(...whereConditions),
-    orderBy: desc(interactions.timestamp),
-  })
+  const dbInteractions = await db
+    .select({
+      id: interactions.id,
+      service: interactions.service,
+      consumer: interactions.consumer,
+      consumerVersion: interactions.consumerVersion,
+      providerVersion: interactions.providerVersion,
+      environment: interactions.environment,
+      operation: interactions.operation,
+      request: interactions.request,
+      response: interactions.response,
+      timestamp: interactions.timestamp,
+      duration: interactions.duration,
+      clientInfo: interactions.clientInfo,
+      specType: contracts.specType,
+    })
+    .from(interactions)
+    .leftJoin(contracts, eq(interactions.contractId, contracts.id))
+    .where(and(...whereConditions))
+    .orderBy(desc(interactions.timestamp))
 
   const clientInteractions: ClientInteraction[] = dbInteractions.map(interaction => ({
     id: interaction.id,
@@ -662,6 +737,7 @@ interactionsRouter.get('/consumer/:consumer', async c => {
     duration: interaction.duration,
     clientInfo: interaction.clientInfo as ClientInfo,
     provider: interaction.service, // Add provider field for consistency
+    specType: interaction.specType ?? 'openapi',
   }))
 
   console.log(`📋 Retrieved ${clientInteractions.length} consumer interactions for ${consumer}`)

@@ -230,6 +230,25 @@ function Dashboard() {
                           {deployment.service}
                         </Link>
                         <div className="text-sm text-base-content/70 flex items-center gap-2">
+                          {deployment.specType && (
+                            <span
+                              className={`badge badge-outline badge-xs ${
+                                deployment.specType === 'openapi'
+                                  ? 'badge-primary'
+                                  : deployment.specType === 'graphql'
+                                    ? 'badge-secondary'
+                                    : deployment.specType === 'asyncapi'
+                                      ? 'badge-accent'
+                                      : deployment.specType === 'grpc'
+                                        ? 'badge-info'
+                                        : deployment.specType === 'soap'
+                                          ? 'badge-neutral'
+                                          : 'badge-ghost'
+                              }`}
+                            >
+                              {deployment.specType}
+                            </span>
+                          )}
                           <VersionBadge
                             version={deployment.version}
                             serviceName={deployment.service}

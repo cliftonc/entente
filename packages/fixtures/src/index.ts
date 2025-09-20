@@ -4,11 +4,13 @@ import type {
   Fixture,
   FixtureProposal,
   FixtureUpdate,
-  NormalizedFixtures,
-  OpenAPISpec,
   HTTPRequest,
   HTTPResponse,
+  NormalizedFixtures,
+  OpenAPISpec,
 } from '@entente/types'
+import { debugLog } from '@entente/types'
+import { specRegistry } from './spec-handlers/index.js'
 
 export interface FixtureManager {
   approve: (fixtureId: string, approver: string, notes?: string) => Promise<Fixture>
@@ -429,8 +431,11 @@ export const normalizeFixtures = (
   const entities: Record<string, EntityData[]> = {}
   const relationships: EntityRelationship[] = []
 
+  debugLog(`🔧 normalizeFixtures called with ${fixtures.length} fixtures for ${service}@${version}`)
+
   // Process each fixture and extract entities
   for (const fixture of fixtures) {
+    debugLog(`🔧 Processing fixture ${fixture.id}: ${fixture.operation} (specType: ${fixture.specType})`)
     const entityData = extractEntitiesFromFixture(fixture)
 
     for (const entity of entityData.entities) {
@@ -477,83 +482,32 @@ export const extractEntitiesFromFixture = (
   entities: EntityData[]
   relationships: EntityRelationship[]
 } => {
-  const entities: EntityData[] = []
-  const relationships: EntityRelationship[] = []
+  debugLog('🔧 Main Processing fixture:', fixture.operation, 'specType:', fixture.specType)
+  debugLog('🔧 Available handlers:', specRegistry.getSupportedTypes())
 
-  const entityType = inferEntityType(fixture.operation)
-  if (!entityType) {
-    return { entities, relationships }
+  // Delegate to the appropriate spec handler based on specType
+  const handler = specRegistry.getHandler(fixture.specType)
+  debugLog(`🔧 Handler for ${fixture.specType}:`, !!handler)
+  debugLog(`🔧 Handler has extractEntitiesFromFixture:`, !!(handler && handler.extractEntitiesFromFixture))
+
+  if (handler && handler.extractEntitiesFromFixture) {
+    debugLog(`🎯 Delegating to ${fixture.specType} handler for entity extraction`)
+    const result = handler.extractEntitiesFromFixture(fixture)
+    debugLog(`🎯 Handler returned:`, result.entities.length, 'entities')
+    return result
   }
 
-  // Extract entity from request data (for create/update operations)
-  if (fixture.data.request) {
-    const requestEntity = extractEntityFromData(
-      fixture.data.request,
-      entityType,
-      'create',
-      fixture.operation
-    )
-    if (requestEntity) {
-      entities.push(requestEntity)
-    }
-  }
-
-  // Extract entity from response data (for read operations or successful creates)
-  if (fixture.data.response && typeof fixture.data.response === 'object') {
-    const responseData = fixture.data.response as Record<string, unknown>
-
-    // Check if response has a body with entity data
-    if (responseData.body) {
-      const bodyData = responseData.body
-
-      if (Array.isArray(bodyData)) {
-        // List response - extract multiple entities
-        for (const item of bodyData) {
-          const entity = extractEntityFromData(item, entityType, 'create', fixture.operation)
-          if (entity) {
-            entities.push(entity)
-          }
-        }
-      } else if (typeof bodyData === 'object' && bodyData !== null) {
-        // Single entity response
-        const entity = extractEntityFromData(bodyData, entityType, 'create', fixture.operation)
-        if (entity) {
-          entities.push(entity)
-        }
-      }
-    }
-  }
-
-  return { entities, relationships }
+  // Fallback to empty result if no handler found
+  debugLog(`❌ No handler found for specType: ${fixture.specType}`)
+  return { entities: [], relationships: [] }
 }
 
+// Legacy function - now delegated to spec handlers
 export const inferEntityType = (operation: string): string | null => {
-  // Extract entity name from operation ID
-  // Examples: getUser -> User, createOrder -> Order, deleteCustomer -> Customer
-
-  const methodPrefixes = ['get', 'create', 'update', 'delete', 'list', 'find', 'search']
-  let entityName = operation
-
-  for (const prefix of methodPrefixes) {
-    if (operation.toLowerCase().startsWith(prefix)) {
-      entityName = operation.slice(prefix.length)
-      break
-    }
-  }
-
-  if (!entityName) {
-    return null
-  }
-
-  // Capitalize first letter and return singular form
-  const capitalized = entityName.charAt(0).toUpperCase() + entityName.slice(1)
-
-  // Convert plural to singular
-  if (capitalized.endsWith('s') && capitalized.length > 1) {
-    return capitalized.slice(0, -1)
-  }
-
-  return capitalized
+  debugLog(
+    '⚠️ Warning: inferEntityType called without specType - this should be handled by spec handlers'
+  )
+  return null
 }
 
 const extractEntityFromData = (
@@ -622,10 +576,7 @@ export interface MockHandler {
   respond: (request: MockRequest) => MockResponse
 }
 
-export const createOpenAPIMockHandler = (
-  spec: OpenAPISpec,
-  fixtures: Fixture[]
-): MockHandler[] => {
+export const createOpenAPIMockHandler = (spec: OpenAPISpec, fixtures: Fixture[]): MockHandler[] => {
   const handlers: MockHandler[] = []
 
   // Group fixtures by operation for faster lookup
@@ -647,7 +598,8 @@ export const createOpenAPIMockHandler = (
   for (const [path, pathItem] of Object.entries(spec.paths)) {
     for (const [method, operation] of Object.entries(pathItem as any)) {
       if (typeof operation === 'object' && operation) {
-        const operationId = (operation as any).operationId || extractOperationFromPath(method.toUpperCase(), path)
+        const operationId =
+          (operation as any).operationId || extractOperationFromPath(method.toUpperCase(), path)
 
         handlers.push({
           match: (request: MockRequest) => {
@@ -666,20 +618,21 @@ export const createOpenAPIMockHandler = (
               return {
                 status: fixtureResponse.status,
                 headers: fixtureResponse.headers || { 'content-type': 'application/json' },
-                body: fixtureResponse.body
+                body: fixtureResponse.body,
               }
             }
 
             // Fall back to OpenAPI examples if available
             const responses = (operation as any).responses || {}
             for (const [statusCode, response] of Object.entries(responses)) {
-              if (statusCode.startsWith('2')) { // 2xx success responses
+              if (statusCode.startsWith('2')) {
+                // 2xx success responses
                 const responseObj = response as any
                 if (responseObj.content?.['application/json']?.example) {
                   return {
-                    status: parseInt(statusCode),
+                    status: Number.parseInt(statusCode),
                     headers: { 'content-type': 'application/json' },
-                    body: responseObj.content['application/json'].example
+                    body: responseObj.content['application/json'].example,
                   }
                 }
               }
@@ -692,10 +645,10 @@ export const createOpenAPIMockHandler = (
               body: {
                 error: 'Not Implemented',
                 message: `No fixture or example available for ${method.toUpperCase()} ${path}`,
-                operation: operationId
-              }
+                operation: operationId,
+              },
             }
-          }
+          },
         })
       }
     }
@@ -760,10 +713,7 @@ const findMatchingFixture = (request: MockRequest, fixtures: Fixture[]): Fixture
   return null
 }
 
-export const handleMockRequest = (
-  request: MockRequest,
-  handlers: MockHandler[]
-): MockResponse => {
+export const handleMockRequest = (request: MockRequest, handlers: MockHandler[]): MockResponse => {
   for (const handler of handlers) {
     if (handler.match(request)) {
       return handler.respond(request)
@@ -776,7 +726,56 @@ export const handleMockRequest = (
     headers: { 'content-type': 'application/json' },
     body: {
       error: 'Not Found',
-      message: `No handler found for ${request.method} ${request.path}`
-    }
+      message: `No handler found for ${request.method} ${request.path}`,
+    },
   }
 }
+
+// NEW: Multi-spec support exports
+export {
+  createSpecHandler,
+  generateOperationId,
+  normalizeHeaders,
+  parseContentType,
+  createValidationError,
+  createValidationSuccess,
+  combineValidationResults,
+  isHTTPRequest,
+  isGraphQLRequest,
+  isEventRequest,
+  isRPCRequest,
+} from './spec-handlers/types.js'
+
+export {
+  createSpecRegistry,
+  findSpecType,
+  specRegistry,
+} from './spec-handlers/registry.js'
+
+export {
+  canHandleOpenAPI,
+  parseOpenAPISpec,
+  extractOpenAPIOperations,
+  matchOpenAPIOperation,
+  generateOpenAPIResponseV2,
+  validateOpenAPIResponse,
+  generateOpenAPIMockData,
+  getOpenAPIRequestSchema,
+  getOpenAPIResponseSchema,
+  createOpenAPIHandler,
+} from './spec-handlers/openapi.js'
+
+// Unified mock handler system
+export {
+  createUnifiedMockHandler,
+  handleUnifiedMockRequest,
+  convertHTTPToUnified,
+  convertUnifiedToHTTP,
+} from './mock-handlers.js'
+
+// GraphQL-specific utilities
+export { extractGraphQLOperationName } from './spec-handlers/graphql.js'
+
+// V2 Router & Scoring (experimental)
+export { createRequestRouter } from './router/request-router.js'
+export { scoreFixturesDefault } from './scoring/fixture-scoring.js'

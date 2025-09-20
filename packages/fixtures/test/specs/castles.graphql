@@ -1,0 +1,51 @@
+# GraphQL Schema equivalent to the castles OpenAPI spec
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+type Query {
+  # List all castles (equivalent to GET /castles)
+  listCastles: [Castle!]!
+
+  # Get a castle by ID (equivalent to GET /castles/{id})
+  getCastle(id: ID!): Castle
+}
+
+type Mutation {
+  # Create a new castle (equivalent to POST /castles)
+  createCastle(input: CreateCastleInput!): CreateCastlePayload!
+
+  # Delete a castle (equivalent to DELETE /castles/{id})
+  deleteCastle(id: ID!): DeleteCastlePayload!
+}
+
+type Castle {
+  id: ID!
+  name: String!
+  region: String!
+  yearBuilt: Int!
+  description: String
+}
+
+input CreateCastleInput {
+  name: String!
+  region: String!
+  yearBuilt: Int!
+  description: String
+}
+
+type CreateCastlePayload {
+  castle: Castle
+  errors: [Error!]
+}
+
+type DeleteCastlePayload {
+  success: Boolean!
+  errors: [Error!]
+}
+
+type Error {
+  error: String!
+  message: String!
+}

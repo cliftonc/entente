@@ -1,4 +1,5 @@
 import type { VerificationResult } from '@entente/types'
+import { debugLog } from '@entente/types'
 import { and, count, desc, eq } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { Hono } from 'hono'
@@ -27,6 +28,7 @@ import { authRouter } from './routes/auth.js'
 import { contractsRouter } from './routes/contracts.js'
 import { dependenciesRouter } from './routes/dependencies.js'
 import { deploymentsRouter } from './routes/deployments.js'
+import { eventsRouter } from './routes/events.js'
 import { fixturesRouter } from './routes/fixtures.js'
 import { githubRoutes } from './routes/github.js'
 import { interactionsRouter } from './routes/interactions.js'
@@ -86,6 +88,7 @@ app.use('/api/stats/*', authMiddleware)
 app.use('/api/settings/*', authMiddleware)
 app.use('/api/github/*', authMiddleware)
 app.use('/api/mock/*', authMiddleware)
+app.use('/api/events/*', authMiddleware)
 
 app.route('/api/keys', keysRouter)
 app.route('/api/specs', specsRouter)
@@ -101,6 +104,7 @@ app.route('/api/stats', statsRouter)
 app.route('/api/settings', settingsRouter)
 app.route('/api/github', githubRoutes)
 app.route('/api/mock', mockRouter)
+app.route('/api/events', eventsRouter)
 
 // WebSocket route (no auth middleware - auth handled in the WebSocket handler)
 app.route('/', websocketRouter)
@@ -374,8 +378,8 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
         })
       }
 
-      console.log(
-        `[DEBUG] Found ${deployedDependencies.length} deployed consumers in ${environment}`
+      debugLog(
+        `Found ${deployedDependencies.length} deployed consumers in ${environment}`
       )
 
       for (const consumer of deployedDependencies) {
@@ -415,10 +419,10 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
         if (verification?.results) {
           const results = verification.results as VerificationResult[]
           isVerified = results.length > 0 && results.every(r => r.success === true)
-          console.log(`[DEBUG] All results passed: ${isVerified}`)
+          debugLog(`All results passed: ${isVerified}`)
         } else {
-          console.log(
-            `[DEBUG] No verification results found for ${consumer.consumer}@${consumer.consumerVersion}`
+          debugLog(
+            `No verification results found for ${consumer.consumer}@${consumer.consumerVersion}`
           )
         }
 
@@ -569,12 +573,26 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
 // Serve React SPA for all unmatched routes (must be last)
 app.get('*', async c => {
   try {
+    const env = c.get('env')
+    const appUrl = getEnv(env, 'APP_URL') || 'https://entente.dev'
+    const shouldIncludeAnalytics = appUrl === 'https://entente.dev'
+
+    const analyticsScript = shouldIncludeAnalytics
+      ? '<script async src="https://scripts.simpleanalyticscdn.com/latest.js"></script>'
+      : ''
+
     // Try to get the index.html from assets
     const assets = c.env?.ASSETS
     if (assets) {
       const indexResponse = await assets.fetch(new URL('/index.html', c.req.url).href)
       if (indexResponse.ok) {
-        const indexHtml = await indexResponse.text()
+        let indexHtml = await indexResponse.text()
+
+        // Inject analytics script before closing head tag if needed
+        if (shouldIncludeAnalytics) {
+          indexHtml = indexHtml.replace('</head>', `  ${analyticsScript}\n  </head>`)
+        }
+
         return c.html(indexHtml)
       }
     }
@@ -586,7 +604,7 @@ app.get('*', async c => {
         <head>
           <title>Entente</title>
           <meta charset="UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />${analyticsScript ? `\n          ${analyticsScript}` : ''}
         </head>
         <body>
           <div id="root">Loading...</div>

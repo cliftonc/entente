@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import ConsumerFilter from '../components/ConsumerFilter'
 import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
+import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
 import { interactionApi } from '../utils/api'
@@ -128,6 +129,9 @@ function Interactions() {
                         <div className="skeleton h-4 w-16" />
                       </td>
                       <td>
+                        <div className="skeleton h-4 w-16" />
+                      </td>
+                      <td>
                         <div className="skeleton h-4 w-12" />
                       </td>
                       <td>
@@ -215,6 +219,7 @@ function Interactions() {
                   <th>Consumer Version</th>
                   <th>Consumer Git SHA</th>
                   <th>Operation</th>
+                  <th>Spec Type</th>
                   <th>Method & Path</th>
                   <th>Status</th>
                   <th>Timestamp</th>
@@ -224,7 +229,7 @@ function Interactions() {
               <tbody>
                 {!interactions || interactions.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center text-base-content/70 py-8">
+                    <td colSpan={10} className="text-center text-base-content/70 py-8">
                       {selectedProvider || selectedConsumer
                         ? 'No interactions found with current filters'
                         : 'No interactions recorded yet. Use filters above to search for specific interactions.'}
@@ -263,6 +268,14 @@ function Interactions() {
                         />
                       </td>
                       <td>{interaction.operation}</td>
+                      <td>
+                        <SpecBadge specType={interaction.specType || 'openapi'} size="sm" />
+                      </td>
+                      <td>
+                        <code className="text-xs font-mono">
+                          {interaction.request.method} {interaction.request.path}
+                        </code>
+                      </td>
                       <td>
                         <span
                           className={`badge ${

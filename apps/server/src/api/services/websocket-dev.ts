@@ -1,6 +1,7 @@
 import type { IncomingMessage } from 'node:http'
 import { parse } from 'node:url'
 import { WebSocket, type WebSocketServer } from 'ws'
+import { debugLog } from '@entente/types'
 
 export interface WebSocketConnection {
   id: string
@@ -38,7 +39,7 @@ export const devWebSocketBroadcaster = {
       }
     }
 
-    console.log(`📡 [DEV] Broadcasted message to ${sentCount} connections in tenant ${tenantId}`)
+    debugLog(`📡 [DEV] Broadcasted message to ${sentCount} connections in tenant ${tenantId}`)
     return sentCount
   },
 
@@ -67,7 +68,7 @@ export const devWebSocketBroadcaster = {
       }
     }
 
-    console.log(
+    debugLog(
       `📡 [DEV] Broadcasted message to ${sentCount} connections in channel ${channel} for tenant ${tenantId}`
     )
     return sentCount
@@ -112,12 +113,12 @@ export const devWebSocketBroadcaster = {
       if (timeSinceLastPing > staleThreshold || connection.ws.readyState !== WebSocket.OPEN) {
         connections.delete(connectionId)
         removedCount++
-        console.log(`🧹 [DEV] Cleaned up stale connection: ${connectionId}`)
+        debugLog(`🧹 [DEV] Cleaned up stale connection: ${connectionId}`)
       }
     }
 
     if (removedCount > 0) {
-      console.log(`🧹 [DEV] Cleaned up ${removedCount} stale connections`)
+      debugLog(`🧹 [DEV] Cleaned up ${removedCount} stale connections`)
     }
   },
 }
@@ -130,8 +131,8 @@ function extractTenantFromRequest(req: IncomingMessage): { tenantId?: string; us
   // For development, we'll use query parameters or default to a test tenant
   const query = parse(req.url || '', true).query
 
-  console.log(`🔍 [DEV] WebSocket request URL: ${req.url}`)
-  console.log(`🔍 [DEV] Parsed query:`, query)
+  debugLog(`🔍 [DEV] WebSocket request URL: ${req.url}`)
+  debugLog(`🔍 [DEV] Parsed query:`, query)
 
   const tenantId = query.tenantId as string
   const userId = query.userId as string
@@ -146,7 +147,7 @@ function extractTenantFromRequest(req: IncomingMessage): { tenantId?: string; us
  * Set up WebSocket server for development
  */
 export function setupWebSocketServer(wss: WebSocketServer) {
-  console.log('🔧 Setting up WebSocket server for development')
+  debugLog('🔧 Setting up WebSocket server for development')
 
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     const { tenantId, userId } = extractTenantFromRequest(req)
@@ -169,7 +170,7 @@ export function setupWebSocketServer(wss: WebSocketServer) {
 
     connections.set(connectionId, connection)
 
-    console.log(`🔗 [DEV] WebSocket connected: ${connectionId} for tenant ${tenantId}`)
+    debugLog(`🔗 [DEV] WebSocket connected: ${connectionId} for tenant ${tenantId}`)
 
     // Send welcome message
     ws.send(
@@ -209,21 +210,21 @@ export function setupWebSocketServer(wss: WebSocketServer) {
           case 'subscribe':
             if (message.channel) {
               connection.subscriptions.add(message.channel)
-              console.log(`📬 [DEV] Connection ${connection.id} subscribed to ${message.channel}`)
+              debugLog(`📬 [DEV] Connection ${connection.id} subscribed to ${message.channel}`)
             }
             break
 
           case 'unsubscribe':
             if (message.channel) {
               connection.subscriptions.delete(message.channel)
-              console.log(
+              debugLog(
                 `📭 [DEV] Connection ${connection.id} unsubscribed from ${message.channel}`
               )
             }
             break
 
           default:
-            console.log('❓ [DEV] Unknown WebSocket message type:', message.type)
+            debugLog('❓ [DEV] Unknown WebSocket message type:', message.type)
         }
       } catch (error) {
         console.error('❌ [DEV] Error processing WebSocket message:', error)
@@ -233,7 +234,7 @@ export function setupWebSocketServer(wss: WebSocketServer) {
     // Handle connection close
     ws.on('close', () => {
       connections.delete(connectionId)
-      console.log(`💔 [DEV] WebSocket disconnected: ${connectionId}`)
+      debugLog(`💔 [DEV] WebSocket disconnected: ${connectionId}`)
       clearInterval(pingInterval)
     })
 
@@ -251,8 +252,8 @@ export function setupWebSocketServer(wss: WebSocketServer) {
   // Handle server shutdown
   wss.on('close', () => {
     clearInterval(cleanupInterval)
-    console.log('🔌 [DEV] WebSocket server closed')
+    debugLog('🔌 [DEV] WebSocket server closed')
   })
 
-  console.log('✅ [DEV] WebSocket server setup complete')
+  debugLog('✅ [DEV] WebSocket server setup complete')
 }

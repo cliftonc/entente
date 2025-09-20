@@ -521,12 +521,33 @@ function Deployments() {
                       className={deployment.status === 'failed' ? 'bg-error/5' : ''}
                     >
                       <td>
-                        <Link
-                          to={`/services/${deployment.serviceType}/${deployment.service}`}
-                          className="font-medium hover:underline text-primary"
-                        >
-                          {deployment.service}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            to={`/services/${deployment.serviceType}/${deployment.service}`}
+                            className="font-medium hover:underline text-primary"
+                          >
+                            {deployment.service}
+                          </Link>
+                          {deployment.specType && (
+                            <span
+                              className={`badge badge-outline badge-sm ${
+                                deployment.specType === 'openapi'
+                                  ? 'badge-primary'
+                                  : deployment.specType === 'graphql'
+                                    ? 'badge-secondary'
+                                    : deployment.specType === 'asyncapi'
+                                      ? 'badge-accent'
+                                      : deployment.specType === 'grpc'
+                                        ? 'badge-info'
+                                        : deployment.specType === 'soap'
+                                          ? 'badge-neutral'
+                                          : 'badge-ghost'
+                              }`}
+                            >
+                              {deployment.specType}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <VersionBadge

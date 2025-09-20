@@ -10,10 +10,14 @@ export interface MockFetchResponse {
 export const createMockFetch = () => {
   const mockFetch = vi.fn()
 
-  const mockResponse = (data: any, options: { status?: number; ok?: boolean } = {}) => ({
+  const mockResponse = (data: any, options: { status?: number; ok?: boolean; headers?: Record<string, string> } = {}) => ({
     ok: options.ok ?? true,
     status: options.status ?? 200,
     statusText: options.status === 404 ? 'Not Found' : 'OK',
+    headers: {
+      get: vi.fn((key: string) => options.headers?.[key] || null),
+      ...options.headers,
+    },
     json: vi.fn().mockResolvedValue(data),
   })
 

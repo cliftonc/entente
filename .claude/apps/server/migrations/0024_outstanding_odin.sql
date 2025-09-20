@@ -1,2 +1,0 @@
-ALTER TABLE "user_sessions" ADD COLUMN "selected_tenant_id" uuid;--> statement-breakpoint
-ALTER TABLE "user_sessions" ADD CONSTRAINT "user_sessions_selected_tenant_id_tenants_id_fk" FOREIGN KEY ("selected_tenant_id") REFERENCES "public"."tenants"("id") ON DELETE no action ON UPDATE no action;

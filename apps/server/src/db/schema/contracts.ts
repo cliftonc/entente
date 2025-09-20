@@ -1,7 +1,17 @@
-import { relations } from 'drizzle-orm'
-import { integer, pgTable, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core'
+import { relations, sql } from 'drizzle-orm'
+import {
+  check,
+  index,
+  integer,
+  pgTable,
+  timestamp,
+  unique,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core'
 import { interactions } from './interactions'
 import { serviceVersions } from './service-versions'
+import { specTypeEnum } from './services'
 import { services } from './services'
 import { tenants } from './tenants'
 import { verificationTasks } from './verification'
@@ -33,6 +43,9 @@ export const contracts = pgTable(
     // Environment
     environment: varchar('environment', { length: 100 }).notNull(),
 
+    // Support for different specification types - determined by provider spec
+    specType: specTypeEnum('spec_type').notNull().default('openapi'), // enum spec type
+
     // Contract metadata
     status: varchar('status', { length: 50 }).notNull().default('active'), // active, archived, deprecated
 
@@ -51,6 +64,13 @@ export const contracts = pgTable(
       table.providerId,
       table.providerVersion
     ),
+    // Check constraint for valid spec types
+    specTypeCheck: check(
+      'contracts_spec_type_check',
+      sql`${table.specType} IN ('openapi', 'graphql', 'asyncapi', 'grpc', 'soap')`
+    ),
+    // Index for better query performance
+    specTypeIdx: index('idx_contracts_spec_type').on(table.specType),
   })
 )
 

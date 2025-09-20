@@ -4,6 +4,7 @@ import { services } from '../../db/schema'
 import type { Database } from '../../db/types'
 import { findRepositoryByName, getInstallationConfig, parseRepositoryUrl } from './github-client'
 import * as GitHubClient from './github-client'
+import { debugLog } from './logger'
 
 export interface GitHubHelper {
   // Repository operations
@@ -278,18 +279,18 @@ export async function createGitHubHelper(db: Database, tenantId: string): Promis
 // Hono middleware to add GitHub helper to context
 export function withGitHub() {
   return async (c: Context, next: () => Promise<void>) => {
-    console.log('🏁 withGitHub middleware starting')
+    debugLog('🏁 withGitHub middleware starting')
 
     const db = c.get('db') as Database
     const session = c.get('session')
     const auth = c.get('auth')
 
-    console.log('🔍 withGitHub middleware - db:', db ? 'available' : 'null')
-    console.log(
+    debugLog('🔍 withGitHub middleware - db:', db ? 'available' : 'null')
+    debugLog(
       '🔍 withGitHub middleware - session:',
       session ? { tenantId: session.tenantId, userId: session.userId } : 'null'
     )
-    console.log('🔍 withGitHub middleware - auth:', auth ? { tenantId: auth.tenantId } : 'null')
+    debugLog('🔍 withGitHub middleware - auth:', auth ? { tenantId: auth.tenantId } : 'null')
 
     const tenantId = session?.tenantId || auth?.tenantId
 
@@ -299,9 +300,9 @@ export function withGitHub() {
     }
 
     try {
-      console.log(`🔧 Creating GitHub helper for tenant: ${tenantId}`)
+      debugLog(`🔧 Creating GitHub helper for tenant: ${tenantId}`)
       const github = await createGitHubHelper(db, tenantId)
-      console.log('✅ GitHub helper created successfully')
+      debugLog('✅ GitHub helper created successfully')
       c.set('github', github)
     } catch (error) {
       // Don't throw error if GitHub isn't configured, just don't set the helper
@@ -312,8 +313,8 @@ export function withGitHub() {
       c.set('github', null)
     }
 
-    console.log('🏁 withGitHub middleware calling next()')
+    debugLog('🏁 withGitHub middleware calling next()')
     await next()
-    console.log('🏁 withGitHub middleware finished')
+    debugLog('🏁 withGitHub middleware finished')
   }
 }

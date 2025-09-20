@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
 import { serviceApi, serviceVersionApi } from '../utils/api'
@@ -103,7 +104,8 @@ function ServiceVersions() {
                   <tr>
                     <th>Version</th>
                     <th>Git SHA</th>
-                    <th>OpenAPI Spec</th>
+                    <th>Spec Type</th>
+                    <th>API Spec</th>
                     <th>Package Info</th>
                     <th>Created By</th>
                     <th>Created</th>
@@ -129,6 +131,9 @@ function ServiceVersions() {
                         ) : (
                           <span className="text-base-content/50">-</span>
                         )}
+                      </td>
+                      <td>
+                        <SpecBadge specType={version.specType || 'openapi'} size="sm" />
                       </td>
                       <td>
                         <div

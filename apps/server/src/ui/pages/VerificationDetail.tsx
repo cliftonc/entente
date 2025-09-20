@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import CodeBlock from '../components/CodeBlock'
 import ErrorDetails from '../components/ErrorDetails'
+import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
 import { verificationApi } from '../utils/api'
@@ -203,6 +204,10 @@ function VerificationDetail() {
                   <span>N/A</span>
                 )}
               </div>
+              <div className="flex items-center gap-2">
+                <strong>Spec Type:</strong>
+                <SpecBadge specType={verification?.specType || 'openapi'} size="sm" />
+              </div>
             </div>
             <div className="space-y-2">
               <div>
@@ -291,7 +296,9 @@ function VerificationDetail() {
                           {result.interaction?.request?.method || 'N/A'}
                         </span>
                       </td>
-                      <td className="font-mono text-sm">{result.interaction?.request?.path || 'N/A'}</td>
+                      <td className="font-mono text-sm">
+                        {result.interaction?.request?.path || 'N/A'}
+                      </td>
                       <td className="text-sm">
                         <span className="font-mono text-sm">
                           {result.interaction?.operation || 'N/A'}
@@ -405,11 +412,15 @@ function VerificationDetail() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <strong>Method:</strong>{' '}
-                    <span className="badge badge-outline">{selectedResult.interaction?.request?.method}</span>
+                    <span className="badge badge-outline">
+                      {selectedResult.interaction?.request?.method}
+                    </span>
                   </div>
                   <div>
                     <strong>Path:</strong>{' '}
-                    <span className="font-mono text-sm">{selectedResult.interaction?.request?.path}</span>
+                    <span className="font-mono text-sm">
+                      {selectedResult.interaction?.request?.path}
+                    </span>
                   </div>
                   <div>
                     <strong>Operation:</strong>

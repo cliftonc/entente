@@ -419,26 +419,28 @@ export const contractApi = {
     }>(`/contracts${queryString ? `?${queryString}` : ''}`)
   },
   getById: (id: string) => fetchApi<Contract>(`/contracts/${id}`),
-  getByProvider: (provider: string) => fetchApi<{
-    results: Contract[]
-    totalCount: number
-    statistics: {
-      totalContracts: number
-      activeContracts: number
-      archivedContracts: number
-      deprecatedContracts: number
-    }
-  }>(`/contracts?provider=${provider}`),
-  getByConsumer: (consumer: string) => fetchApi<{
-    results: Contract[]
-    totalCount: number
-    statistics: {
-      totalContracts: number
-      activeContracts: number
-      archivedContracts: number
-      deprecatedContracts: number
-    }
-  }>(`/contracts?consumer=${consumer}`),
+  getByProvider: (provider: string) =>
+    fetchApi<{
+      results: Contract[]
+      totalCount: number
+      statistics: {
+        totalContracts: number
+        activeContracts: number
+        archivedContracts: number
+        deprecatedContracts: number
+      }
+    }>(`/contracts?provider=${provider}`),
+  getByConsumer: (consumer: string) =>
+    fetchApi<{
+      results: Contract[]
+      totalCount: number
+      statistics: {
+        totalContracts: number
+        activeContracts: number
+        archivedContracts: number
+        deprecatedContracts: number
+      }
+    }>(`/contracts?consumer=${consumer}`),
   getInteractions: (id: string, limit?: number) => {
     const params = limit ? `?limit=${limit}` : ''
     return fetchApi<ClientInteraction[]>(`/contracts/${id}/interactions${params}`)
@@ -463,12 +465,12 @@ export const settingsApi = {
 // Tenant API functions
 export const tenantApi = {
   create: (data: { name: string }) =>
-    fetchApi<{ success: boolean }>('/auth/create-tenant', {
+    fetchAuth<{ success: boolean }>('/create-tenant', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   delete: (data: { slug: string; confirm: string }) =>
-    fetchApi<{ success: boolean; logout?: boolean }>('/auth/delete-tenant', {
+    fetchAuth<{ success: boolean; logout?: boolean }>('/delete-tenant', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

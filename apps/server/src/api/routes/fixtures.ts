@@ -12,7 +12,7 @@ import type {
 import { Hono } from 'hono'
 
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
-import { fixtureServiceVersions, fixtures } from '../../db/schema'
+import { fixtureServiceVersions, fixtures, services } from '../../db/schema'
 import { NotificationService } from '../services/notification'
 import { addServiceVersionToFixture } from '../utils/fixture-service-versions'
 import { ensureServiceVersion } from '../utils/service-versions'
@@ -34,6 +34,23 @@ fixturesRouter.post('/', async c => {
 
   const db = c.get('db')
   const { tenantId } = c.get('session')
+
+  // Get the provider service to obtain its specType
+  const service = await db.query.services.findFirst({
+    where: and(
+      eq(services.tenantId, tenantId),
+      eq(services.name, proposal.service),
+      eq(services.type, 'provider')
+    ),
+  })
+
+  if (!service) {
+    return c.json({ error: `Provider service '${proposal.service}' not found` }, 404)
+  }
+
+  if (!service.specType) {
+    return c.json({ error: `Provider service '${proposal.service}' has no specType` }, 400)
+  }
 
   // Generate hash for deduplication
   const hash = await generateFixtureHash(proposal.operation, proposal.data)
@@ -78,6 +95,7 @@ fixturesRouter.post('/', async c => {
       serviceVersions: existingVersions.includes(proposal.serviceVersion)
         ? existingVersions
         : [...existingVersions, proposal.serviceVersion],
+      specType: existingFixture.specType,
       operation: existingFixture.operation,
       status: existingFixture.status as 'draft' | 'approved' | 'rejected',
       source: existingFixture.source as 'consumer' | 'provider' | 'manual',
@@ -102,6 +120,7 @@ fixturesRouter.post('/', async c => {
         service: proposal.service,
         serviceVersion: proposal.serviceVersion,
         serviceVersions: [proposal.serviceVersion], // Initialize with current version for backward compatibility
+        specType: service.specType,
         operation: proposal.operation,
         hash,
         status: 'draft',
@@ -130,6 +149,7 @@ fixturesRouter.post('/', async c => {
       service: newFixture.service,
       serviceVersion: newFixture.serviceVersion,
       serviceVersions: newFixture.serviceVersions as string[],
+      specType: newFixture.specType,
       operation: newFixture.operation,
       status: newFixture.status as 'draft' | 'approved' | 'rejected',
       source: newFixture.source as 'consumer' | 'provider' | 'manual',
@@ -211,6 +231,7 @@ fixturesRouter.post('/', async c => {
           serviceVersions: existingVersions.includes(proposal.serviceVersion)
             ? existingVersions
             : [...existingVersions, proposal.serviceVersion],
+          specType: existingFixture.specType,
           operation: existingFixture.operation,
           status: existingFixture.status as 'draft' | 'approved' | 'rejected',
           source: existingFixture.source as 'consumer' | 'provider' | 'manual',
@@ -264,6 +285,7 @@ fixturesRouter.get('/', async c => {
     service: f.service,
     serviceVersion: f.serviceVersion,
     serviceVersions: f.serviceVersions as string[],
+    specType: f.specType,
     operation: f.operation,
     status: f.status as 'draft' | 'approved' | 'rejected',
     source: f.source as 'consumer' | 'provider' | 'manual',
@@ -305,6 +327,7 @@ fixturesRouter.get('/pending', async c => {
     service: f.service,
     serviceVersion: f.serviceVersion,
     serviceVersions: f.serviceVersions as string[],
+    specType: f.specType,
     operation: f.operation,
     status: f.status as 'draft' | 'approved' | 'rejected',
     source: f.source as 'consumer' | 'provider' | 'manual',
@@ -361,6 +384,7 @@ fixturesRouter.get('/service/:service', async c => {
     service: f.service,
     serviceVersion: f.serviceVersion,
     serviceVersions: f.serviceVersions as string[],
+    specType: f.specType,
     operation: f.operation,
     status: f.status as 'draft' | 'approved' | 'rejected',
     source: f.source as 'consumer' | 'provider' | 'manual',
@@ -396,6 +420,7 @@ fixturesRouter.get('/by-id/:id', async c => {
     service: dbFixture.service,
     serviceVersion: dbFixture.serviceVersion,
     serviceVersions: dbFixture.serviceVersions as string[],
+    specType: dbFixture.specType,
     operation: dbFixture.operation,
     status: dbFixture.status as 'draft' | 'approved' | 'rejected',
     source: dbFixture.source as 'consumer' | 'provider' | 'manual',
@@ -449,6 +474,7 @@ fixturesRouter.get('/:operation', async c => {
     service: f.service,
     serviceVersion: f.serviceVersion,
     serviceVersions: f.serviceVersions as string[],
+    specType: f.specType,
     operation: f.operation,
     status: f.status as 'draft' | 'approved' | 'rejected',
     source: f.source as 'consumer' | 'provider' | 'manual',
@@ -498,6 +524,7 @@ fixturesRouter.post('/:id/approve', async c => {
     serviceVersions: (updatedFixture.serviceVersions as string[]) || [
       updatedFixture.serviceVersion,
     ],
+    specType: updatedFixture.specType,
     operation: updatedFixture.operation,
     status: updatedFixture.status as 'draft' | 'approved' | 'rejected',
     source: updatedFixture.source as 'consumer' | 'provider' | 'manual',
@@ -554,6 +581,7 @@ fixturesRouter.put('/:id', async c => {
     serviceVersions: (updatedFixture.serviceVersions as string[]) || [
       updatedFixture.serviceVersion,
     ],
+    specType: updatedFixture.specType,
     operation: updatedFixture.operation,
     status: updatedFixture.status as 'draft' | 'approved' | 'rejected',
     source: updatedFixture.source as 'consumer' | 'provider' | 'manual',
@@ -605,6 +633,7 @@ fixturesRouter.post('/:id/reject', async c => {
     serviceVersions: (updatedFixture.serviceVersions as string[]) || [
       updatedFixture.serviceVersion,
     ],
+    specType: updatedFixture.specType,
     operation: updatedFixture.operation,
     status: updatedFixture.status as 'draft' | 'approved' | 'rejected',
     source: updatedFixture.source as 'consumer' | 'provider' | 'manual',
@@ -660,6 +689,7 @@ fixturesRouter.post('/:id/revoke', async c => {
     serviceVersions: (updatedFixture.serviceVersions as string[]) || [
       updatedFixture.serviceVersion,
     ],
+    specType: updatedFixture.specType,
     operation: updatedFixture.operation,
     status: updatedFixture.status as 'draft' | 'approved' | 'rejected',
     source: updatedFixture.source as 'consumer' | 'provider' | 'manual',
@@ -726,6 +756,7 @@ fixturesRouter.get('/normalized/:service/:version', async c => {
     service: f.service,
     serviceVersion: f.serviceVersion,
     serviceVersions: f.serviceVersions as string[],
+    specType: f.specType,
     operation: f.operation,
     status: f.status as 'draft' | 'approved' | 'rejected',
     source: f.source as 'consumer' | 'provider' | 'manual',
@@ -781,6 +812,33 @@ fixturesRouter.post('/batch', async c => {
         continue
       }
 
+      // Get the provider service to obtain its specType
+      const service = await db.query.services.findFirst({
+        where: and(
+          eq(services.tenantId, tenantId),
+          eq(services.name, proposal.service),
+          eq(services.type, 'provider')
+        ),
+      })
+
+      if (!service) {
+        results.push({
+          status: 'error',
+          error: `Provider service '${proposal.service}' not found`,
+        })
+        errors++
+        continue
+      }
+
+      if (!service.specType) {
+        results.push({
+          status: 'error',
+          error: `Provider service '${proposal.service}' has no specType`,
+        })
+        errors++
+        continue
+      }
+
       // Generate hash for deduplication
       const hash = await generateFixtureHash(proposal.operation, proposal.data)
 
@@ -812,6 +870,7 @@ fixturesRouter.post('/batch', async c => {
           service: proposal.service,
           serviceVersion: proposal.serviceVersion,
           serviceVersions: [proposal.serviceVersion], // Initialize with current version
+          specType: service.specType,
           operation: proposal.operation,
           source: proposal.source,
           status: 'draft',

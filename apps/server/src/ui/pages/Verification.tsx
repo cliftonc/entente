@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ConsumerFilter from '../components/ConsumerFilter'
 import GetStartedButton from '../components/GetStartedButton'
 import GitShaLink from '../components/GitShaLink'
 import ProviderFilter from '../components/ProviderFilter'
+import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VerificationBar from '../components/VerificationBar'
 import VersionBadge from '../components/VersionBadge'
@@ -21,16 +22,25 @@ function Verification() {
   const [currentOffset, setCurrentOffset] = useState(0)
   const pageSize = 10
 
+  // Track if we're updating from URL to prevent circular updates
+  const isUpdatingFromUrl = useRef(false)
+
   // Update filters when URL params change
   useEffect(() => {
-    const provider = searchParams.get('provider')
-    const consumer = searchParams.get('consumer')
-    const start = searchParams.get('startDate')
-    const end = searchParams.get('endDate')
-    if (provider) setProviderFilter(provider)
-    if (consumer) setConsumerFilter(consumer)
-    if (start) setStartDate(start)
-    if (end) setEndDate(end)
+    if (isUpdatingFromUrl.current) {
+      isUpdatingFromUrl.current = false
+      return
+    }
+
+    const provider = searchParams.get('provider') || ''
+    const consumer = searchParams.get('consumer') || ''
+    const start = searchParams.get('startDate') || ''
+    const end = searchParams.get('endDate') || ''
+
+    setProviderFilter(provider)
+    setConsumerFilter(consumer)
+    setStartDate(start)
+    setEndDate(end)
   }, [searchParams])
 
   const {
@@ -64,8 +74,8 @@ function Verification() {
   useEffect(() => {
     if (verificationResults !== undefined) {
       if (verificationResults.length === 0 && currentOffset === 0) {
-        // Empty result set - clear displayed results
-        setDisplayedResults([])
+        // Empty result set - clear displayed results only if not already empty
+        setDisplayedResults(prev => (prev.length > 0 ? [] : prev))
         return
       }
 
@@ -88,8 +98,7 @@ function Verification() {
   // Filter results based on provider and consumer filters
   const filteredResults =
     displayedResults?.filter(result => {
-      if (providerFilter && (result.provider || result.provider || '') !== providerFilter)
-        return false
+      if (providerFilter && (result.provider || '') !== providerFilter) return false
       if (consumerFilter) {
         // For now, this would need additional data from the backend to filter by consumer
         // This is a placeholder for when consumer data is available in verification results
@@ -155,6 +164,8 @@ function Verification() {
     if (params.consumer) newParams.consumer = params.consumer
     if (params.startDate) newParams.startDate = params.startDate
     if (params.endDate) newParams.endDate = params.endDate
+
+    isUpdatingFromUrl.current = true
     setSearchParams(Object.keys(newParams).length > 0 ? newParams : {})
   }
 
@@ -163,6 +174,7 @@ function Verification() {
     setConsumerFilter('')
     setStartDate('')
     setEndDate('')
+    isUpdatingFromUrl.current = true
     setSearchParams({})
   }
 
@@ -254,10 +266,7 @@ function Verification() {
             {startDate && endDate && (
               <span className="text-lg font-normal text-base-content/70">
                 {' '}
-                • Date:{' '}
-                {startDate === endDate
-                  ? new Date(startDate).toLocaleDateString()
-                  : `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`}
+                • Date: {startDate === endDate ? startDate : `${startDate} - ${endDate}`}
               </span>
             )}
           </h1>
@@ -291,7 +300,7 @@ function Verification() {
           <input
             type="date"
             className="input input-bordered"
-            value={startDate ? new Date(startDate).toISOString().split('T')[0] : ''}
+            value={startDate || ''}
             onChange={e => {
               const newStartDate = e.target.value || ''
               handleDateFilterChange(newStartDate, endDate)
@@ -305,7 +314,7 @@ function Verification() {
           <input
             type="date"
             className="input input-bordered"
-            value={endDate ? new Date(endDate).toISOString().split('T')[0] : ''}
+            value={endDate || ''}
             onChange={e => {
               const newEndDate = e.target.value || ''
               handleDateFilterChange(startDate, newEndDate)
@@ -379,6 +388,7 @@ function Verification() {
                     <th>Provider Version</th>
                     <th>Consumer</th>
                     <th>Consumer Version</th>
+                    <th>Spec Type</th>
                     <th>Interactions</th>
                     <th>Status</th>
                     <th>Created</th>
@@ -417,6 +427,9 @@ function Verification() {
                           serviceName={task.consumer}
                           serviceType="consumer"
                         />
+                      </td>
+                      <td>
+                        <SpecBadge specType={task.specType || 'openapi'} size="sm" />
                       </td>
                       <td>
                         <span className="text-sm">
@@ -463,6 +476,7 @@ function Verification() {
                   <th>Provider Version</th>
                   <th>Consumer</th>
                   <th>Consumer Version</th>
+                  <th>Spec Type</th>
                   <th>Results</th>
                   <th>Status</th>
                   <th>Last Run</th>
@@ -519,6 +533,9 @@ function Verification() {
                         ) : (
                           <span className="text-sm text-base-content/50">N/A</span>
                         )}
+                      </td>
+                      <td>
+                        <SpecBadge specType={result.specType || 'openapi'} size="sm" />
                       </td>
                       <td>
                         <span className="text-sm">

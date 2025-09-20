@@ -6,6 +6,7 @@ export interface Service {
   tenantId: string
   name: string
   type: 'consumer' | 'provider'
+  specType?: SpecType // Optional: Primary spec type for the service
   description?: string
   packageJson: Record<string, unknown>
   gitRepositoryUrl?: string
@@ -29,7 +30,8 @@ export interface ServiceVersion {
   serviceName: string
   serviceType: 'consumer' | 'provider'
   version: string
-  spec?: any // OpenAPI specification
+  specType?: SpecType // Optional: Spec type for this version
+  spec?: any // Specification (OpenAPI, GraphQL, AsyncAPI, etc.)
   gitSha?: string
   packageJson?: Record<string, unknown>
   createdBy: string
@@ -73,6 +75,8 @@ export interface Contract {
   providerVersion: string
   // Environment
   environment: string
+  // Specification type for this contract
+  specType: SpecType
   // Contract metadata
   status: 'active' | 'archived' | 'deprecated'
   interactionCount: number // Dynamically calculated from interactions table
@@ -176,6 +180,13 @@ export interface SpecMetadata {
   uploadedAt: Date
 }
 
+export interface InteractionMatchContext {
+  selectedOperationId?: string
+  candidates?: Array<{ operationId: string; confidence: number; reasons?: string[] }>
+  fixtureId?: string
+  fixtureReasons?: string[]
+}
+
 export interface ClientInteraction {
   id: string
   contractId?: string // Optional link to contract
@@ -189,6 +200,7 @@ export interface ClientInteraction {
   // Provider information
   providerVersion: string
   environment: string
+  specType?: SpecType // Specification type from associated contract
 
   // Request/response data
   operation: string
@@ -200,6 +212,7 @@ export interface ClientInteraction {
   duration: number
   clientInfo: ClientInfo
   status?: 'success' | 'failure' // Derived from response status
+  matchContext?: InteractionMatchContext
 }
 
 export interface HTTPRequest {
@@ -242,6 +255,7 @@ export interface DeploymentState {
   serviceType?: 'consumer' | 'provider' // Alias for type
   failureReason?: string
   failureDetails?: any // Can store CanIDeployResult or other failure information
+  specType?: SpecType // Added: spec type associated with the service
 }
 
 export interface ActiveVersion {
@@ -263,8 +277,9 @@ export interface VerificationTask {
   consumer: string // Keep for backward compatibility
   consumerVersion: string
   consumerGitSha?: string | null
-  interactions: ClientInteraction[]
   environment: string
+  specType: SpecType // Specification type for this task
+  interactions: ClientInteraction[]
   createdAt: Date
 }
 
@@ -292,6 +307,7 @@ export interface VerificationResults {
   consumer?: string
   consumerVersion?: string
   consumerGitSha?: string | null
+  specType: SpecType // Specification type for this result
   results: VerificationResult[]
 }
 
@@ -301,6 +317,7 @@ export interface Fixture {
   service: string
   serviceVersion: string
   serviceVersions: string[] // Array of all versions where this fixture appears
+  specType: 'openapi' | 'graphql' | 'asyncapi' | 'grpc' | 'soap' // NEW: Isolate fixtures by spec type
   operation: string
   status: 'draft' | 'approved' | 'rejected'
   source: 'consumer' | 'provider' | 'manual'
@@ -330,6 +347,7 @@ export interface FixtureCreation {
 export interface FixtureProposal {
   service: string
   serviceVersion: string
+  specType?: SpecType // Optional, defaults to 'openapi' if not provided
   operation: string
   source: 'consumer' | 'provider'
   priority?: number
@@ -415,7 +433,8 @@ export interface VerifyOptions {
 
 // OpenAPI related types
 export interface OpenAPISpec {
-  openapi: string
+  openapi?: string // OpenAPI 3.x
+  swagger?: string // Swagger 2.x
   info: {
     title: string
     version: string
@@ -679,5 +698,276 @@ export interface NormalizedFixtures {
     version: string
     totalFixtures: number
     extractedAt: Date
+  }
+}
+
+// Multi-spec support types
+export type SpecType = 'openapi' | 'graphql' | 'asyncapi' | 'grpc' | 'soap'
+
+export interface APISpecMetadata {
+  title?: string
+  description?: string
+  tags?: string[]
+  contact?: {
+    name?: string
+    url?: string
+    email?: string
+  }
+  license?: {
+    name: string
+    url?: string
+  }
+}
+
+export interface GraphQLSchema {
+  schema: string // SDL (Schema Definition Language) string
+  introspection?: any // GraphQL introspection result
+}
+
+export interface AsyncAPISpec {
+  asyncapi: string
+  info: {
+    title: string
+    version: string
+    description?: string
+  }
+  channels: Record<string, any>
+  components?: {
+    schemas?: Record<string, any>
+    messages?: Record<string, any>
+  }
+}
+
+export interface GRPCProto {
+  proto: string // Proto file content
+  services: string[] // Service names defined in proto
+  package?: string // Package name
+}
+
+export interface SOAPWsdl {
+  wsdl: string // WSDL XML content
+  services: string[] // Service names
+  targetNamespace?: string
+}
+
+export interface APISpec {
+  type: SpecType
+  version: string
+  spec: OpenAPISpec | GraphQLSchema | AsyncAPISpec | GRPCProto | SOAPWsdl
+  metadata?: APISpecMetadata
+}
+
+// Operation abstraction across all spec types
+export interface APIOperation {
+  id: string // Unique operation identifier
+  type: 'query' | 'mutation' | 'subscription' | 'rest' | 'event' | 'rpc'
+  method?: string // HTTP method for REST APIs
+  path?: string // URL path for REST APIs
+  channel?: string // Channel name for event-based APIs
+  service?: string // Service name for RPC APIs
+  request?: OperationSchema
+  response?: OperationSchema
+  errors?: OperationSchema[]
+  deprecated?: boolean
+  description?: string
+}
+
+export interface OperationSchema {
+  type: string
+  schema?: any // JSON Schema, GraphQL type, or other schema representation
+  example?: any
+  required?: boolean
+}
+
+// Request/Response types that work across all spec types
+export interface UnifiedRequest {
+  // HTTP-specific fields
+  method?: string
+  path?: string
+  headers?: Record<string, string>
+  query?: Record<string, unknown>
+  body?: unknown
+
+  // GraphQL-specific fields
+  operationName?: string
+  variables?: Record<string, unknown>
+
+  // Event-specific fields
+  channel?: string
+  eventType?: string
+
+  // RPC-specific fields
+  service?: string
+  procedure?: string
+}
+
+export interface UnifiedResponse {
+  // HTTP-specific fields
+  status?: number
+  headers?: Record<string, string>
+  body?: unknown
+
+  // GraphQL-specific fields
+  data?: unknown
+  errors?: Array<{
+    message: string
+    path?: (string | number)[]
+    extensions?: Record<string, unknown>
+  }>
+
+  // Event-specific fields
+  eventId?: string
+  timestamp?: Date
+
+  // Common fields
+  duration?: number
+  success?: boolean
+}
+
+// Validation result type
+export interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+}
+
+export interface ValidationError {
+  path: string
+  message: string
+  expected?: any
+  actual?: any
+  code?: string
+}
+
+// Functional spec handler interface (replaces class-based approach)
+// --- V2 Matching & Fixture Selection Types (additive) ---
+// These types introduce a richer matching pipeline without breaking existing handler interface.
+export interface OperationMatchContext {
+  request: UnifiedRequest
+  specType: SpecType
+  // Raw parsed spec (already converted through parseSpec)
+  spec?: APISpec
+  // All candidate operations extracted from spec
+  operations: APIOperation[]
+  // Optionally populated by handlers (e.g., path params, variables, channel params)
+  extractedParameters?: Record<string, unknown>
+  // Arbitrary handler-provided metadata helpful for scoring/recording
+  metadata?: Record<string, unknown>
+}
+
+export interface OperationMatchCandidate {
+  operation: APIOperation
+  // Confidence 0..1 representing how certain the handler is this op matches
+  confidence: number
+  // Optional breakdown for debugging/scoring transparency
+  reasons?: string[]
+  // Additional structured metrics (e.g., pathScore, methodScore)
+  metrics?: Record<string, number>
+  // Extracted parameters specific to this candidate (e.g., { userId: '123' })
+  parameters?: Record<string, unknown>
+}
+
+export interface OperationMatchResult {
+  // Ordered list best -> worst of candidates above confidence threshold
+  candidates: OperationMatchCandidate[]
+  // Selected canonical operation (first candidate) or null if none
+  selected: OperationMatchCandidate | null
+}
+
+export interface FixtureScoreBreakdown {
+  fixtureId: string
+  base: number
+  priority: number
+  recency?: number
+  specificity?: number
+  sourceBias?: number
+  total: number
+  reasons?: string[]
+}
+
+export interface FixtureSelectionResult {
+  // Ordered highest score first
+  ordered: FixtureScoreBreakdown[]
+  selected?: FixtureScoreBreakdown
+}
+
+export interface SpecHandler {
+  readonly type: SpecType
+  readonly name: string
+  canHandle: (spec: any) => boolean
+  parseSpec: (spec: any) => APISpec
+  extractOperations: (spec: APISpec) => APIOperation[]
+
+  // V2 Methods: Rich operation matching with confidence scoring
+  matchOperation: (ctx: OperationMatchContext) => OperationMatchResult
+  // V2 Methods: Response generation with fixture selection context
+  generateResponse: (params: {
+    operation: APIOperation
+    fixtures: Fixture[]
+    request: UnifiedRequest
+    match: OperationMatchCandidate
+    fixtureSelection?: FixtureSelectionResult
+  }) => UnifiedResponse
+  // Optional custom fixture scoring (else default applied)
+  scoreFixtures?: (params: {
+    operation: APIOperation
+    fixtures: Fixture[]
+    request: UnifiedRequest
+    match: OperationMatchCandidate
+  }) => FixtureSelectionResult
+
+  validateResponse: (operation: APIOperation, expected: any, actual: any) => ValidationResult
+  generateMockData: (operation: APIOperation) => any
+  getRequestSchema: (operation: APIOperation) => any
+  getResponseSchema: (operation: APIOperation) => any
+  convertMockDataToFixtures?: (
+    mockData: LocalMockData,
+    service: string,
+    version: string
+  ) => Fixture[]
+  extractEntitiesFromFixture: (fixture: Fixture) => {
+    entities: EntityData[]
+    relationships: EntityRelationship[]
+  }
+  inferEntityType: (operation: string) => string | null
+}
+
+// Registry functions interface
+export interface SpecRegistry {
+  register: (handler: SpecHandler) => void
+  getHandler: (type: SpecType) => SpecHandler | null
+  detectType: (spec: any) => SpecType | null
+  getAllHandlers: () => SpecHandler[]
+  getSupportedTypes: () => SpecType[]
+  parseSpec: (spec: any) => APISpec | null
+}
+
+// Type alias for all supported specification formats
+export type SupportedSpec = OpenAPISpec | GraphQLSchema | AsyncAPISpec | GRPCProto | SOAPWsdl
+
+// Shared debugging utility that respects ENTENTE_DEBUG environment variable
+// Works in both Cloudflare Workers and Node.js environments
+export function debugLog(...args: unknown[]): void {
+  // In Cloudflare Workers, check globalThis for ENTENTE_DEBUG
+  // In Node.js, check process.env.ENTENTE_DEBUG
+  let isDebug = false
+
+  try {
+    // Check globalThis first (works in both environments)
+    if (typeof globalThis !== 'undefined' && (globalThis as any).ENTENTE_DEBUG === 'true') {
+      isDebug = true
+    }
+    // Check process.env if available (Node.js)
+    else if (typeof globalThis !== 'undefined' && typeof (globalThis as any).process !== 'undefined') {
+      const env = (globalThis as any).process.env
+      if (env?.ENTENTE_DEBUG === 'true') {
+        isDebug = true
+      }
+    }
+  } catch {
+    // Ignore errors in environments where these globals don't exist
+  }
+
+  if (isDebug) {
+    console.log(...args)
   }
 }

@@ -106,6 +106,7 @@ deploymentsRouter.post('/consumer', async c => {
         deployedAt: deployment.deployedAt,
         deployedBy: deployment.deployedBy,
         gitSha: deployment.gitSha || undefined,
+        specType: consumer.specType || undefined,
       },
       { env: c.env || c.get('env') }
     )
@@ -122,6 +123,7 @@ deploymentsRouter.post('/consumer', async c => {
         name: consumerDeployment.name,
         version: consumerDeployment.version,
         environment: consumerDeployment.environment,
+        specType: consumer.specType || undefined,
         deployedAt: deployment.deployedAt,
       },
     },
@@ -221,6 +223,7 @@ deploymentsRouter.post('/provider', async c => {
         deployedAt: deployment.deployedAt,
         deployedBy: deployment.deployedBy,
         gitSha: deployment.gitSha || undefined,
+        specType: provider.specType || undefined,
       },
       { env: c.env || c.get('env') }
     )
@@ -237,6 +240,7 @@ deploymentsRouter.post('/provider', async c => {
         name: providerDeployment.name,
         version: providerDeployment.version,
         environment: providerDeployment.environment,
+        specType: provider.specType || undefined,
         deployedAt: deployment.deployedAt,
       },
     },
@@ -283,6 +287,7 @@ deploymentsRouter.get('/active', async c => {
       failureReason: deployments.failureReason,
       failureDetails: deployments.failureDetails,
       gitRepositoryUrl: services.gitRepositoryUrl,
+      specType: services.specType,
     })
     .from(deployments)
     .leftJoin(services, eq(deployments.serviceId, services.id))
@@ -296,6 +301,7 @@ deploymentsRouter.get('/active', async c => {
     version: d.version,
     gitSha: d.gitSha,
     gitRepositoryUrl: d.gitRepositoryUrl,
+    specType: d.specType || undefined,
     environment: d.environment,
     deployedAt: d.deployedAt,
     deployedBy: d.deployedBy,
@@ -321,11 +327,27 @@ deploymentsRouter.get('/:service/history', async c => {
 
   if (environment) whereConditions.push(eq(deployments.environment, environment))
 
-  const deploymentHistory = await db.query.deployments.findMany({
-    where: and(...whereConditions),
-    orderBy: desc(deployments.deployedAt),
-    limit,
-  })
+  const deploymentHistory = await db
+    .select({
+      id: deployments.id,
+      type: deployments.type,
+      tenantId: deployments.tenantId,
+      service: deployments.service,
+      version: deployments.version,
+      environment: deployments.environment,
+      deployedAt: deployments.deployedAt,
+      deployedBy: deployments.deployedBy,
+      active: deployments.active,
+      status: deployments.status,
+      failureReason: deployments.failureReason,
+      failureDetails: deployments.failureDetails,
+      specType: services.specType,
+    })
+    .from(deployments)
+    .leftJoin(services, eq(deployments.serviceId, services.id))
+    .where(and(...whereConditions))
+    .orderBy(desc(deployments.deployedAt))
+    .limit(limit)
 
   const deploymentStates: DeploymentState[] = deploymentHistory.map(d => ({
     id: d.id,
@@ -340,6 +362,7 @@ deploymentsRouter.get('/:service/history', async c => {
     status: d.status as DeploymentStatus,
     failureReason: d.failureReason || undefined,
     failureDetails: d.failureDetails,
+    specType: d.specType || undefined,
   }))
 
   return c.json(deploymentStates)
@@ -360,20 +383,22 @@ deploymentsRouter.get('/summary', async c => {
 
   // Get recent deployments (last 24 hours)
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
-  const recentDeployments = await db.query.deployments.findMany({
-    where: and(eq(deployments.tenantId, tenantId), gte(deployments.deployedAt, twentyFourHoursAgo)),
-    orderBy: desc(deployments.deployedAt),
-    limit: 10,
-    columns: {
-      service: true,
-      version: true,
-      environment: true,
-      deployedAt: true,
-      deployedBy: true,
-      status: true,
-      failureReason: true,
-    },
-  })
+  const recentDeployments = await db
+    .select({
+      service: deployments.service,
+      version: deployments.version,
+      environment: deployments.environment,
+      deployedAt: deployments.deployedAt,
+      deployedBy: deployments.deployedBy,
+      status: deployments.status,
+      failureReason: deployments.failureReason,
+      specType: services.specType,
+    })
+    .from(deployments)
+    .leftJoin(services, eq(deployments.serviceId, services.id))
+    .where(and(eq(deployments.tenantId, tenantId), gte(deployments.deployedAt, twentyFourHoursAgo)))
+    .orderBy(desc(deployments.deployedAt))
+    .limit(10)
 
   // Get environment breakdown (simplified - would need proper groupBy in production)
   const allActiveDeployments = await db.query.deployments.findMany({
@@ -499,6 +524,7 @@ deploymentsRouter.get('/paginated', async c => {
       // Service info
       serviceType: services.type,
       gitRepositoryUrl: services.gitRepositoryUrl,
+      specType: services.specType,
     })
     .from(deployments)
     .leftJoin(
@@ -528,6 +554,7 @@ deploymentsRouter.get('/paginated', async c => {
     gitSha: d.gitSha,
     serviceType: d.serviceType,
     gitRepositoryUrl: d.gitRepositoryUrl,
+    specType: d.specType || undefined,
   }))
 
   // Calculate statistics based on filtered results (not paginated, but filtered)

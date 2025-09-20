@@ -1,6 +1,7 @@
 import type { HTTPRequest, HTTPResponse } from '@entente/types'
 import { Link, useParams } from 'react-router-dom'
 import CodeBlock from '../components/CodeBlock'
+import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import { useAuth } from '../hooks/useAuth'
 import {
@@ -298,6 +299,12 @@ function FixtureDetails() {
               </div>
               <div>
                 <strong>Priority:</strong> {fixture.priority}
+              </div>
+              <div>
+                <strong>Spec Type:</strong>
+                <div className="mt-1">
+                  <SpecBadge specType={fixture.specType || 'openapi'} size="sm" />
+                </div>
               </div>
             </div>
             <div className="space-y-2">

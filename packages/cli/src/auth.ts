@@ -22,25 +22,30 @@ export async function loginFlow(serverUrl: string): Promise<void> {
     await open(authUrl)
     console.log(chalk.yellow('⏳ Waiting for authentication in browser...'))
 
-    // Wait for callback with API key
-    const apiKey = await waitForCallback(server)
+    // Wait for callback with API key and tenant info
+    const callbackData = await waitForCallback(server)
 
-    if (!apiKey) {
+    if (!callbackData.apiKey) {
       throw new Error('No API key received from callback')
     }
 
     // Get user info to store username
-    const userInfo = await getUserInfo(serverUrl, apiKey)
+    const userInfo = await getUserInfo(serverUrl, callbackData.apiKey)
 
-    // Save config
+    // Save config with tenant information
     await updateConfig({
-      apiKey,
+      apiKey: callbackData.apiKey,
       serverUrl,
       username: userInfo.username,
+      tenantId: callbackData.tenantId,
+      tenantName: callbackData.tenantName,
     })
 
     console.log(chalk.green('✅ Authentication successful!'))
     console.log(chalk.gray(`Logged in as: ${userInfo.username}`))
+    if (callbackData.tenantName) {
+      console.log(chalk.gray(`Tenant: ${callbackData.tenantName}`))
+    }
     console.log(chalk.gray(`Server: ${serverUrl}`))
   } catch (error) {
     console.error(
@@ -82,6 +87,9 @@ export async function whoAmI(): Promise<void> {
     }
     const userInfo = await getUserInfo(config.serverUrl, config.apiKey)
     console.log(chalk.green(`Logged in as: ${userInfo.username}`))
+    if (config.tenantName) {
+      console.log(chalk.gray(`Tenant: ${config.tenantName}`))
+    }
     console.log(chalk.gray(`Server: ${config.serverUrl}`))
     console.log(chalk.gray(`API Key: ${config.apiKey.substring(0, 12)}...`))
   } catch (_error) {
@@ -102,6 +110,8 @@ async function startCallbackServer(): Promise<{ server: Server; callbackUrl: str
 
       if (url.pathname === '/callback') {
         const apiKey = url.searchParams.get('key')
+        const tenantId = url.searchParams.get('tenant_id')
+        const tenantName = url.searchParams.get('tenant_name')
         const error = url.searchParams.get('error')
 
         if (error) {
@@ -120,17 +130,18 @@ async function startCallbackServer(): Promise<{ server: Server; callbackUrl: str
         }
 
         if (apiKey) {
+          const tenantInfo = tenantName ? ` for ${tenantName}` : ''
           res.writeHead(200, { 'Content-Type': 'text/html' })
           res.end(`
             <html>
               <body style="font-family: system-ui; padding: 40px; text-align: center;">
                 <h1 style="color: #059669;">Authentication Successful!</h1>
-                <p>You have been authenticated with the Entente CLI.</p>
+                <p>You have been authenticated with the Entente CLI${tenantInfo}.</p>
                 <p style="color: #6b7280;">You can close this browser window and return to your terminal.</p>
               </body>
             </html>
           `)
-          server.emit('auth-success', apiKey)
+          server.emit('auth-success', { apiKey, tenantId, tenantName })
           return
         }
       }
@@ -160,7 +171,9 @@ async function startCallbackServer(): Promise<{ server: Server; callbackUrl: str
   })
 }
 
-async function waitForCallback(server: Server): Promise<string | null> {
+async function waitForCallback(
+  server: Server
+): Promise<{ apiKey: string; tenantId?: string; tenantName?: string }> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(
       () => {
@@ -169,10 +182,13 @@ async function waitForCallback(server: Server): Promise<string | null> {
       5 * 60 * 1000
     ) // 5 minutes
 
-    server.once('auth-success', (apiKey: string) => {
-      clearTimeout(timeout)
-      resolve(apiKey)
-    })
+    server.once(
+      'auth-success',
+      (data: { apiKey: string; tenantId?: string; tenantName?: string }) => {
+        clearTimeout(timeout)
+        resolve(data)
+      }
+    )
 
     server.once('auth-error', (error: string) => {
       clearTimeout(timeout)

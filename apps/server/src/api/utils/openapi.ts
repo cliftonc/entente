@@ -20,7 +20,7 @@ export function injectMockServerUrls(
   if (urlType === 'latest' || urlType === 'both') {
     const mockByService = {
       url: `/api/mock/service/${serviceName}`,
-      description: 'Mock server with fixture data (latest version)'
+      description: 'Mock server with fixture data (latest version)',
     }
     modifiedSpec.servers.unshift(mockByService)
   }
@@ -28,7 +28,7 @@ export function injectMockServerUrls(
   if ((urlType === 'version' || urlType === 'both') && serviceVersionId) {
     const mockByVersion = {
       url: `/api/mock/version/${serviceVersionId}`,
-      description: 'Mock server with fixture data (specific version)'
+      description: 'Mock server with fixture data (specific version)',
     }
     modifiedSpec.servers.unshift(mockByVersion)
   }
