@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import SwaggerUI from 'swagger-ui-react'
 import { useServiceVersions } from '../hooks/useServices'
 import { serviceVersionApi } from '../utils/api'
+import { injectMockServerUrls } from '../../api/utils/openapi'
 
 function OpenAPIViewer() {
   const navigate = useNavigate()
@@ -112,6 +113,14 @@ function OpenAPIViewer() {
     ? `${displayVersion.serviceName} - Latest OpenAPI Spec`
     : `${displayVersion.serviceName} v${displayVersion.version} - OpenAPI Spec`
 
+  // Inject mock server URLs into the spec
+  const specWithMockServers = injectMockServerUrls(
+    displayVersion.spec,
+    displayVersion.serviceName,
+    isLatestView ? 'latest' : 'version',
+    isLatestView ? undefined : displayVersion.id
+  )
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -140,7 +149,7 @@ function OpenAPIViewer() {
         <div className="card-body p-0">
           <div className="swagger-ui-container">
             <SwaggerUI
-              spec={displayVersion.spec}
+              spec={specWithMockServers}
               deepLinking={true}
               displayOperationId={false}
               defaultModelsExpandDepth={1}
