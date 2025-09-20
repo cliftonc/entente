@@ -1,6 +1,6 @@
 {
   "name": "@entente/fixtures",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Fixture management utilities for Entente contract testing",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,7 +11,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -30,5 +32,9 @@
     "@types/node": "^22.0.0",
     "@types/js-yaml": "^4.0.8"
   },
-  "keywords": ["contract-testing", "fixtures", "testing"]
+  "keywords": [
+    "contract-testing",
+    "fixtures",
+    "testing"
+  ]
 }
