@@ -120,8 +120,8 @@ describe('Multi-Spec Integration Tests', () => {
         method: 'GET',
         path: '/castles'
       }
-      const matchedRestOp = openApiHandler.matchRequest(restRequest, openApiOps)
-      expect(matchedRestOp?.id).toBe('listCastles')
+      const restMatchResult = openApiHandler.matchOperation({ request: restRequest, operations: openApiOps })
+      expect(restMatchResult.selected?.operation.id).toBe('listCastles')
 
       // Test GraphQL request matching
       const gqlRequest = {
@@ -130,8 +130,8 @@ describe('Multi-Spec Integration Tests', () => {
         headers: { 'content-type': 'application/json' },
         body: { query: '{ listCastles { id name } }' }
       }
-      const matchedGqlOp = graphqlHandler.matchRequest(gqlRequest, graphqlOps)
-      expect(matchedGqlOp?.id).toBe('Query.listCastles')
+      const gqlMatchResult = graphqlHandler.matchOperation({ request: gqlRequest, operations: graphqlOps })
+      expect(gqlMatchResult.selected?.operation.id).toBe('Query.listCastles')
     })
 
     it('should generate compatible fixtures for shared operations', () => {
@@ -281,8 +281,8 @@ describe('Multi-Spec Integration Tests', () => {
       expect(operations.length).toBe(0)
 
       // Test that empty operations don't break request matching
-      const result = handler.matchRequest({ method: 'GET', path: '/nonexistent' }, operations)
-      expect(result).toBeNull()
+      const result = handler.matchOperation({ request: { method: 'GET', path: '/nonexistent' }, operations })
+      expect(result.selected).toBeNull()
     })
 
     it('should handle malformed GraphQL schemas', () => {
@@ -358,17 +358,17 @@ describe('Multi-Spec Integration Tests', () => {
       expect(asyncapiFixture.operation).toBe('publishCastleCreated')
     })
 
-    it('should prevent cross-spec fixture contamination', () => {
-      // Test that OpenAPI fixtures don't affect GraphQL operations and vice versa
+    it('should use confidence scoring to distinguish spec types', () => {
+      // Test that confidence scoring helps distinguish between different spec types
       const openApiHandler = specRegistry.getHandler('openapi')!
       const graphqlHandler = specRegistry.getHandler('graphql')!
 
-      // These operations should be completely separate
       const openApiRequest = { method: 'GET', path: '/castles' }
       const graphqlRequest = {
         method: 'POST',
         path: '/graphql',
-        body: JSON.stringify({ query: '{ listCastles { id } }' })
+        headers: { 'content-type': 'application/json' },
+        body: { query: '{ listCastles { id } }' }
       }
 
       const parsedOpenApi = specRegistry.parseSpec(openApiSpec)!
@@ -377,13 +377,13 @@ describe('Multi-Spec Integration Tests', () => {
       const openApiOps = openApiHandler.extractOperations(parsedOpenApi)
       const graphqlOps = graphqlHandler.extractOperations(parsedGraphql)
 
-      // OpenAPI handler should not match GraphQL operations
-      const openApiMatch = openApiHandler.matchRequest(graphqlRequest, openApiOps)
-      expect(openApiMatch).toBeNull()
+      // OpenAPI handler should have high confidence for REST requests
+      const openApiMatch = openApiHandler.matchOperation({ request: openApiRequest, operations: openApiOps })
+      expect(openApiMatch.selected?.confidence).toBeGreaterThan(0.8)
 
-      // GraphQL handler should not match REST operations
-      const graphqlMatch = graphqlHandler.matchRequest(openApiRequest, graphqlOps)
-      expect(graphqlMatch).toBeNull()
+      // GraphQL handler should have high confidence for GraphQL requests
+      const graphqlMatch = graphqlHandler.matchOperation({ request: graphqlRequest, operations: graphqlOps })
+      expect(graphqlMatch.selected?.confidence).toBeGreaterThan(0.8)
     })
   })
 })

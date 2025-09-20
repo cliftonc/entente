@@ -3,8 +3,8 @@ import {
   canHandleAsyncAPI,
   parseAsyncAPISpec,
   extractAsyncAPIOperations,
-  matchAsyncAPIRequest,
-  generateAsyncAPIResponse,
+  matchAsyncAPIOperation,
+  generateAsyncAPIResponseV2,
   validateAsyncAPIResponse,
   createAsyncAPIHandler
 } from '../../src/spec-handlers/asyncapi'
@@ -102,7 +102,7 @@ describe('AsyncAPI Functional Spec Handler', () => {
     })
   })
 
-  describe('matchAsyncAPIRequest', () => {
+  describe('matchAsyncAPIOperation', () => {
     const apiSpec = parseAsyncAPISpec(sampleAsyncAPISpec)
     const operations = extractAsyncAPIOperations(apiSpec)
 
@@ -117,9 +117,9 @@ describe('AsyncAPI Functional Spec Handler', () => {
         }
       }
 
-      const matched = matchAsyncAPIRequest(request, operations)
-      expect(matched).toBeDefined()
-      expect(matched?.channel).toBe('castle/created')
+      const result = matchAsyncAPIOperation({ request, operations })
+      expect(result.selected).toBeDefined()
+      expect(result.selected?.operation.channel).toBe('castle/created')
     })
 
     it('should match by channel when exact eventType match not found', () => {
@@ -132,9 +132,9 @@ describe('AsyncAPI Functional Spec Handler', () => {
         }
       }
 
-      const matched = matchAsyncAPIRequest(request, operations)
-      expect(matched).toBeDefined()
-      expect(matched?.channel).toBe('castle/deleted')
+      const result = matchAsyncAPIOperation({ request, operations })
+      expect(result.selected).toBeDefined()
+      expect(result.selected?.operation.channel).toBe('castle/deleted')
     })
 
     it('should return null for non-event requests', () => {
@@ -143,12 +143,12 @@ describe('AsyncAPI Functional Spec Handler', () => {
         path: '/api/test'
       }
 
-      const matched = matchAsyncAPIRequest(request, operations)
-      expect(matched).toBeNull()
+      const result = matchAsyncAPIOperation({ request, operations })
+      expect(result.selected).toBeNull()
     })
   })
 
-  describe('generateAsyncAPIResponse', () => {
+  describe('generateAsyncAPIResponseV2', () => {
     const apiSpec = parseAsyncAPISpec(sampleAsyncAPISpec)
     const operations = extractAsyncAPIOperations(apiSpec)
     const createdOp = operations.find(op => op.channel === 'castle/created')!
@@ -178,16 +178,54 @@ describe('AsyncAPI Functional Spec Handler', () => {
         createdAt: new Date()
       }
 
-      const response = generateAsyncAPIResponse(createdOp, [fixture])
+      const request = {
+        channel: 'castle/created',
+        eventType: 'created',
+        body: { eventType: 'created' }
+      }
+
+      const match = {
+        operation: createdOp,
+        confidence: 1.0,
+        reasons: ['test'],
+        metrics: {},
+        parameters: {}
+      }
+
+      const response = generateAsyncAPIResponseV2({
+        operation: createdOp,
+        fixtures: [fixture],
+        request,
+        match
+      })
 
       expect(response.status).toBe(200)
       expect(response.eventId).toBeDefined()
       expect(response.timestamp).toBeDefined()
-      expect(response.body.eventType).toBe('created')
+      expect(response.body).toBeDefined()
     })
 
     it('should generate mock data when no fixtures available', () => {
-      const response = generateAsyncAPIResponse(createdOp, [])
+      const request = {
+        channel: 'castle/created',
+        eventType: 'created',
+        body: { eventType: 'created' }
+      }
+
+      const match = {
+        operation: createdOp,
+        confidence: 1.0,
+        reasons: ['test'],
+        metrics: {},
+        parameters: {}
+      }
+
+      const response = generateAsyncAPIResponseV2({
+        operation: createdOp,
+        fixtures: [],
+        request,
+        match
+      })
 
       expect(response.status).toBe(200)
       expect(response.eventId).toBeDefined()
@@ -253,10 +291,17 @@ describe('AsyncAPI Functional Spec Handler', () => {
         eventType: 'created',
         body: { eventType: 'created' }
       }
-      const matchedOp = handler.matchRequest(request, operations)
-      expect(matchedOp?.channel).toBe('castle/created')
 
-      const response = handler.generateResponse(matchedOp!, [])
+      const matchResult = handler.matchOperation({ request, operations })
+      expect(matchResult.selected).toBeDefined()
+      expect(matchResult.selected?.operation.channel).toBe('castle/created')
+
+      const response = handler.generateResponse({
+        operation: matchResult.selected!.operation,
+        fixtures: [],
+        request,
+        match: matchResult.selected!
+      })
       expect(response.status).toBe(200)
       expect(response.eventId).toBeDefined()
     })

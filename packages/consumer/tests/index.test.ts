@@ -245,6 +245,10 @@ describe('@entente/consumer', () => {
 
       mocks.fs.removeMockFile(`${process.cwd()}/package.json`)
 
+      // Enable debug logging for this test
+      const originalDebug = process.env.ENTENTE_DEBUG
+      process.env.ENTENTE_DEBUG = 'true'
+
       const config: ClientConfig = {
         serviceUrl: 'https://test.entente.com',
         apiKey: 'test-key',
@@ -272,6 +276,13 @@ describe('@entente/consumer', () => {
       )
 
       consoleSpy.mockRestore()
+
+      // Restore original debug setting
+      if (originalDebug !== undefined) {
+        process.env.ENTENTE_DEBUG = originalDebug
+      } else {
+        delete process.env.ENTENTE_DEBUG
+      }
     })
 
     it('should throw error on failed upload', async () => {
@@ -368,6 +379,10 @@ describe('@entente/consumer', () => {
 
       mocks.fs.removeMockFile(`${process.cwd()}/package.json`)
 
+      // Enable debug logging for this test
+      const originalDebug = process.env.ENTENTE_DEBUG
+      process.env.ENTENTE_DEBUG = 'true'
+
       const config: ClientConfig = {
         serviceUrl: 'https://test.entente.com',
         apiKey: 'test-key',
@@ -394,6 +409,13 @@ describe('@entente/consumer', () => {
 
       consoleSpy.mockRestore()
       await mock.close()
+
+      // Restore original debug setting
+      if (originalDebug !== undefined) {
+        process.env.ENTENTE_DEBUG = originalDebug
+      } else {
+        delete process.env.ENTENTE_DEBUG
+      }
     })
   })
 })
