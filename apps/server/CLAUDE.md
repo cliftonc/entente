@@ -34,6 +34,10 @@ apps/server/
 - `GET /auth/session` - Get current session info
 - `POST /auth/logout` - Logout current user
 
+## IMPORTANT
+
+If you need an auth key, look in `~/.entente/entente.json`
+
 ### Protected API Routes (Authentication required)
 - `GET/POST /api/specs/:service` - OpenAPI specification management
 - `POST /api/interactions` - Record client interactions
@@ -68,6 +72,12 @@ pnpm build
 
 # Deploy to Cloudflare Workers
 pnpm deploy
+```
+
+If you want debug logs, you need to set `ENTENTE_DEBUG=true` when starting the server
+
+```bash
+ENTENTE_DEBUG=true pnpm dev
 ```
 
 It is important that you correctly add types and typecheck all new features.  Avoid the use of any unless there is no alternative.
@@ -155,22 +165,3 @@ Using DaisyUI theme called "entente" with:
 - **TanStack Query**: Server state management with caching and background updates
 - **Zustand**: Client state management for UI state and application data
 - **React Router**: Client-side routing with protected routes
-
-## Implementation Status
-- ✅ Complete API structure with all endpoints under `/api/*`
-- ✅ React admin UI with responsive design
-- ✅ Cloudflare Workers deployment configuration
-- ✅ Neon PostgreSQL database integration with Drizzle ORM
-- ✅ GitHub OAuth authentication system
-- ✅ Session management and protected routes
-- ✅ TanStack Query + Zustand state management
-- ✅ Environment variable system for development and production
-- ✅ Real-time notifications
-
-## Next Steps
-1. **Real-time Updates**: WebSocket integration for live updates
-2. **File Uploads**: Handle OpenAPI spec file uploads
-3. **Error Handling**: Improve error pages and API error responses
-4. **Testing**: Add API and UI test suites
-5. **Multi-tenant**: Implement tenant switching in UI
-6. **Permissions**: Role-based access control within tenants

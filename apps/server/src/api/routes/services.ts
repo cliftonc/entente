@@ -24,28 +24,23 @@ import { ensureServiceVersion } from '../utils/service-versions'
 
 export const servicesRouter = new Hono()
 
-// Register a new service (consumer or provider)
+// Register a new service
 servicesRouter.post('/', async c => {
   const registration = await c.req.json()
 
-  if (!registration.name || !registration.type || !registration.packageJson) {
-    return c.json({ error: 'Missing required fields: name, type, packageJson' }, 400)
-  }
-
-  if (!['consumer', 'provider'].includes(registration.type)) {
-    return c.json({ error: 'Type must be either consumer or provider' }, 400)
+  if (!registration.name || !registration.packageJson) {
+    return c.json({ error: 'Missing required fields: name, packageJson' }, 400)
   }
 
   const db = c.get('db')
   const { tenantId } = c.get('session')
   const { user } = c.get('auth')
 
-  // Check if service already exists with this name and type
+  // Check if service already exists with this name
   const existing = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
-      eq(services.name, registration.name),
-      eq(services.type, registration.type)
+      eq(services.name, registration.name)
     ),
   })
 
@@ -103,8 +98,7 @@ servicesRouter.post('/', async c => {
       .where(
         and(
           eq(services.tenantId, tenantId),
-          eq(services.name, registration.name),
-          eq(services.type, registration.type)
+          eq(services.name, registration.name)
         )
       )
       .returning()
@@ -112,10 +106,10 @@ servicesRouter.post('/', async c => {
     service = updated
     if (shouldUpdateGitHubFields && repositoryUrlChanged) {
       debugLog(
-        `🔄 Updated GitHub auto-linking for ${registration.type}: ${registration.name} (repository URL changed)`
+        `🔄 Updated GitHub auto-linking for service: ${registration.name} (repository URL changed)`
       )
     }
-    debugLog(`📦 Updated existing ${registration.type}: ${registration.name}`)
+    debugLog(`📦 Updated existing service: ${registration.name}`)
   } else {
     // Create new service
     const [created] = await db
@@ -123,7 +117,6 @@ servicesRouter.post('/', async c => {
       .values({
         tenantId,
         name: registration.name,
-        type: registration.type,
         description: registration.description,
         packageJson: registration.packageJson,
         gitRepositoryUrl: registration.gitRepositoryUrl,
@@ -136,7 +129,7 @@ servicesRouter.post('/', async c => {
 
     service = created
     isNew = true
-    debugLog(`📦 Registered new ${registration.type}: ${registration.name}`)
+    debugLog(`📦 Registered new service: ${registration.name}`)
   }
 
   // Extract version from packageJson and create service version
@@ -167,7 +160,6 @@ servicesRouter.post('/', async c => {
     {
       id: service.id,
       name: service.name,
-      type: service.type,
       description: service.description,
       createdAt: service.createdAt,
       updatedAt: service.updatedAt,
@@ -177,21 +169,14 @@ servicesRouter.post('/', async c => {
   )
 })
 
-// Get all services for tenant with optional type filter
+// Get all services for tenant
 servicesRouter.get('/', async c => {
-  const type = c.req.query('type') // Optional filter: 'consumer' | 'provider'
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
-  const whereConditions = [eq(services.tenantId, tenantId)]
-
-  if (type && ['consumer', 'provider'].includes(type)) {
-    whereConditions.push(eq(services.type, type))
-  }
-
   const serviceList = await db.query.services.findMany({
-    where: and(...whereConditions),
-    orderBy: [services.name, services.type],
+    where: eq(services.tenantId, tenantId),
+    orderBy: [services.name],
   })
 
   return c.json(serviceList)
@@ -225,7 +210,6 @@ servicesRouter.get('/:name/versions', async c => {
       tenantId: v.tenantId,
       serviceId: v.serviceId,
       serviceName: service.name,
-      serviceType: service.type,
       version: v.version,
       specType: v.specType,
       spec: v.spec,
@@ -243,20 +227,67 @@ servicesRouter.get('/:name/versions', async c => {
   }
 })
 
-// Get specific service by name and type
-servicesRouter.get('/:name/:type', async c => {
-  const name = c.req.param('name')
-  const type = c.req.param('type')
+// Get a specific version for a service
+servicesRouter.get('/:name/versions/:version', async c => {
+  const { name, version } = c.req.param()
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
 
-  if (!['consumer', 'provider'].includes(type)) {
-    return c.json({ error: 'Type must be either consumer or provider' }, 400)
+  try {
+    // First find the service
+    const service = await db.query.services.findFirst({
+      where: and(eq(services.tenantId, tenantId), eq(services.name, name)),
+    })
+
+    if (!service) {
+      return c.json({ error: 'Service not found' }, 404)
+    }
+
+    // Find the specific version
+    const serviceVersion = await db.query.serviceVersions.findFirst({
+      where: and(
+        eq(serviceVersions.tenantId, tenantId),
+        eq(serviceVersions.serviceId, service.id),
+        eq(serviceVersions.version, version)
+      ),
+    })
+
+    if (!serviceVersion) {
+      return c.json({ error: 'Service version not found' }, 404)
+    }
+
+    // Map to include service info for the frontend
+    const versionWithService = {
+      id: serviceVersion.id,
+      tenantId: serviceVersion.tenantId,
+      serviceId: serviceVersion.serviceId,
+      serviceName: service.name,
+      serviceType: service.specType || 'unknown',
+      version: serviceVersion.version,
+      specType: serviceVersion.specType,
+      spec: serviceVersion.spec,
+      gitSha: serviceVersion.gitSha,
+      packageJson: serviceVersion.packageJson,
+      createdBy: serviceVersion.createdBy,
+      createdAt: serviceVersion.createdAt,
+      updatedAt: serviceVersion.updatedAt,
+    }
+
+    return c.json(versionWithService)
+  } catch (error) {
+    console.error('Error fetching service version:', error)
+    return c.json({ error: 'Failed to fetch service version' }, 500)
   }
+})
 
+// Get specific service by name
+servicesRouter.get('/:name', async c => {
+  const name = c.req.param('name')
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
   const service = await db.query.services.findFirst({
-    where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
+    where: and(eq(services.tenantId, tenantId), eq(services.name, name)),
   })
 
   if (!service) {
@@ -267,21 +298,16 @@ servicesRouter.get('/:name/:type', async c => {
 })
 
 // Update service (e.g., new package.json)
-servicesRouter.put('/:name/:type', async c => {
+servicesRouter.put('/:name', async c => {
   const name = c.req.param('name')
-  const type = c.req.param('type')
   const updates = await c.req.json()
-
-  if (!['consumer', 'provider'].includes(type)) {
-    return c.json({ error: 'Type must be either consumer or provider' }, 400)
-  }
 
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
   // Check if service exists
   const existing = await db.query.services.findFirst({
-    where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
+    where: and(eq(services.tenantId, tenantId), eq(services.name, name)),
   })
 
   if (!existing) {
@@ -296,55 +322,43 @@ servicesRouter.put('/:name/:type', async c => {
       packageJson: updates.packageJson ?? existing.packageJson,
       updatedAt: new Date(),
     })
-    .where(and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)))
+    .where(and(eq(services.tenantId, tenantId), eq(services.name, name)))
     .returning()
 
-  debugLog(`📦 Updated ${type}: ${name}`)
+  debugLog(`📦 Updated service: ${name}`)
 
   return c.json(updated)
 })
 
 // Delete service
-servicesRouter.delete('/:name/:type', async c => {
+servicesRouter.delete('/:name', async c => {
   const name = c.req.param('name')
-  const type = c.req.param('type')
-
-  if (!['consumer', 'provider'].includes(type)) {
-    return c.json({ error: 'Type must be either consumer or provider' }, 400)
-  }
-
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
   const deleted = await db
     .delete(services)
-    .where(and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)))
+    .where(and(eq(services.tenantId, tenantId), eq(services.name, name)))
     .returning()
 
   if (deleted.length === 0) {
     return c.json({ error: 'Service not found' }, 404)
   }
 
-  debugLog(`🗑️ Deleted ${type}: ${name}`)
+  debugLog(`🗑️ Deleted service: ${name}`)
   return c.json({ message: 'Service deleted successfully' })
 })
 
 // GitHub integration endpoints
 
 // Get GitHub configuration for a service
-servicesRouter.get('/:name/:type/github/config', async c => {
+servicesRouter.get('/:name/github/config', async c => {
   const name = c.req.param('name')
-  const type = c.req.param('type')
-
-  if (!['consumer', 'provider'].includes(type)) {
-    return c.json({ error: 'Type must be either consumer or provider' }, 400)
-  }
-
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
   const service = await db.query.services.findFirst({
-    where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
+    where: and(eq(services.tenantId, tenantId), eq(services.name, name)),
   })
 
   if (!service) {
@@ -374,23 +388,18 @@ const githubConfigSchema = z.object({
 })
 
 servicesRouter.put(
-  '/:name/:type/github/config',
+  '/:name/github/config',
   zValidator('json', githubConfigSchema),
   async c => {
     const name = c.req.param('name')
-    const type = c.req.param('type')
     const config = c.req.valid('json') as GitHubServiceConfigRequest
-
-    if (!['consumer', 'provider'].includes(type)) {
-      return c.json({ error: 'Type must be either consumer or provider' }, 400)
-    }
 
     const db = c.get('db')
     const { tenantId } = c.get('session')
 
     // Check if service exists
     const existing = await db.query.services.findFirst({
-      where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
+      where: and(eq(services.tenantId, tenantId), eq(services.name, name)),
     })
 
     if (!existing) {
@@ -410,10 +419,10 @@ servicesRouter.put(
         githubConfiguredAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)))
+      .where(and(eq(services.tenantId, tenantId), eq(services.name, name)))
       .returning()
 
-    debugLog(`🔧 Updated GitHub config for ${type}: ${name}`)
+    debugLog(`🔧 Updated GitHub config for service: ${name}`)
 
     const result: GitHubServiceConfig = {
       repositoryOwner: updated.githubRepositoryOwner || undefined,
@@ -430,20 +439,14 @@ servicesRouter.put(
 )
 
 // Clear GitHub configuration for a service
-servicesRouter.delete('/:name/:type/github/config', async c => {
+servicesRouter.delete('/:name/github/config', async c => {
   const name = c.req.param('name')
-  const type = c.req.param('type')
-
-  if (!['consumer', 'provider'].includes(type)) {
-    return c.json({ error: 'Type must be either consumer or provider' }, 400)
-  }
-
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
   // Check if service exists
   const existing = await db.query.services.findFirst({
-    where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
+    where: and(eq(services.tenantId, tenantId), eq(services.name, name)),
   })
 
   if (!existing) {
@@ -463,27 +466,21 @@ servicesRouter.delete('/:name/:type/github/config', async c => {
       githubConfiguredAt: null,
       updatedAt: new Date(),
     })
-    .where(and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)))
+    .where(and(eq(services.tenantId, tenantId), eq(services.name, name)))
 
-  debugLog(`🧹 Cleared GitHub config for ${type}: ${name}`)
+  debugLog(`🧹 Cleared GitHub config for service: ${name}`)
   return c.json({ message: 'GitHub configuration cleared successfully' })
 })
 
 // Get available workflows for a service's GitHub repository
-servicesRouter.get('/:name/:type/github/workflows', async c => {
+servicesRouter.get('/:name/github/workflows', async c => {
   const name = c.req.param('name')
-  const type = c.req.param('type')
-
-  if (!['consumer', 'provider'].includes(type)) {
-    return c.json({ error: 'Type must be either consumer or provider' }, 400)
-  }
-
   const db = c.get('db')
   const { tenantId } = c.get('session')
 
   // Get service with GitHub configuration
   const service = await db.query.services.findFirst({
-    where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
+    where: and(eq(services.tenantId, tenantId), eq(services.name, name)),
   })
 
   if (!service) {
@@ -526,23 +523,18 @@ const triggerWorkflowSchema = z.object({
 })
 
 servicesRouter.post(
-  '/:name/:type/github/trigger-workflow',
+  '/:name/github/trigger-workflow',
   zValidator('json', triggerWorkflowSchema),
   async c => {
     const name = c.req.param('name')
-    const type = c.req.param('type')
     const { ref = 'main', inputs = {} } = c.req.valid('json') as GitHubTriggerWorkflowRequest
-
-    if (!['consumer', 'provider'].includes(type)) {
-      return c.json({ error: 'Type must be either consumer or provider' }, 400)
-    }
 
     const db = c.get('db')
     const { tenantId } = c.get('session')
 
     // Get service with GitHub configuration
     const service = await db.query.services.findFirst({
-      where: and(eq(services.tenantId, tenantId), eq(services.name, name), eq(services.type, type)),
+      where: and(eq(services.tenantId, tenantId), eq(services.name, name)),
     })
 
     if (!service) {
@@ -572,7 +564,7 @@ servicesRouter.post(
         tenantId
       )
 
-      debugLog(`🚀 Triggered verification workflow for ${type}: ${name}`)
+      debugLog(`🚀 Triggered verification workflow for service: ${name}`)
       return c.json({ message: 'Verification workflow triggered successfully' })
     } catch (error) {
       console.error('Error triggering workflow:', error)

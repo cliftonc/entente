@@ -19,8 +19,8 @@ export const queryKeys = {
     lists: () => ['services', 'list'] as const,
     list: (filters?: QueryKeyFilters) => ['services', 'list', filters] as const,
     details: () => ['services', 'detail'] as const,
-    detail: (name: string, type: 'consumer' | 'provider') =>
-      ['services', 'detail', name, type] as const,
+    detail: (name: string) =>
+      ['services', 'detail', name] as const,
     versions: (serviceName: string) => ['services', serviceName, 'versions'] as const,
     interactions: (serviceName: string, filters?: QueryKeyFilters) =>
       ['services', serviceName, 'interactions', filters] as const,
@@ -118,6 +118,7 @@ export const queryKeys = {
     byContract: (contractId: string) => ['verification', 'contract', contractId] as const,
     stats: (provider: string) => ['verification', 'stats', provider] as const,
     recent: (days?: number, limit?: number) => ['verification', 'recent', { days, limit }] as const,
+    latest: (detail?: boolean) => ['verification', 'latest', { detail }] as const,
   },
 
   // Specs (OpenAPI specifications)
@@ -189,6 +190,14 @@ export const queryKeys = {
     all: ['service-versions'] as const,
     byService: (serviceName: string) => ['service-versions', 'service', serviceName] as const,
     detail: (id: string) => ['service-versions', 'detail', id] as const,
+    detailByServiceAndVersion: (serviceName: string, version: string) =>
+      ['service-versions', 'service', serviceName, 'version', version] as const,
+  },
+
+  // System View
+  systemView: {
+    all: ['system-view'] as const,
+    data: (filters?: QueryKeyFilters) => ['system-view', 'data', filters] as const,
   },
 } as const
 
@@ -202,8 +211,7 @@ export const getInvalidationQueries = {
       queryKeys.stats.dashboard(),
       ...(serviceName
         ? [
-            queryKeys.services.detail(serviceName, 'consumer'),
-            queryKeys.services.detail(serviceName, 'provider'),
+            queryKeys.services.detail(serviceName),
             queryKeys.contracts.byProvider(serviceName),
             queryKeys.contracts.byConsumer(serviceName),
             queryKeys.fixtures.byService(serviceName),
@@ -218,6 +226,7 @@ export const getInvalidationQueries = {
   contracts: {
     onContractChange: (contractId?: string, provider?: string, consumer?: string) => [
       queryKeys.contracts.all,
+      queryKeys.systemView.all,
       queryKeys.stats.dashboard(),
       ...(contractId ? [queryKeys.contracts.detail(contractId)] : []),
       ...(provider ? [queryKeys.contracts.byProvider(provider)] : []),
@@ -263,6 +272,8 @@ export const getInvalidationQueries = {
       queryKeys.verification.all,
       queryKeys.verification.pendingTasks(),
       queryKeys.verification.recent(),
+      queryKeys.verification.latest(),
+      queryKeys.systemView.all,
       queryKeys.stats.dashboard(),
       ...(provider
         ? [

@@ -224,7 +224,7 @@ function Dashboard() {
                       />
                       <div>
                         <Link
-                          to={`/services/${deployment.type || 'provider'}/${deployment.service}`}
+                          to={`/services/${deployment.service}`}
                           className="font-medium hover:text-primary transition-colors"
                         >
                           {deployment.service}
@@ -252,7 +252,6 @@ function Dashboard() {
                           <VersionBadge
                             version={deployment.version}
                             serviceName={deployment.service}
-                            serviceType={(deployment.type as 'consumer' | 'provider') || 'provider'}
                           />
                           {deployment.status === 'failed' && (
                             <span className="text-error">• Blocked</span>
@@ -323,7 +322,7 @@ function Dashboard() {
                       />
                       <div>
                         <Link
-                          to={`/services/${service.type || 'provider'}/${service.name}`}
+                          to={`/services/${service.name}`}
                           className="font-medium hover:text-primary transition-colors"
                         >
                           {service.name}

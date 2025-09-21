@@ -49,7 +49,7 @@ async function makeAuthenticatedRequest(url: string, options: RequestInit = {}):
 }
 
 export const uploadSpec = async (options: UploadOptions): Promise<void> => {
-  const { service, version = '0.0.0', branch = 'main', environment, spec: specPath } = options
+  const { service, version = '0.0.0', branch = 'main', spec: specPath } = options
 
   // Read spec file from path
   const fs = await import('node:fs/promises')
@@ -97,9 +97,8 @@ export const uploadSpec = async (options: UploadOptions): Promise<void> => {
 
         await registerService({
           name: service,
-          type: 'provider',
           packagePath: './package.json',
-          description: `Auto-registered provider for ${service}`,
+          description: `Auto-registered service for ${service}`,
         })
       } catch (_pkgError) {
         console.log(
@@ -150,7 +149,6 @@ export const uploadSpec = async (options: UploadOptions): Promise<void> => {
         service,
         version,
         branch,
-        environment,
         uploadedBy: process.env.USER || 'unknown',
         uploadedAt: new Date(),
       },
@@ -166,10 +164,10 @@ export const uploadSpec = async (options: UploadOptions): Promise<void> => {
   if (result.isNew) {
     console.log(
       chalk.green('✅'),
-      `Uploaded new API spec for ${service}@${version} to ${environment}`
+      `Uploaded new API spec for ${service}@${version}`
     )
   } else {
-    console.log(chalk.green('✅'), `Updated API spec for ${service}@${version} in ${environment}`)
+    console.log(chalk.green('✅'), `Updated API spec for ${service}@${version}`)
   }
 }
 
@@ -353,7 +351,6 @@ export const getDeploymentStatus = async (
 // Unified service registration
 export const registerService = async (options: {
   name: string
-  type: 'consumer' | 'provider'
   packagePath: string
   description?: string
 }): Promise<void> => {
@@ -375,7 +372,6 @@ export const registerService = async (options: {
 
   const registration: ServiceRegistration = {
     name: options.name,
-    type: options.type,
     description: options.description || (packageJson.description as string),
     packageJson,
     gitRepositoryUrl: gitRepositoryUrl || undefined,
@@ -388,19 +384,54 @@ export const registerService = async (options: {
 
   if (!response.ok) {
     const error = await response.json()
-    throw new Error(`Failed to register ${options.type}: ${error.error || response.statusText}`)
+    throw new Error(`Failed to register service: ${error.error || response.statusText}`)
   }
 
   const result = await response.json()
   if (result.isNew) {
-    console.log(chalk.green('✅'), `${options.type} ${options.name} registered successfully`)
+    console.log(chalk.green('✅'), `Service ${options.name} registered successfully`)
     console.log(`   ID: ${result.id}`)
     console.log(`   Created: ${result.createdAt}`)
   } else {
-    console.log(chalk.green('✅'), `${options.type} ${options.name} updated successfully`)
+    console.log(chalk.green('✅'), `Service ${options.name} updated successfully`)
     console.log(`   ID: ${result.id}`)
     console.log(`   Updated: ${result.updatedAt}`)
   }
+}
+
+// Unified service deployment
+export const deployService = async (options: {
+  name: string
+  version: string
+  environment: string
+  deployedBy?: string
+}): Promise<void> => {
+  const serviceUrl = await getServerUrl()
+
+  // Get current git SHA
+  const gitSha = getGitSha()
+
+  const deployment: ServiceDeployment = {
+    name: options.name,
+    version: options.version,
+    environment: options.environment,
+    deployedBy: options.deployedBy || process.env.USER || 'unknown',
+    gitSha: gitSha || undefined,
+  }
+
+  const response = await makeAuthenticatedRequest(`${serviceUrl}/api/deployments`, {
+    method: 'POST',
+    body: JSON.stringify(deployment),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }))
+    throw new Error(`Failed to deploy service: ${error.error || response.statusText}`)
+  }
+
+  const result = await response.json()
+  console.log(chalk.green('✅'), `Service ${options.name}@${options.version} deployed to ${options.environment}`)
+  console.log(chalk.blue('ℹ️'), `Deployment ID: ${result.id}`)
 }
 
 // Consumer deployment with dependencies

@@ -23,7 +23,6 @@ export const services = pgTable(
       .references(() => tenants.id)
       .notNull(),
     name: varchar('name', { length: 255 }).notNull(),
-    type: varchar('type', { length: 20 }).notNull(), // 'consumer' | 'provider'
 
     // Support for different specification types (enum)
     specType: specTypeEnum('spec_type').default('openapi'), // 'openapi', 'graphql', 'asyncapi', 'grpc', 'soap' - optional for services

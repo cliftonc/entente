@@ -17,18 +17,13 @@ statsRouter.get('/dashboard', async c => {
   const { tenantId } = session
 
   try {
-    // Get total services (consumers + providers)
-    const [consumerCount] = await db
+    // Get total services
+    const [serviceCount] = await db
       .select({ count: count() })
       .from(services)
-      .where(and(eq(services.tenantId, tenantId), eq(services.type, 'consumer')))
+      .where(eq(services.tenantId, tenantId))
 
-    const [providerCount] = await db
-      .select({ count: count() })
-      .from(services)
-      .where(and(eq(services.tenantId, tenantId), eq(services.type, 'provider')))
-
-    const totalServices = consumerCount.count + providerCount.count
+    const totalServices = serviceCount.count
 
     // Get total interactions count
     const [interactionCount] = await db
@@ -51,7 +46,6 @@ statsRouter.get('/dashboard', async c => {
         environment: deployments.environment,
         deployedAt: deployments.deployedAt,
         deployedBy: deployments.deployedBy,
-        type: deployments.type,
         status: deployments.status,
         failureReason: deployments.failureReason,
       })
@@ -169,7 +163,6 @@ statsRouter.get('/dashboard', async c => {
         environment: d.environment,
         deployedAt: d.deployedAt,
         deployedBy: d.deployedBy,
-        type: d.type,
         status: d.status,
         failureReason: d.failureReason,
       })),

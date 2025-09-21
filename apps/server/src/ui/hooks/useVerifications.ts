@@ -2,7 +2,7 @@
  * Verification data hooks with caching and state management
  */
 
-import type { VerificationResults, VerificationTask } from '@entente/types'
+import type { VerificationResults, VerificationResult, VerificationTask } from '@entente/types'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import React, { useCallback } from 'react'
 import { mergeHookConfig } from '../lib/hookUtils'
@@ -375,6 +375,52 @@ export function useOverallVerificationStats(options?: HookConfig) {
 }
 
 /**
+ * Hook to get latest verification status for all contracts
+ */
+export function useVerificationLatest(
+  detail?: boolean,
+  options?: HookConfig
+): ListHookState<{
+  id: string
+  provider: string
+  consumer: string
+  contractId: string
+  status: 'passed' | 'failed' | 'partial'
+  submittedAt: string
+  providerVersion: string | null
+  consumerVersion: string | null
+  total: number
+  passed: number
+  failed: number
+  interactions?: VerificationResult[]
+}> {
+  const mergedOptions = mergeHookConfig(options)
+
+  const query = useQuery({
+    queryKey: queryKeys.verification.latest(detail),
+    queryFn: () => verificationApi.getLatest(detail),
+    ...defaultQueryOptions,
+    ...mergedOptions,
+  })
+
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error as ApiError | null,
+    isFetching: query.isFetching,
+    isSuccess: query.isSuccess,
+    refetch: query.refetch,
+    isEmpty: !query.data || query.data.length === 0,
+    totalCount: query.data?.length || 0,
+    hasNextPage: false,
+    hasPreviousPage: false,
+    currentPage: 1,
+    pageSize: query.data?.length || 0,
+  }
+}
+
+/**
  * Hook to invalidate verification-related caches
  */
 export function useInvalidateVerifications() {
@@ -418,6 +464,10 @@ export function useInvalidateVerifications() {
     queryClient.invalidateQueries({ queryKey: queryKeys.verification.pendingTasks() })
   }, [queryClient])
 
+  const invalidateLatest = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.verification.latest() })
+  }, [queryClient])
+
   return {
     invalidateAll,
     invalidateResult,
@@ -425,5 +475,6 @@ export function useInvalidateVerifications() {
     invalidateByConsumer,
     invalidateByContract,
     invalidatePendingTasks,
+    invalidateLatest,
   }
 }

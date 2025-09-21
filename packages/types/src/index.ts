@@ -5,7 +5,6 @@ export interface Service {
   id: string
   tenantId: string
   name: string
-  type: 'consumer' | 'provider'
   specType?: SpecType // Optional: Primary spec type for the service
   description?: string
   packageJson: Record<string, unknown>
@@ -28,7 +27,6 @@ export interface ServiceVersion {
   tenantId: string
   serviceId: string
   serviceName: string
-  serviceType: 'consumer' | 'provider'
   version: string
   specType?: SpecType // Optional: Spec type for this version
   spec?: any // Specification (OpenAPI, GraphQL, AsyncAPI, etc.)
@@ -120,7 +118,6 @@ export interface ConsumerDependency {
 // Service registration (replaces ProviderRegistration and ConsumerRegistration)
 export interface ServiceRegistration {
   name: string
-  type: 'consumer' | 'provider'
   description?: string
   packageJson: Record<string, unknown>
   gitRepositoryUrl?: string
@@ -142,13 +139,13 @@ export interface ConsumerRegistration {
 // Unified service deployment interface
 export interface ServiceDeployment {
   name: string
-  type: 'consumer' | 'provider'
   version: string
   environment: string
+  gitSha?: string
   dependencies?: Array<{
     provider: string
     version: string
-  }> // Only for consumer deployments
+  }> // Optional dependencies for services that consume other services
   deployedBy?: string
 }
 
@@ -175,7 +172,6 @@ export interface SpecMetadata {
   service: string
   version: string
   branch: string
-  environment: string
   uploadedBy: string
   uploadedAt: Date
 }
@@ -239,11 +235,8 @@ export interface ClientInfo {
 export interface DeploymentState {
   id: string
   tenantId: string
-  type: 'provider' | 'consumer'
-  providerId?: string
-  consumerId?: string
-  consumer?: string // Backward compatibility alias for service name
-  service: string // Keep for backward compatibility
+  serviceId?: string
+  service: string // Service name
   version: string
   gitSha?: string
   gitRepositoryUrl?: string // Git repository URL
@@ -252,7 +245,6 @@ export interface DeploymentState {
   deployedBy: string
   active: boolean
   status: DeploymentStatus
-  serviceType?: 'consumer' | 'provider' // Alias for type
   failureReason?: string
   failureDetails?: any // Can store CanIDeployResult or other failure information
   specType?: SpecType // Added: spec type associated with the service
@@ -484,7 +476,6 @@ export interface UploadOptions {
   service: string
   version?: string
   branch?: string
-  environment: string
   spec: string
 }
 
@@ -496,11 +487,10 @@ export interface DeploymentOptions {
 }
 
 export interface CanIDeployOptions {
-  service?: string // New flexible parameter
+  service?: string // Service name
   consumer?: string // Legacy parameter for backward compatibility
   version: string
   environment: string
-  type?: 'consumer' | 'provider' // Service type for unified services table
 }
 
 export interface CanIDeployResult {
@@ -510,7 +500,7 @@ export interface CanIDeployResult {
     version: string
     verified: boolean
     interactionCount: number // Dynamically calculated
-    type: 'consumer' | 'provider'
+    role: 'consumer' | 'provider' // Role in this specific contract/relationship
     activelyDeployed?: boolean
   }>
   // Legacy field for backward compatibility
@@ -521,7 +511,6 @@ export interface CanIDeployResult {
     interactionCount: number // Dynamically calculated
   }>
   message: string
-  serviceType?: 'consumer' | 'provider' | 'consumer/provider' | 'unknown'
 }
 
 // Settings and team management types
@@ -943,6 +932,51 @@ export interface SpecRegistry {
 
 // Type alias for all supported specification formats
 export type SupportedSpec = OpenAPISpec | GraphQLSchema | AsyncAPISpec | GRPCProto | SOAPWsdl
+
+// System View types for optimized visualization data
+export interface SystemViewFilters {
+  environment?: string
+  status?: 'active' | 'archived' | 'deprecated' | 'all'
+}
+
+export interface SystemViewService {
+  id: string
+  name: string
+  specType: SpecType | null
+  description?: string
+  deployedVersion?: string
+  roles?: {
+    isProvider: boolean
+    isConsumer: boolean
+    contractCount: number
+  }
+}
+
+export interface SystemViewContract {
+  id: string
+  providerName: string
+  consumerName: string
+  environment: string
+  status: 'active' | 'archived' | 'deprecated'
+  verificationStatus?: 'passed' | 'failed' | 'partial' | null
+  interactionCount: number
+  specType: SpecType
+}
+
+export interface SystemViewOperation {
+  id: string
+  method: string
+  path: string
+  count: number
+  lastUsed: Date
+  interactionIds?: string[]
+}
+
+export interface SystemViewData {
+  services: SystemViewService[]
+  contracts: SystemViewContract[]
+  operations: Record<string, SystemViewOperation[]>
+}
 
 // Shared debugging utility that respects ENTENTE_DEBUG environment variable
 // Works in both Cloudflare Workers and Node.js environments

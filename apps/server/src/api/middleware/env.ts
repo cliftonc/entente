@@ -15,6 +15,7 @@ interface Env {
   RESEND_API_KEY?: string
   FROM_EMAIL?: string
   ENTENTE_DEBUG?: string
+  ADMIN_SECRET?: string
   // Add more environment variables as needed
 }
 
@@ -45,6 +46,7 @@ export async function envMiddleware(c: Context<{ Bindings: Env }>, next: Next) {
     RESEND_API_KEY: c.env?.RESEND_API_KEY || process.env.RESEND_API_KEY,
     FROM_EMAIL: c.env?.FROM_EMAIL || process.env.FROM_EMAIL,
     ENTENTE_DEBUG: c.env?.ENTENTE_DEBUG || process.env.ENTENTE_DEBUG,
+    ADMIN_SECRET: c.env?.ADMIN_SECRET || process.env.ADMIN_SECRET,
     // Add more environment variables as needed
   }
 

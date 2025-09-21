@@ -4,6 +4,7 @@ import type {
   DeploymentState,
   DeploymentStatus,
   ProviderDeployment,
+  ServiceDeployment,
 } from '@entente/types'
 import { Hono } from 'hono'
 
@@ -14,31 +15,195 @@ import { findServiceVersion } from '../utils/service-versions'
 
 export const deploymentsRouter = new Hono()
 
-// Deploy a consumer with dependencies
-deploymentsRouter.post('/consumer', async c => {
-  const consumerDeployment: ConsumerDeployment = await c.req.json()
+// Deploy a service (unified endpoint)
+deploymentsRouter.post('/', async c => {
+  const serviceDeployment: ServiceDeployment = await c.req.json()
 
-  if (!consumerDeployment.name || !consumerDeployment.version || !consumerDeployment.environment) {
+  console.log('[DEPLOY SERVICE] Request received:', {
+    name: serviceDeployment.name,
+    version: serviceDeployment.version,
+    environment: serviceDeployment.environment
+  })
+
+  if (!serviceDeployment.name || !serviceDeployment.version || !serviceDeployment.environment) {
+    console.log('[DEPLOY SERVICE] Missing required fields')
     return c.json({ error: 'Missing required fields: name, version, environment' }, 400)
   }
 
   const db = c.get('db')
-  const { tenantId } = c.get('session')
+  const auth = c.get('auth')
+  const tenantId = auth.tenantId
 
-  // Find the consumer service
-  const consumer = await db.query.services.findFirst({
+  console.log('[DEPLOY SERVICE] Auth info:', { tenantId, userId: auth.userId })
+
+  // Find the service
+  console.log('[DEPLOY SERVICE] Searching for service:', {
+    tenantId,
+    name: serviceDeployment.name
+  })
+
+  const service = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
-      eq(services.name, consumerDeployment.name),
-      eq(services.type, 'consumer')
+      eq(services.name, serviceDeployment.name)
     ),
   })
 
-  if (!consumer) {
-    return c.json({ error: 'Consumer service not found. Register the consumer first.' }, 404)
+  console.log('[DEPLOY SERVICE] Service found:', service ? service.id : 'NOT FOUND')
+
+  if (!service) {
+    console.log('[DEPLOY SERVICE] Service not found, returning 404')
+    return c.json({ error: 'Service not found. Register the service first.' }, 404)
   }
 
   // Validate that service version exists
+  console.log('[DEPLOY SERVICE] Validating service version:', {
+    name: serviceDeployment.name,
+    version: serviceDeployment.version
+  })
+
+  const serviceVersion = await findServiceVersion(
+    db,
+    tenantId,
+    serviceDeployment.name,
+    serviceDeployment.version
+  )
+
+  console.log('[DEPLOY SERVICE] Service version found:', serviceVersion ? serviceVersion.id : 'NOT FOUND')
+
+  if (!serviceVersion) {
+    console.log('[DEPLOY SERVICE] Service version not found, returning 404')
+    return c.json(
+      {
+        error: `Service version not found: ${serviceDeployment.name}@${serviceDeployment.version}. Please register this version first through service registration or interaction recording.`,
+      },
+      404
+    )
+  }
+
+  // Create deployment record
+  const [deployment] = await db
+    .insert(deployments)
+    .values({
+      tenantId,
+      serviceId: service.id,
+      service: serviceDeployment.name,
+      version: serviceDeployment.version,
+      serviceVersionId: serviceVersion.id,
+      gitSha: serviceDeployment.gitSha,
+      environment: serviceDeployment.environment,
+      deployedAt: new Date(),
+      deployedBy: serviceDeployment.deployedBy || 'unknown',
+      active: true,
+      status: 'successful',
+    })
+    .returning()
+
+  // Deactivate other versions in same environment
+  await db
+    .update(deployments)
+    .set({ active: false })
+    .where(
+      and(
+        eq(deployments.tenantId, tenantId),
+        eq(deployments.serviceId, service.id),
+        eq(deployments.environment, serviceDeployment.environment),
+        ne(deployments.id, deployment.id)
+      )
+    )
+
+  console.log(
+    `🚀 Service deployed: ${serviceDeployment.name}@${serviceDeployment.version} in ${serviceDeployment.environment}`
+  )
+
+  // Broadcast WebSocket event
+  try {
+    await NotificationService.broadcastDeploymentEvent(
+      tenantId,
+      'create',
+      {
+        id: deployment.id,
+        service: serviceDeployment.name,
+        version: serviceDeployment.version,
+        environment: serviceDeployment.environment,
+        status: 'successful',
+        deployedAt: deployment.deployedAt,
+        deployedBy: deployment.deployedBy,
+        gitSha: deployment.gitSha || undefined,
+        specType: service.specType || undefined,
+      },
+      { env: c.env || c.get('env') }
+    )
+  } catch (err) {
+    console.error('Notification broadcast failed (deployment create):', err)
+  }
+
+  return c.json({
+    id: deployment.id,
+    service: serviceDeployment.name,
+    version: serviceDeployment.version,
+    environment: serviceDeployment.environment,
+    deployedAt: deployment.deployedAt,
+    deployedBy: deployment.deployedBy,
+    active: deployment.active,
+    status: deployment.status,
+  })
+})
+
+// Deploy a consumer with dependencies
+deploymentsRouter.post('/consumer', async c => {
+  const consumerDeployment: ConsumerDeployment = await c.req.json()
+
+  console.log('[DEPLOY CONSUMER] Request received:', {
+    name: consumerDeployment.name,
+    version: consumerDeployment.version,
+    environment: consumerDeployment.environment
+  })
+
+  if (!consumerDeployment.name || !consumerDeployment.version || !consumerDeployment.environment) {
+    console.log('[DEPLOY CONSUMER] Missing required fields')
+    return c.json({ error: 'Missing required fields: name, version, environment' }, 400)
+  }
+
+  const db = c.get('db')
+  const auth = c.get('auth')
+  const tenantId = auth.tenantId
+
+  console.log('[DEPLOY CONSUMER] Auth info:', { tenantId, userId: auth.userId })
+
+  // Find the service
+  console.log('[DEPLOY CONSUMER] Searching for service:', {
+    tenantId,
+    name: consumerDeployment.name
+  })
+
+  // Debug: Show all services for this tenant
+  const allServices = await db.query.services.findMany({
+    where: eq(services.tenantId, tenantId),
+    columns: { id: true, name: true }
+  })
+  console.log('[DEPLOY CONSUMER] All services for tenant:', allServices)
+
+  const consumer = await db.query.services.findFirst({
+    where: and(
+      eq(services.tenantId, tenantId),
+      eq(services.name, consumerDeployment.name)
+    ),
+  })
+
+  console.log('[DEPLOY CONSUMER] Consumer service found:', consumer ? consumer.id : 'NOT FOUND')
+
+  if (!consumer) {
+    console.log('[DEPLOY CONSUMER] Consumer service not found, returning 404')
+    return c.json({ error: 'Service not found. Register the service first.' }, 404)
+  }
+
+  // Validate that service version exists
+  console.log('[DEPLOY CONSUMER] Validating service version:', {
+    name: consumerDeployment.name,
+    version: consumerDeployment.version
+  })
+
   const serviceVersion = await findServiceVersion(
     db,
     tenantId,
@@ -46,7 +211,10 @@ deploymentsRouter.post('/consumer', async c => {
     consumerDeployment.version
   )
 
+  console.log('[DEPLOY CONSUMER] Service version found:', serviceVersion ? serviceVersion.id : 'NOT FOUND')
+
   if (!serviceVersion) {
+    console.log('[DEPLOY CONSUMER] Service version not found, returning 404')
     return c.json(
       {
         error: `Service version not found: ${consumerDeployment.name}@${consumerDeployment.version}. Please register this version first through service registration or interaction recording.`,
@@ -60,7 +228,6 @@ deploymentsRouter.post('/consumer', async c => {
     .insert(deployments)
     .values({
       tenantId,
-      type: 'consumer',
       serviceId: consumer.id,
       service: consumerDeployment.name, // Backward compatibility
       version: consumerDeployment.version,
@@ -101,7 +268,6 @@ deploymentsRouter.post('/consumer', async c => {
         service: consumerDeployment.name,
         version: consumerDeployment.version,
         environment: consumerDeployment.environment,
-        type: 'consumer',
         status: 'successful',
         deployedAt: deployment.deployedAt,
         deployedBy: deployment.deployedBy,
@@ -140,19 +306,19 @@ deploymentsRouter.post('/provider', async c => {
   }
 
   const db = c.get('db')
-  const { tenantId } = c.get('session')
+  const auth = c.get('auth')
+  const tenantId = auth.tenantId
 
-  // Find the provider service
+  // Find the service
   const provider = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
-      eq(services.name, providerDeployment.name),
-      eq(services.type, 'provider')
+      eq(services.name, providerDeployment.name)
     ),
   })
 
   if (!provider) {
-    return c.json({ error: 'Provider service not found. Register the provider first.' }, 404)
+    return c.json({ error: 'Service not found. Register the service first.' }, 404)
   }
 
   // Validate that service version exists
@@ -177,7 +343,6 @@ deploymentsRouter.post('/provider', async c => {
     .insert(deployments)
     .values({
       tenantId,
-      type: 'provider',
       serviceId: provider.id,
       service: providerDeployment.name, // Backward compatibility
       version: providerDeployment.version,
@@ -205,7 +370,7 @@ deploymentsRouter.post('/provider', async c => {
     )
 
   console.log(
-    `🚀 Provider deployed: ${providerDeployment.name}@${providerDeployment.version} in ${providerDeployment.environment}`
+    `🚀 Service deployed: ${providerDeployment.name}@${providerDeployment.version} in ${providerDeployment.environment}`
   )
 
   // Broadcast WebSocket event
@@ -218,7 +383,6 @@ deploymentsRouter.post('/provider', async c => {
         service: providerDeployment.name,
         version: providerDeployment.version,
         environment: providerDeployment.environment,
-        type: 'provider',
         status: 'successful',
         deployedAt: deployment.deployedAt,
         deployedBy: deployment.deployedBy,
@@ -258,7 +422,8 @@ deploymentsRouter.get('/active', async c => {
   }
 
   const db = c.get('db')
-  const { tenantId } = c.get('session')
+  const auth = c.get('auth')
+  const tenantId = auth.tenantId
 
   const whereConditions = [
     eq(deployments.tenantId, tenantId),
@@ -275,7 +440,6 @@ deploymentsRouter.get('/active', async c => {
   const activeDeployments = await db
     .select({
       id: deployments.id,
-      type: deployments.type,
       service: deployments.service,
       version: deployments.version,
       gitSha: deployments.gitSha,
@@ -296,7 +460,6 @@ deploymentsRouter.get('/active', async c => {
 
   const activeVersions = activeDeployments.map(d => ({
     id: d.id,
-    serviceType: d.type,
     service: d.service,
     version: d.version,
     gitSha: d.gitSha,
@@ -321,7 +484,8 @@ deploymentsRouter.get('/:service/history', async c => {
   const limit = Number.parseInt(c.req.query('limit') || '50')
 
   const db = c.get('db')
-  const { tenantId } = c.get('session')
+  const auth = c.get('auth')
+  const tenantId = auth.tenantId
 
   const whereConditions = [eq(deployments.tenantId, tenantId), eq(deployments.service, service)]
 
@@ -330,7 +494,6 @@ deploymentsRouter.get('/:service/history', async c => {
   const deploymentHistory = await db
     .select({
       id: deployments.id,
-      type: deployments.type,
       tenantId: deployments.tenantId,
       service: deployments.service,
       version: deployments.version,
@@ -351,7 +514,6 @@ deploymentsRouter.get('/:service/history', async c => {
 
   const deploymentStates: DeploymentState[] = deploymentHistory.map(d => ({
     id: d.id,
-    type: d.type as 'provider' | 'consumer',
     tenantId: d.tenantId,
     service: d.service,
     version: d.version,
@@ -371,7 +533,8 @@ deploymentsRouter.get('/:service/history', async c => {
 // Get deployment summary for dashboard
 deploymentsRouter.get('/summary', async c => {
   const db = c.get('db')
-  const { tenantId } = c.get('session')
+  const auth = c.get('auth')
+  const tenantId = auth.tenantId
 
   // Get total active deployments
   const totalActiveResult = await db
@@ -448,7 +611,8 @@ deploymentsRouter.get('/summary', async c => {
 // Get unique environments
 deploymentsRouter.get('/environments', async c => {
   const db = c.get('db')
-  const { tenantId } = c.get('session')
+  const auth = c.get('auth')
+  const tenantId = auth.tenantId
 
   const environments = await db
     .selectDistinct({ environment: deployments.environment })
@@ -463,7 +627,8 @@ deploymentsRouter.get('/environments', async c => {
 // Get paginated deployments (all environments)
 deploymentsRouter.get('/paginated', async c => {
   const db = c.get('db')
-  const { tenantId } = c.get('session')
+  const auth = c.get('auth')
+  const tenantId = auth.tenantId
   const limit = Number.parseInt(c.req.query('limit') || '10')
   const offset = Number.parseInt(c.req.query('offset') || '0')
   const statusFilter = c.req.query('status') // active, inactive, active-or-blocked, all
@@ -475,11 +640,11 @@ deploymentsRouter.get('/paginated', async c => {
   const whereConditions = [eq(deployments.tenantId, tenantId)]
 
   if (providerFilter) {
-    const condition = and(eq(deployments.service, providerFilter), eq(deployments.type, 'provider'))
+    const condition = eq(deployments.service, providerFilter)
     if (condition) whereConditions.push(condition)
   }
   if (consumerFilter) {
-    const condition = and(eq(deployments.service, consumerFilter), eq(deployments.type, 'consumer'))
+    const condition = eq(deployments.service, consumerFilter)
     if (condition) whereConditions.push(condition)
   }
   if (environmentFilter && environmentFilter !== 'ALL')
@@ -509,7 +674,6 @@ deploymentsRouter.get('/paginated', async c => {
   const deploymentsQuery = db
     .select({
       id: deployments.id,
-      type: deployments.type,
       tenantId: deployments.tenantId,
       service: deployments.service,
       version: deployments.version,
@@ -522,7 +686,6 @@ deploymentsRouter.get('/paginated', async c => {
       failureDetails: deployments.failureDetails,
       gitSha: deployments.gitSha,
       // Service info
-      serviceType: services.type,
       gitRepositoryUrl: services.gitRepositoryUrl,
       specType: services.specType,
     })
@@ -540,7 +703,6 @@ deploymentsRouter.get('/paginated', async c => {
 
   const results = deploymentsWithService.map(d => ({
     id: d.id,
-    type: d.type as 'provider' | 'consumer',
     tenantId: d.tenantId,
     service: d.service,
     version: d.version,
@@ -552,7 +714,6 @@ deploymentsRouter.get('/paginated', async c => {
     failureReason: d.failureReason || undefined,
     failureDetails: d.failureDetails,
     gitSha: d.gitSha,
-    serviceType: d.serviceType,
     gitRepositoryUrl: d.gitRepositoryUrl,
     specType: d.specType || undefined,
   }))

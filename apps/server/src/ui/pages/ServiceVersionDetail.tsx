@@ -6,30 +6,33 @@ import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VerificationPanel from '../components/VerificationPanel'
 import VersionBadge from '../components/VersionBadge'
+import { useServiceVersion, useServiceVersionByNameAndVersion } from '../hooks/useServices'
 import {
   contractApi,
   deploymentApi,
   interactionApi,
-  serviceVersionApi,
   verificationApi,
 } from '../utils/api'
 import { getSpecViewerButtonText, getSpecViewerRoute } from '../utils/specRouting'
 
 function ServiceVersionDetail() {
-  const { id } = useParams<{ id: string }>()
+  const { id, serviceName, version } = useParams<{ id?: string; serviceName?: string; version?: string }>()
 
+  // Use appropriate hook based on URL pattern
+  const serviceVersionById = useServiceVersion(id || '', { enabled: !!id })
+  const serviceVersionByNameAndVersion = useServiceVersionByNameAndVersion(
+    serviceName || '',
+    version || '',
+    { enabled: !!(serviceName && version) }
+  )
+
+  // Determine which result to use
+  const serviceVersionResult = id ? serviceVersionById : serviceVersionByNameAndVersion
   const {
     data: serviceVersion,
     isLoading: serviceVersionLoading,
     error: serviceVersionError,
-  } = useQuery({
-    queryKey: ['service-version', id],
-    queryFn: () => {
-      if (!id) throw new Error('Service version ID is required')
-      return serviceVersionApi.getById(id)
-    },
-    enabled: !!id,
-  })
+  } = serviceVersionResult
 
   const { data: deployments, isLoading: deploymentsLoading } = useQuery({
     queryKey: ['deployments', serviceVersion?.serviceName],
@@ -40,65 +43,95 @@ function ServiceVersionDetail() {
     enabled: !!serviceVersion,
   })
 
-  const { data: verificationResults, isLoading: verificationLoading } = useQuery({
-    queryKey: ['verification', serviceVersion?.serviceType, serviceVersion?.serviceName],
+  // For verification results, we need to check both provider and consumer results since services can be both
+  const { data: providerVerificationResults, isLoading: providerVerificationLoading } = useQuery({
+    queryKey: ['provider-verification', serviceVersion?.serviceName],
     queryFn: () => {
       if (!serviceVersion) throw new Error('Service version is required')
-      return serviceVersion.serviceType === 'consumer'
-        ? verificationApi.getByConsumer(serviceVersion.serviceName)
-        : verificationApi.getByProvider(serviceVersion.serviceName)
+      return verificationApi.getByProvider(serviceVersion.serviceName)
     },
     enabled: !!serviceVersion,
   })
 
-  // Fetch contracts for this service version
-  const { data: contractsData, isLoading: contractsLoading } = useQuery({
-    queryKey: ['contracts', serviceVersion?.serviceType, serviceVersion?.serviceName],
+  const { data: consumerVerificationResults, isLoading: consumerVerificationLoading } = useQuery({
+    queryKey: ['consumer-verification', serviceVersion?.serviceName],
+    queryFn: () => {
+      if (!serviceVersion) throw new Error('Service version is required')
+      return verificationApi.getByConsumer(serviceVersion.serviceName)
+    },
+    enabled: !!serviceVersion,
+  })
+
+  // Fetch contracts where this service is a provider
+  const { data: providerContractsData, isLoading: providerContractsLoading } = useQuery({
+    queryKey: ['provider-contracts', serviceVersion?.serviceName],
     queryFn: async () => {
       if (!serviceVersion) throw new Error('Service version is required')
-      if (serviceVersion.serviceType === 'consumer') {
-        return contractApi.getAll({ consumer: serviceVersion.serviceName })
-      } else {
-        return contractApi.getByProvider(serviceVersion.serviceName)
-      }
+      return contractApi.getByProvider(serviceVersion.serviceName)
+    },
+    enabled: !!serviceVersion,
+  })
+
+  // Fetch contracts where this service is a consumer
+  const { data: consumerContractsData, isLoading: consumerContractsLoading } = useQuery({
+    queryKey: ['consumer-contracts', serviceVersion?.serviceName],
+    queryFn: async () => {
+      if (!serviceVersion) throw new Error('Service version is required')
+      return contractApi.getAll({ consumer: serviceVersion.serviceName })
     },
     enabled: !!serviceVersion,
   })
 
   // Filter contracts to only show those with matching versions
-  const contracts = contractsData?.results || []
+  const providerContracts = providerContractsData?.results || []
+  const consumerContracts = consumerContractsData?.results || []
 
-  const versionContracts = contracts.filter((contract: Contract) => {
-    if (serviceVersion?.serviceType === 'consumer') {
-      return contract.consumerVersion === serviceVersion?.version
-    } else {
-      return contract.providerVersion === serviceVersion?.version
-    }
+  const versionProviderContracts = providerContracts.filter((contract: Contract) => {
+    return contract.providerVersion === serviceVersion?.version
   })
 
-  // Fetch interactions for this service version
-  const { data: interactions } = useQuery({
-    queryKey: ['interactions', serviceVersion?.serviceType, serviceVersion?.serviceName],
+  const versionConsumerContracts = consumerContracts.filter((contract: Contract) => {
+    return contract.consumerVersion === serviceVersion?.version
+  })
+
+  // Combine all contracts for this version
+  const allVersionContracts = [...versionProviderContracts, ...versionConsumerContracts]
+
+  // Fetch interactions for this service version (both as provider and consumer)
+  const { data: providerInteractions } = useQuery({
+    queryKey: ['provider-interactions', serviceVersion?.serviceName],
     queryFn: () => {
       if (!serviceVersion) throw new Error('Service version is required')
-      return serviceVersion.serviceType === 'consumer'
-        ? interactionApi.getAll({ consumer: serviceVersion.serviceName })
-        : interactionApi.getAll({ provider: serviceVersion.serviceName })
+      return interactionApi.getAll({ provider: serviceVersion.serviceName })
+    },
+    enabled: !!serviceVersion,
+  })
+
+  const { data: consumerInteractions } = useQuery({
+    queryKey: ['consumer-interactions', serviceVersion?.serviceName],
+    queryFn: () => {
+      if (!serviceVersion) throw new Error('Service version is required')
+      return interactionApi.getAll({ consumer: serviceVersion.serviceName })
     },
     enabled: !!serviceVersion,
   })
 
   // Filter interactions to only show those with matching versions
-  const versionInteractions = Array.isArray(interactions)
-    ? interactions.filter(interaction => {
-        if (serviceVersion?.serviceType === 'consumer') {
-          return interaction.consumerVersion === serviceVersion.version
-        } else {
-          // For provider interactions, we might not have providerVersion, so we'll be more lenient
-          return true
-        }
+  const versionProviderInteractions = Array.isArray(providerInteractions)
+    ? providerInteractions.filter(interaction => {
+        // For provider interactions, we might not have providerVersion, so we'll be more lenient
+        return true
       })
     : []
+
+  const versionConsumerInteractions = Array.isArray(consumerInteractions)
+    ? consumerInteractions.filter(interaction => {
+        return interaction.consumerVersion === serviceVersion?.version
+      })
+    : []
+
+  // Combine all interactions for this version
+  const allVersionInteractions = [...versionProviderInteractions, ...versionConsumerInteractions]
 
   // Calculate interaction count for contracts
   const getContractInteractionCount = (contract: Contract): number => {
@@ -106,7 +139,14 @@ function ServiceVersionDetail() {
   }
 
   // Calculate total interactions count
-  const totalInteractions = versionInteractions?.length || 0
+  const totalInteractions = allVersionInteractions?.length || 0
+
+  // Determine if this service has provider or consumer roles
+  const hasProviderRole = versionProviderContracts.length > 0
+  const hasConsumerRole = versionConsumerContracts.length > 0
+  const combinedVerificationResults = [...(providerVerificationResults || []), ...(consumerVerificationResults || [])]
+  const verificationLoading = providerVerificationLoading || consumerVerificationLoading
+  const contractsLoading = providerContractsLoading || consumerContractsLoading
 
   if (serviceVersionLoading) {
     return (
@@ -156,7 +196,7 @@ function ServiceVersionDetail() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link
-          to={`/services/${serviceVersion.serviceType}/${serviceVersion.serviceName}`}
+          to={`/services/${serviceVersion.serviceName}`}
           className="btn btn-ghost btn-sm"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,12 +212,10 @@ function ServiceVersionDetail() {
         <div>
           <h1 className="text-3xl font-bold text-base-content flex items-center gap-3">
             {serviceVersion.serviceName} v{serviceVersion.version}
-            <div
-              className={`badge ${
-                serviceVersion.serviceType === 'consumer' ? 'badge-primary' : 'badge-secondary'
-              }`}
-            >
-              {serviceVersion.serviceType}
+            <div className="flex gap-2">
+              {hasProviderRole && <div className="badge badge-secondary">provider</div>}
+              {hasConsumerRole && <div className="badge badge-primary">consumer</div>}
+              {!hasProviderRole && !hasConsumerRole && <div className="badge badge-neutral">service</div>}
             </div>
           </h1>
           <p className="text-base-content/70 mt-1">Service version details and related data</p>
@@ -199,7 +237,6 @@ function ServiceVersionDetail() {
                   <VersionBadge
                     version={serviceVersion.version}
                     serviceName={serviceVersion.serviceName}
-                    serviceType={serviceVersion.serviceType}
                     serviceVersionId={serviceVersion.id}
                   />
                 </div>
@@ -273,22 +310,20 @@ function ServiceVersionDetail() {
           {/* Verification Results */}
           <VerificationPanel
             title="Verification Results"
-            verificationResults={verificationResults}
+            verificationResults={combinedVerificationResults}
             isLoading={verificationLoading}
             serviceName={serviceVersion.serviceName}
-            serviceType={serviceVersion.serviceType}
-            viewAllUrl={`/verification?${serviceVersion.serviceType}=${serviceVersion.serviceName}`}
+            viewAllUrl={`/verification?service=${serviceVersion.serviceName}`}
           />
 
           {/* Contracts for this Version */}
           <ContractsPanel
-            title={`${serviceVersion.serviceType === 'consumer' ? 'Provider' : 'Consumer'} Contracts (v${serviceVersion.version})`}
-            contracts={versionContracts}
+            title={`Contracts (v${serviceVersion.version})`}
+            contracts={allVersionContracts}
             isLoading={contractsLoading}
             serviceName={serviceVersion.serviceName}
-            serviceType={serviceVersion.serviceType}
             totalInteractions={totalInteractions}
-            viewAllUrl={`/contracts?${serviceVersion.serviceType}=${serviceVersion.serviceName}`}
+            viewAllUrl={`/contracts?service=${serviceVersion.serviceName}`}
             getContractInteractionCount={getContractInteractionCount}
           />
         </div>
@@ -397,7 +432,7 @@ function ServiceVersionDetail() {
               <div className="stats stats-vertical">
                 <div className="stat">
                   <div className="stat-title">Contracts</div>
-                  <div className="stat-value text-lg">{versionContracts?.length || 0}</div>
+                  <div className="stat-value text-lg">{allVersionContracts?.length || 0}</div>
                 </div>
                 <div className="stat">
                   <div className="stat-title">Interactions</div>

@@ -34,7 +34,6 @@ export async function ensureServiceVersion(
       .values({
         tenantId,
         name: serviceName,
-        type: 'consumer', // Default type - can be updated later
         description: `Auto-created service for ${serviceName}`,
         packageJson: metadata?.packageJson || {},
         gitRepositoryUrl: null,

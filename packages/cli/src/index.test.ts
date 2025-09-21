@@ -65,7 +65,6 @@ describe('CLI Core Functions', () => {
         service: 'test-service',
         version: '1.0.0',
         spec: '/path/to/spec.json',
-        environment: 'test',
       })
 
       expect(mockReadFile).toHaveBeenCalledWith('/path/to/spec.json', 'utf-8')
@@ -90,7 +89,6 @@ describe('CLI Core Functions', () => {
           service: 'test-service',
           version: '1.0.0',
           spec: '/invalid/path.json',
-          environment: 'test',
         })
       ).rejects.toThrow('Failed to read spec file')
     })
@@ -112,7 +110,6 @@ describe('CLI Core Functions', () => {
           service: 'test-service',
           version: '1.0.0',
           spec: '/path/to/spec.json',
-          environment: 'test',
         })
       ).rejects.toThrow('Failed to upload spec: Invalid spec')
     })
@@ -236,9 +233,8 @@ describe('CLI Core Functions', () => {
 
       await registerService({
         name: 'test-service',
-        type: 'provider',
         packagePath: './package.json',
-        description: 'Test provider service',
+        description: 'Test service',
       })
 
       expect(mockReadFile).toHaveBeenCalledWith('./package.json', 'utf-8')
@@ -246,7 +242,7 @@ describe('CLI Core Functions', () => {
         'https://test.entente.dev/api/services',
         expect.objectContaining({
           method: 'POST',
-          body: expect.stringContaining('"type":"provider"'),
+          body: expect.stringContaining('"name":"test-service"'),
         })
       )
     })
@@ -257,7 +253,6 @@ describe('CLI Core Functions', () => {
       await expect(
         registerService({
           name: 'test-service',
-          type: 'consumer',
           packagePath: './invalid.json',
         })
       ).rejects.toThrow('Failed to read package.json from ./invalid.json')
@@ -391,7 +386,6 @@ describe('CLI Core Functions', () => {
           service: 'test-service',
           version: '1.0.0',
           spec: '/path/to/spec.json',
-          environment: 'test',
         })
       ).rejects.toThrow('Not authenticated. Please run "entente login" first.')
     })
@@ -411,7 +405,6 @@ describe('CLI Core Functions', () => {
           service: 'test-service',
           version: '1.0.0',
           spec: '/path/to/spec.json',
-          environment: 'test',
         })
       ).rejects.toThrow('Authentication failed. Please run "entente login" to re-authenticate.')
     })

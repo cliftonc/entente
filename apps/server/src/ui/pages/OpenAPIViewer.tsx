@@ -47,9 +47,8 @@ function OpenAPIViewer() {
     }
 
     if (isLatestView && displayVersion) {
-      // For latest view, go back to the service page (provider or consumer)
-      const serviceType = displayVersion.serviceType || 'provider'
-      navigate(`/services/${serviceType}/${serviceName}`)
+      // For latest view, go back to the service page
+      navigate(`/services/${serviceName}`)
     } else if (!isLatestView) {
       // For specific version view, go back to the version detail page
       navigate(`/service-versions/${version}`)

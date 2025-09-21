@@ -2,38 +2,43 @@ import { Link } from 'react-router-dom'
 
 interface VersionBadgeProps {
   version: string
-  serviceName: string
-  serviceType: 'consumer' | 'provider'
+  serviceName?: string
   serviceVersionId?: string
   className?: string
   isClickable?: boolean
+  size?: string
 }
 
 function VersionBadge({
   version,
   serviceName,
-  serviceType,
   serviceVersionId,
   className = '',
   isClickable = true,
+  size = 'md',
 }: VersionBadgeProps) {
   const badgeContent = `v${version}`
 
-  // Apply color coding based on service type - lighter colors with grey border and rounded square look
-  const colorClass =
-    serviceType === 'consumer'
-      ? 'bg-blue-100 text-blue-800 border-gray-300' // lighter blue for consumer
-      : 'bg-green-100 text-green-800 border-gray-300' // lighter green for provider
+  // Apply consistent color coding
+  const colorClass = 'bg-gray-100 text-gray-800 border-gray-300'
 
-  const baseClassName = `px-2 py-1.5 text-xs font-medium border rounded-md whitespace-nowrap inline-block ${colorClass} ${className}`
+  // Size classes
+  const sizeClasses = {
+    xs: 'px-1.5 py-0.5 text-xs',
+    sm: 'px-2 py-1 text-xs',
+    md: 'px-2 py-1.5 text-xs',
+    lg: 'px-3 py-2 text-sm',
+  }
 
-  if (!isClickable || !serviceVersionId) {
+  const baseClassName = `${sizeClasses[size as keyof typeof sizeClasses] || sizeClasses.md} font-medium border rounded-md whitespace-nowrap inline-block ${colorClass} ${className}`
+
+  if (!isClickable || (!serviceVersionId && !serviceName)) {
     return <span className={baseClassName}>{badgeContent}</span>
   }
 
   return (
     <Link
-      to={`/service-versions/${serviceVersionId}`}
+      to={serviceName ? `/services/${serviceName}/versions/${version}` : `/service-versions/${serviceVersionId}`}
       className={`${baseClassName} hover:bg-blue-200 hover:text-blue-900 transition-colors cursor-pointer`}
       title={`View version ${version} details for ${serviceName}`}
     >

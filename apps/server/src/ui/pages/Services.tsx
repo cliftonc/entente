@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import GetStartedButton from '../components/GetStartedButton'
 import TimestampDisplay from '../components/TimestampDisplay'
+import SpecBadge from '../components/SpecBadge'
 import ServicesExample from '../components/get-started-examples/ServicesExample'
 import { useServices } from '../hooks/useServices'
 
 function Services() {
-  const [typeFilter, setTypeFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
 
   const {
@@ -14,11 +14,9 @@ function Services() {
     isLoading,
     error,
     isEmpty,
-  } = useServices({
-    type: typeFilter === 'all' ? undefined : (typeFilter as 'consumer' | 'provider'),
-  })
+  } = useServices()
 
-  // Apply search filter (type filter is already handled by the hook)
+  // Apply search filter
   const filteredServices =
     services?.filter(service => {
       const matchesSearch =
@@ -97,20 +95,6 @@ function Services() {
       <div className="flex gap-4 items-center bg-base-100 p-4 rounded-lg shadow">
         <div className="form-control">
           <label className="label">
-            <span className="label-text">Service Type</span>
-          </label>
-          <select
-            className="select select-bordered"
-            value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value)}
-          >
-            <option value="all">All types</option>
-            <option value="consumer">Consumers</option>
-            <option value="provider">Providers</option>
-          </select>
-        </div>
-        <div className="form-control">
-          <label className="label">
             <span className="label-text">Search</span>
           </label>
           <input
@@ -127,8 +111,8 @@ function Services() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {filteredServices.length === 0 ? (
           <div className="col-span-full text-center text-base-content/70 py-12">
-            {searchTerm || typeFilter !== 'all'
-              ? 'No services match your filters'
+            {searchTerm
+              ? 'No services match your search'
               : isEmpty
                 ? 'No services found'
                 : 'Loading services...'}
@@ -137,19 +121,19 @@ function Services() {
           filteredServices.map(service => (
             <Link
               key={service.name}
-              to={`/services/${service.type}/${service.name}`}
+              to={`/services/${service.name}`}
               className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
             >
               <div className="card-body p-4">
                 <div className="flex items-start justify-between mb-2">
                   <h2 className="card-title text-base">{service.name}</h2>
-                  <div
-                    className={`badge badge-sm ${
-                      service.type === 'consumer' ? 'badge-primary' : 'badge-secondary'
-                    }`}
-                  >
-                    {service.type}
-                  </div>
+                  {service.specType ? (
+                    <SpecBadge specType={service.specType} size="sm" />
+                  ) : (
+                    <div className="badge badge-sm badge-neutral">
+                      service
+                    </div>
+                  )}
                 </div>
 
                 <p className="text-sm text-base-content/80 mb-3 flex-grow">

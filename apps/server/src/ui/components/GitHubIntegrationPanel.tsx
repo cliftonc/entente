@@ -6,14 +6,12 @@ import GitHubWorkflowSelector from './GitHubWorkflowSelector'
 
 interface GitHubIntegrationPanelProps {
   serviceName: string
-  serviceType: 'consumer' | 'provider'
   gitRepositoryUrl?: string
   hasGitHubApp: boolean
 }
 
 function GitHubIntegrationPanel({
   serviceName,
-  serviceType,
   gitRepositoryUrl,
   hasGitHubApp,
 }: GitHubIntegrationPanelProps) {
@@ -22,15 +20,15 @@ function GitHubIntegrationPanel({
 
   // Fetch GitHub configuration for this service
   const { data: config, isLoading: configLoading } = useQuery({
-    queryKey: ['github-config', serviceName, serviceType],
-    queryFn: () => githubApi.getServiceConfig(serviceName, serviceType),
+    queryKey: ['github-config', serviceName],
+    queryFn: () => githubApi.getServiceConfig(serviceName),
     enabled: hasGitHubApp,
   })
 
   // Fetch workflows to get badge URL for the configured workflow
   const { data: workflows } = useQuery({
-    queryKey: ['github-workflows', serviceName, serviceType],
-    queryFn: () => githubApi.getWorkflows(serviceName, serviceType),
+    queryKey: ['github-workflows', serviceName],
+    queryFn: () => githubApi.getWorkflows(serviceName),
     enabled: hasGitHubApp && !!config?.repositoryOwner && !!config?.repositoryName,
   })
 
@@ -39,7 +37,7 @@ function GitHubIntegrationPanel({
 
   // Trigger workflow mutation
   const triggerWorkflowMutation = useMutation({
-    mutationFn: () => githubApi.triggerWorkflow(serviceName, serviceType, { ref: 'main' }),
+    mutationFn: () => githubApi.triggerWorkflow(serviceName, { ref: 'main' }),
     onSuccess: () => {
       // Could show a success toast here
       console.log('Workflow triggered successfully')
@@ -56,9 +54,9 @@ function GitHubIntegrationPanel({
       verifyWorkflowId?: string
       verifyWorkflowName?: string
       verifyWorkflowPath?: string
-    }) => githubApi.updateServiceConfig(serviceName, serviceType, newConfig),
+    }) => githubApi.updateServiceConfig(serviceName, newConfig),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['github-config', serviceName, serviceType] })
+      queryClient.invalidateQueries({ queryKey: ['github-config', serviceName] })
       setIsConfiguring(false)
     },
     onError: error => {
@@ -68,9 +66,9 @@ function GitHubIntegrationPanel({
 
   // Clear configuration mutation
   const clearConfigMutation = useMutation({
-    mutationFn: () => githubApi.clearServiceConfig(serviceName, serviceType),
+    mutationFn: () => githubApi.clearServiceConfig(serviceName),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['github-config', serviceName, serviceType] })
+      queryClient.invalidateQueries({ queryKey: ['github-config', serviceName] })
     },
     onError: error => {
       console.error('Failed to clear GitHub config:', error)
@@ -309,7 +307,6 @@ function GitHubIntegrationPanel({
         {isConfiguring && hasRepository && (
           <GitHubWorkflowSelector
             serviceName={serviceName}
-            serviceType={serviceType}
             repositoryOwner={config.repositoryOwner!}
             repositoryName={config.repositoryName!}
             currentWorkflowId={config?.verifyWorkflowId}

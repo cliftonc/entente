@@ -12,6 +12,7 @@ import {
   canIDeploy,
   deployConsumer,
   deployProvider,
+  deployService,
   getDeploymentStatus,
   listFixtures,
   registerService,
@@ -71,48 +72,28 @@ program
 program
   .command('register-service')
   .description(
-    'Register a service (consumer or provider) with package.json and optionally upload API spec'
+    'Register a service with package.json and optionally upload API spec'
   )
   .requiredOption('-s, --service <service>', 'Service name')
-  .requiredOption('-t, --type <type>', 'Service type: consumer or provider')
-  .requiredOption('-v, --version <version>', 'Provider version')
+  .requiredOption('-v, --version <version>', 'Service version')
   .option('-p, --package <path>', 'Path to package.json', './package.json')
   .option('-d, --description <desc>', 'Service description')
-  .option('--spec <file>', 'Path to API spec file to upload (providers only)')
-  .option(
-    '-e, --environment <environment>',
-    'Environment for spec (required if --spec provided)',
-    'development'
-  )
+  .option('--spec <file>', 'Path to API spec file to upload')
   .option('-b, --branch <branch>', 'Git branch for spec', 'main')
   .action(async options => {
     try {
-      if (!['consumer', 'provider'].includes(options.type)) {
-        throw new Error('Type must be either "consumer" or "provider"')
-      }
-
-      console.log(chalk.blue('📦'), `Registering ${options.type} service ${options.service}...`)
+      console.log(chalk.blue('📦'), `Registering service ${options.service}...`)
       await registerService({
         name: options.service,
-        type: options.type,
         packagePath: options.package,
         description: options.description,
       })
 
-      // If spec provided and it's a provider, upload it
+      // If spec provided, upload it
       if (options.spec) {
-        if (options.type !== 'provider') {
-          console.log(
-            chalk.yellow('⚠️'),
-            'Skipping OpenAPI spec upload - specs can only be uploaded for provider services'
-          )
-          return
-        }
-
         console.log(chalk.blue('📤'), `Uploading API spec for ${options.service}...`)
         await uploadSpec({
           service: options.service,
-          environment: options.environment,
           spec: options.spec,
           branch: options.branch,
           version: options.version,
@@ -127,41 +108,23 @@ program
 // Deployment commands
 program
   .command('deploy-service')
-  .description('Deploy a service (consumer or provider)')
+  .description('Deploy a service')
   .requiredOption('-s, --service <service>', 'Service name')
   .requiredOption('-v, --version <version>', 'Service version')
   .requiredOption('-e, --environment <environment>', 'Target environment')
-  .requiredOption('-t, --type <type>', 'Service type: consumer or provider')
   .option('--deployed-by <user>', 'User who deployed (defaults to $USER)')
   .action(async options => {
     try {
-      if (!['consumer', 'provider'].includes(options.type)) {
-        throw new Error('Type must be either "consumer" or "provider"')
-      }
-
-      if (options.type === 'consumer') {
-        console.log(
-          chalk.blue('🚀'),
-          `Deploying consumer ${options.service}@${options.version} to ${options.environment} ...`
-        )
-        await deployConsumer({
-          name: options.service,
-          version: options.version,
-          environment: options.environment,
-          deployedBy: options.deployedBy,
-        })
-      } else {
-        console.log(
-          chalk.blue('🚀'),
-          `Deploying provider ${options.service}@${options.version} to ${options.environment}...`
-        )
-        await deployProvider({
-          name: options.service,
-          version: options.version,
-          environment: options.environment,
-          deployedBy: options.deployedBy,
-        })
-      }
+      console.log(
+        chalk.blue('🚀'),
+        `Deploying service ${options.service}@${options.version} to ${options.environment}...`
+      )
+      await deployService({
+        name: options.service,
+        version: options.version,
+        environment: options.environment,
+        deployedBy: options.deployedBy,
+      })
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
       process.exit(1)
@@ -172,23 +135,21 @@ program
 program
   .command('upload-spec')
   .description(
-    'Upload API specification (OpenAPI, GraphQL, AsyncAPI) to central service (auto-registers provider if needed)'
+    'Upload API specification (OpenAPI, GraphQL, AsyncAPI) to central service (auto-registers service if needed)'
   )
   .requiredOption('-s, --service <service>', 'Service name')
   .requiredOption('-v, --version <version>', 'Service version')
-  .requiredOption('-e, --environment <environment>', 'Target environment')
   .requiredOption('--spec <file>', 'Path to API spec file (JSON, GraphQL, etc.)')
   .option('-b, --branch <branch>', 'Git branch', 'main')
   .action(async options => {
     try {
       console.log(
         chalk.blue('📤'),
-        `Uploading API spec for ${options.service}@${options.version} to ${options.environment}...`
+        `Uploading API spec for ${options.service}@${options.version}...`
       )
       await uploadSpec({
         service: options.service,
         version: options.version,
-        environment: options.environment,
         spec: options.spec,
         branch: options.branch,
       })
@@ -278,7 +239,6 @@ program
         service: service,
         version: version,
         environment: options.environment,
-        type: options.type,
       })
 
       if (result.canDeploy) {
@@ -289,15 +249,14 @@ program
         console.log('')
 
         if (result.compatibleServices && result.compatibleServices.length > 0) {
-          const serviceType = result.serviceType || 'service'
-          console.log(`Compatible services (${serviceType}):`)
+          console.log('Compatible services:')
           for (const compatibleService of result.compatibleServices) {
             const status = compatibleService.verified ? chalk.green('✅') : chalk.yellow('⚠️')
-            const typeLabel = compatibleService.type ? `[${compatibleService.type}]` : ''
+            const roleLabel = compatibleService.role ? `[${compatibleService.role}]` : ''
             const deployedLabel =
               compatibleService.activelyDeployed === false ? ' (not deployed)' : ''
             console.log(
-              `  - ${compatibleService.service} v${compatibleService.version} ${status} (${compatibleService.interactionCount} interactions) ${typeLabel}${deployedLabel}`
+              `  - ${compatibleService.service} v${compatibleService.version} ${status} (${compatibleService.interactionCount} interactions) ${roleLabel}${deployedLabel}`
             )
           }
         }
@@ -311,9 +270,7 @@ program
         )
         console.log('')
         console.log(chalk.red(result.message))
-        if (result.serviceType) {
-          console.log(chalk.gray(`Service type: ${result.serviceType}`))
-        }
+        // Service type information is no longer available
         console.log('')
         console.log(chalk.gray('📝 Failed deployment attempt has been recorded for analysis'))
         process.exit(1)

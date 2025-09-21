@@ -193,7 +193,6 @@ function ContractDetail() {
               <VersionBadge
                 version={contract.consumerVersion}
                 serviceName={contract.consumerName}
-                serviceType="consumer"
               />
             </div>
 
@@ -216,7 +215,6 @@ function ContractDetail() {
               <VersionBadge
                 version={contract.providerVersion}
                 serviceName={contract.providerName}
-                serviceType="provider"
               />
             </div>
 
@@ -381,14 +379,12 @@ function ContractDetail() {
                               <VersionBadge
                                 version={task.providerVersion}
                                 serviceName={contract.providerName}
-                                serviceType="provider"
                               />
                             </td>
                             <td>
                               <VersionBadge
                                 version={task.consumerVersion}
                                 serviceName={contract.consumerName}
-                                serviceType="consumer"
                               />
                             </td>
                             <td>
@@ -445,14 +441,12 @@ function ContractDetail() {
                               <VersionBadge
                                 version={result.providerVersion}
                                 serviceName={contract.providerName}
-                                serviceType="provider"
                               />
                             </td>
                             <td>
                               <VersionBadge
                                 version={result.consumerVersion || 'N/A'}
                                 serviceName={contract.consumerName}
-                                serviceType="consumer"
                               />
                             </td>
                             <td>

@@ -346,7 +346,6 @@ function Contracts() {
                         <VersionBadge
                           version={contract.consumerVersion}
                           serviceName={contract.consumerName}
-                          serviceType="consumer"
                         />
                       </td>
                       <td>
@@ -361,7 +360,6 @@ function Contracts() {
                         <VersionBadge
                           version={contract.providerVersion || 'latest'}
                           serviceName={contract.providerName}
-                          serviceType="provider"
                         />
                       </td>
                       <td>

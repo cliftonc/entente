@@ -18,9 +18,11 @@ import type {
   Service,
   ServiceDependency,
   ServiceVersion,
+  SpecType,
   TeamMember,
   TenantSettings,
   TenantSettingsUpdate,
+  VerificationResult,
   VerificationResults,
   VerificationTask,
 } from '@entente/types'
@@ -86,37 +88,35 @@ async function fetchAuth<T>(endpoint: string, options?: RequestInit): Promise<T>
 export const serviceApi = {
   getAll: (type?: 'consumer' | 'provider') =>
     fetchApi<Service[]>(`/services${type ? `?type=${type}` : ''}`),
-  getOne: (name: string, type: 'consumer' | 'provider') =>
-    fetchApi<Service>(`/services/${name}/${type}`),
+  getOne: (name: string) =>
+    fetchApi<Service>(`/services/${name}`),
   create: (service: {
     name: string
-    type: 'consumer' | 'provider'
     description?: string
     packageJson: Record<string, unknown>
   }) => fetchApi<Service>('/services', { method: 'POST', body: JSON.stringify(service) }),
   update: (
     name: string,
-    type: 'consumer' | 'provider',
     updates: { description?: string; packageJson?: Record<string, unknown> }
   ) =>
-    fetchApi<Service>(`/services/${name}/${type}`, {
+    fetchApi<Service>(`/services/${name}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     }),
-  delete: (name: string, type: 'consumer' | 'provider') =>
-    fetchApi<{ success: boolean }>(`/services/${name}/${type}`, { method: 'DELETE' }),
+  delete: (name: string) =>
+    fetchApi<{ success: boolean }>(`/services/${name}`, { method: 'DELETE' }),
 }
 
 // Consumer API functions (legacy - now wraps services API)
 export const consumerApi = {
   getAll: () => serviceApi.getAll('consumer'),
-  getOne: (name: string) => serviceApi.getOne(name, 'consumer'),
+  getOne: (name: string) => serviceApi.getOne(name),
 }
 
 // Provider API functions (legacy - now wraps services API)
 export const providerApi = {
   getAll: () => serviceApi.getAll('provider'),
-  getOne: (name: string) => serviceApi.getOne(name, 'provider'),
+  getOne: (name: string) => serviceApi.getOne(name),
 }
 
 // Interaction API functions
@@ -332,6 +332,21 @@ export const verificationApi = {
       }>
     >(`/verification/recent${queryString}`)
   },
+  getLatest: (detail?: boolean) =>
+    fetchApi<{
+      id: string
+      provider: string
+      consumer: string
+      contractId: string
+      status: 'passed' | 'failed' | 'partial'
+      submittedAt: string
+      providerVersion: string | null
+      consumerVersion: string | null
+      total: number
+      passed: number
+      failed: number
+      interactions?: VerificationResult[]
+    }[]>(`/verification/latest${detail ? '?detail=true' : ''}`),
 }
 
 // Spec API functions
@@ -387,6 +402,48 @@ export const statsApi = {
         passRate?: number
       }>
     }>('/stats/dashboard'),
+}
+
+// System View API functions
+export const systemViewApi = {
+  getData: (filters?: {
+    environment?: string
+    serviceType?: 'consumer' | 'provider' | 'all'
+    status?: 'active' | 'archived' | 'deprecated' | 'all'
+  }) => {
+    const params = new URLSearchParams()
+    if (filters?.environment) params.set('environment', filters.environment)
+    if (filters?.serviceType) params.set('serviceType', filters.serviceType)
+    if (filters?.status) params.set('status', filters.status)
+    const queryString = params.toString()
+    return fetchApi<{
+      services: Array<{
+        id: string
+        name: string
+        type: 'consumer' | 'provider'
+        specType: SpecType
+        description?: string
+        deployedVersion?: string
+      }>
+      contracts: Array<{
+        id: string
+        providerName: string
+        consumerName: string
+        environment: string
+        status: 'active' | 'archived' | 'deprecated'
+        verificationStatus?: 'passed' | 'failed' | 'partial' | null
+        interactionCount: number
+        specType: SpecType
+      }>
+      operations: Record<string, Array<{
+        id: string
+        method: string
+        path: string
+        count: number
+        lastUsed: Date
+      }>>
+    }>(`/system-view${queryString ? `?${queryString}` : ''}`)
+  }
 }
 
 // Contracts API functions
@@ -529,40 +586,35 @@ export const api = {
 export const githubApi = {
   // Get GitHub configuration for a service
   getServiceConfig: (
-    serviceName: string,
-    serviceType: 'consumer' | 'provider'
+    serviceName: string
   ): Promise<GitHubServiceConfig> =>
-    fetchApi(`/services/${serviceName}/${serviceType}/github/config`),
+    fetchApi(`/services/${serviceName}/github/config`),
 
   // Update GitHub configuration for a service
   updateServiceConfig: (
     serviceName: string,
-    serviceType: 'consumer' | 'provider',
     config: GitHubServiceConfigRequest
   ): Promise<GitHubServiceConfig> =>
-    api.put(`/services/${serviceName}/${serviceType}/github/config`, config),
+    api.put(`/services/${serviceName}/github/config`, config),
 
   // Clear GitHub configuration for a service
   clearServiceConfig: (
-    serviceName: string,
-    serviceType: 'consumer' | 'provider'
+    serviceName: string
   ): Promise<{ message: string }> =>
-    api.delete(`/services/${serviceName}/${serviceType}/github/config`),
+    api.delete(`/services/${serviceName}/github/config`),
 
   // Get available workflows for a service's GitHub repository
   getWorkflows: (
-    serviceName: string,
-    serviceType: 'consumer' | 'provider'
+    serviceName: string
   ): Promise<GitHubWorkflow[]> =>
-    fetchApi(`/services/${serviceName}/${serviceType}/github/workflows`),
+    fetchApi(`/services/${serviceName}/github/workflows`),
 
   // Trigger verification workflow for a service
   triggerWorkflow: (
     serviceName: string,
-    serviceType: 'consumer' | 'provider',
     request: GitHubTriggerWorkflowRequest
   ): Promise<{ message: string }> =>
-    api.post(`/services/${serviceName}/${serviceType}/github/trigger-workflow`, request),
+    api.post(`/services/${serviceName}/github/trigger-workflow`, request),
 }
 
 // GitHub Integration Settings API functions
@@ -645,4 +697,7 @@ export const serviceVersionApi = {
 
   getById: (serviceVersionId: string): Promise<ServiceVersion> =>
     fetchApi<ServiceVersion>(`/service-versions/${serviceVersionId}`),
+
+  getByServiceAndVersion: (serviceName: string, version: string): Promise<ServiceVersion> =>
+    fetchApi<ServiceVersion>(`/services/${serviceName}/versions/${version}`),
 }

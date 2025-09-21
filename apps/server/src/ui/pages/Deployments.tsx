@@ -193,7 +193,6 @@ function Deployments() {
       ? displayedDeployments
       : activeDeployments?.filter(deployment => {
           if (providerFilter && deployment.service !== providerFilter) return false
-          if (consumerFilter && deployment.consumer !== consumerFilter) return false
           if (statusFilter === 'active' && !deployment.active) return false
           if (statusFilter === 'inactive' && deployment.active) return false
           if (
@@ -523,7 +522,7 @@ function Deployments() {
                       <td>
                         <div className="flex items-center gap-2">
                           <Link
-                            to={`/services/${deployment.serviceType}/${deployment.service}`}
+                            to={`/services/${deployment.service}`}
                             className="font-medium hover:underline text-primary"
                           >
                             {deployment.service}
@@ -553,7 +552,6 @@ function Deployments() {
                         <VersionBadge
                           version={deployment.version}
                           serviceName={deployment.service}
-                          serviceType={deployment.type as 'consumer' | 'provider'}
                         />
                       </td>
                       <td>

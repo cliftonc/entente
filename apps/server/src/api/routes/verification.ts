@@ -57,7 +57,6 @@ verificationRouter.get('/result/:id', async c => {
       services,
       and(
         eq(services.name, verificationResults.provider),
-        eq(services.type, 'provider'),
         eq(services.tenantId, tenantId)
       )
     )
@@ -153,7 +152,6 @@ verificationRouter.get('/pending', async c => {
       services,
       and(
         eq(services.name, verificationTasks.provider),
-        eq(services.type, 'provider'),
         eq(services.tenantId, tenantId)
       )
     )
@@ -273,7 +271,6 @@ verificationRouter.get('/', async c => {
       services,
       and(
         eq(services.name, verificationResults.provider),
-        eq(services.type, 'provider'),
         eq(services.tenantId, tenantId)
       )
     )
@@ -415,6 +412,181 @@ verificationRouter.get('/recent', async c => {
   return c.json(formattedResults)
 })
 
+// Get latest verification status for each contract (optimized for System View)
+verificationRouter.get('/latest', async c => {
+  const db = c.get('db')
+  const { tenantId } = c.get('session')
+  const detail = c.req.query('detail')
+
+  // Get latest verification results per contract
+  const latestResults = await db
+    .select({
+      id: verificationResults.id,
+      provider: verificationResults.provider,
+      consumer: verificationResults.consumer,
+      providerVersion: verificationResults.providerVersion,
+      consumerVersion: verificationResults.consumerVersion,
+      taskConsumer: verificationTasks.consumer,
+      taskConsumerVersion: verificationTasks.consumerVersion,
+      contractId: verificationTasks.contractId,
+      submittedAt: verificationResults.submittedAt,
+      results: verificationResults.results,
+    })
+    .from(verificationResults)
+    .leftJoin(verificationTasks, eq(verificationResults.taskId, verificationTasks.id))
+    .where(eq(verificationResults.tenantId, tenantId))
+    .orderBy(desc(verificationResults.submittedAt))
+
+  // Get pending verification tasks (tasks without results)
+  const pendingTasks = await db
+    .select({
+      id: verificationTasks.id,
+      provider: verificationTasks.provider,
+      consumer: verificationTasks.consumer,
+      providerVersion: verificationTasks.providerVersion,
+      consumerVersion: verificationTasks.consumerVersion,
+      contractId: verificationTasks.contractId,
+      createdAt: verificationTasks.createdAt,
+      interactions: verificationTasks.interactions,
+    })
+    .from(verificationTasks)
+    .leftJoin(verificationResults, eq(verificationResults.taskId, verificationTasks.id))
+    .where(
+      and(
+        eq(verificationTasks.tenantId, tenantId),
+        isNull(verificationResults.id) // Only tasks without results
+      )
+    )
+    .orderBy(desc(verificationTasks.createdAt))
+
+  debugLog(`Found ${latestResults.length} verification results and ${pendingTasks.length} pending tasks for tenant ${tenantId}`)
+
+  // Process results to get latest status per contract (provider-consumer-contractId combination)
+  const latestByContract = new Map<string, any>()
+
+  // Process completed verification results first
+  for (const result of latestResults) {
+    const consumer = result.consumer || result.taskConsumer
+    const consumerVersion = result.consumerVersion || result.taskConsumerVersion
+
+    if (!consumer || !result.provider) {
+      continue
+    }
+
+    // Use contractId if available, otherwise fall back to provider-consumer pair
+    const contractId = result.contractId || 'unknown'
+    const contractKey = `${result.provider}-${consumer}-${contractId}`
+
+    if (latestByContract.has(contractKey)) {
+      continue // Already have newer result for this contract
+    }
+
+    const resultData = result.results as VerificationResult[]
+    const total = resultData.length
+    const passed = resultData.filter(r => r.success).length
+    const failed = total - passed
+
+    let status: 'passed' | 'failed' | 'partial'
+    if (passed === total) {
+      status = 'passed'
+    } else if (passed > 0) {
+      status = 'partial'
+    } else {
+      status = 'failed'
+    }
+
+    const latestVerification: any = {
+      id: contractKey, // Use contract key as edge ID for System View matching
+      provider: result.provider,
+      consumer: consumer,
+      contractId: contractId,
+      status,
+      submittedAt: result.submittedAt.toISOString(),
+      providerVersion: result.providerVersion,
+      consumerVersion: consumerVersion,
+      total,
+      passed,
+      failed,
+    }
+
+    // Add detailed interaction results if requested
+    if (detail === 'true') {
+      latestVerification.interactions = resultData
+    }
+
+    latestByContract.set(contractKey, latestVerification)
+  }
+
+  // Process pending tasks for contracts that don't have completed results
+  for (const task of pendingTasks) {
+    if (!task.consumer || !task.provider) {
+      continue
+    }
+
+    const contractId = task.contractId || 'unknown'
+    const contractKey = `${task.provider}-${task.consumer}-${contractId}`
+
+    // Only add pending if we don't already have a completed result for this contract
+    if (latestByContract.has(contractKey)) {
+      continue
+    }
+
+    const interactions = task.interactions as any[]
+    const total = interactions?.length || 0
+
+    const pendingVerification: any = {
+      id: contractKey, // Use contract key as edge ID for System View matching
+      provider: task.provider,
+      consumer: task.consumer,
+      contractId: contractId,
+      status: 'pending',
+      submittedAt: task.createdAt.toISOString(),
+      providerVersion: task.providerVersion,
+      consumerVersion: task.consumerVersion,
+      total,
+      passed: 0,
+      failed: 0,
+    }
+
+    // Add detailed interaction results if requested
+    if (detail === 'true') {
+      pendingVerification.interactions = interactions
+    }
+
+    latestByContract.set(contractKey, pendingVerification)
+  }
+
+  const finalResults = Array.from(latestByContract.values())
+  debugLog(`Returning ${finalResults.length} latest verification results (including pending)`)
+
+  // Return debug info in development
+  if (detail === 'debug') {
+    return c.json({
+      debug: {
+        totalResults: latestResults.length,
+        pendingTasks: pendingTasks.length,
+        processedResults: finalResults.length,
+        rawResults: latestResults.slice(0, 3).map(r => ({
+          provider: r.provider,
+          consumer: r.consumer,
+          taskConsumer: r.taskConsumer,
+          contractId: r.contractId,
+          submittedAt: r.submittedAt
+        })),
+        rawPending: pendingTasks.slice(0, 3).map(t => ({
+          provider: t.provider,
+          consumer: t.consumer,
+          contractId: t.contractId,
+          createdAt: t.createdAt
+        }))
+      },
+      results: finalResults
+    })
+  }
+
+  return c.json(finalResults)
+})
+
 // Get verification tasks for a provider
 verificationRouter.get('/:provider', async c => {
   const provider = c.req.param('provider')
@@ -500,8 +672,7 @@ verificationRouter.post('/:provider', async c => {
   const consumer = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
-      eq(services.name, task.consumer),
-      eq(services.type, 'consumer')
+      eq(services.name, task.consumer)
     ),
   })
 
@@ -513,8 +684,7 @@ verificationRouter.post('/:provider', async c => {
   const providerService = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
-      eq(services.name, provider),
-      eq(services.type, 'provider')
+      eq(services.name, provider)
     ),
   })
 
@@ -622,7 +792,6 @@ verificationRouter.get('/:provider/history', async c => {
       services,
       and(
         eq(services.name, provider),
-        eq(services.type, 'provider'),
         eq(services.tenantId, tenantId)
       )
     )
@@ -659,6 +828,7 @@ verificationRouter.get('/:provider/history', async c => {
 
   return c.json(history)
 })
+
 
 // Get verification statistics
 verificationRouter.get('/:provider/stats', async c => {
@@ -847,7 +1017,6 @@ verificationRouter.get('/consumer/:consumer/history', async c => {
       services,
       and(
         eq(services.name, verificationResults.provider),
-        eq(services.type, 'provider'),
         eq(services.tenantId, tenantId)
       )
     )

@@ -4,7 +4,6 @@ import { githubApi } from '../utils/api'
 
 interface GitHubWorkflowSelectorProps {
   serviceName: string
-  serviceType: 'consumer' | 'provider'
   repositoryOwner: string
   repositoryName: string
   currentWorkflowId?: string
@@ -15,7 +14,6 @@ interface GitHubWorkflowSelectorProps {
 
 function GitHubWorkflowSelector({
   serviceName,
-  serviceType,
   repositoryOwner,
   repositoryName,
   currentWorkflowId,
@@ -29,8 +27,8 @@ function GitHubWorkflowSelector({
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['github-workflows', serviceName, serviceType],
-    queryFn: () => githubApi.getWorkflows(serviceName, serviceType),
+    queryKey: ['github-workflows', serviceName],
+    queryFn: () => githubApi.getWorkflows(serviceName),
   })
 
   return (

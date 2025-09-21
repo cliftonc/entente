@@ -7,20 +7,18 @@ import { serviceApi, serviceVersionApi } from '../utils/api'
 
 function ServiceVersions() {
   const { serviceName } = useParams<{ serviceName: string }>()
-  const [searchParams] = useSearchParams()
-  const serviceType = searchParams.get('type') as 'consumer' | 'provider' | null
 
   const {
     data: service,
     isLoading: serviceLoading,
     error: serviceError,
   } = useQuery({
-    queryKey: ['service', serviceName, serviceType],
+    queryKey: ['service', serviceName],
     queryFn: () => {
-      if (!serviceName || !serviceType) throw new Error('Service name and type are required')
-      return serviceApi.getOne(serviceName, serviceType)
+      if (!serviceName) throw new Error('Service name is required')
+      return serviceApi.getOne(serviceName)
     },
-    enabled: !!serviceName && !!serviceType,
+    enabled: !!serviceName,
   })
 
   const {
@@ -64,7 +62,7 @@ function ServiceVersions() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link to={`/services/${serviceType}/${serviceName}`} className="btn btn-ghost btn-sm">
+        <Link to={`/services/${serviceName}`} className="btn btn-ghost btn-sm">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
@@ -78,12 +76,8 @@ function ServiceVersions() {
         <div>
           <h1 className="text-3xl font-bold text-base-content flex items-center gap-3">
             {serviceName} Versions
-            <div
-              className={`badge ${
-                serviceType === 'consumer' ? 'badge-primary' : 'badge-secondary'
-              }`}
-            >
-              {serviceType}
+            <div className="badge badge-neutral">
+              service
             </div>
           </h1>
           <p className="text-base-content/70 mt-1">All versions for this service</p>
@@ -119,7 +113,6 @@ function ServiceVersions() {
                         <VersionBadge
                           version={version.version}
                           serviceName={version.serviceName}
-                          serviceType={version.serviceType}
                           serviceVersionId={version.id}
                         />
                       </td>
@@ -214,16 +207,6 @@ function ServiceVersions() {
             <div className="space-y-2">
               <div>
                 <span className="font-medium">Name:</span> {service.name}
-              </div>
-              <div>
-                <span className="font-medium">Type:</span>{' '}
-                <span
-                  className={`badge badge-sm ${
-                    service.type === 'consumer' ? 'badge-primary' : 'badge-secondary'
-                  }`}
-                >
-                  {service.type}
-                </span>
               </div>
               <div>
                 <span className="font-medium">Description:</span>{' '}

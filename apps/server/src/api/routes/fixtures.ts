@@ -39,8 +39,7 @@ fixturesRouter.post('/', async c => {
   const service = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
-      eq(services.name, proposal.service),
-      eq(services.type, 'provider')
+      eq(services.name, proposal.service)
     ),
   })
 
@@ -816,8 +815,7 @@ fixturesRouter.post('/batch', async c => {
       const service = await db.query.services.findFirst({
         where: and(
           eq(services.tenantId, tenantId),
-          eq(services.name, proposal.service),
-          eq(services.type, 'provider')
+          eq(services.name, proposal.service)
         ),
       })
 

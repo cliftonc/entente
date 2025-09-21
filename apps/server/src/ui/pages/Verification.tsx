@@ -410,7 +410,6 @@ function Verification() {
                         <VersionBadge
                           version={task.providerVersion}
                           serviceName={task.provider}
-                          serviceType="provider"
                         />
                       </td>
                       <td>
@@ -425,7 +424,6 @@ function Verification() {
                         <VersionBadge
                           version={task.consumerVersion}
                           serviceName={task.consumer}
-                          serviceType="consumer"
                         />
                       </td>
                       <td>
@@ -508,7 +506,6 @@ function Verification() {
                         <VersionBadge
                           version={result.providerVersion || result.version || '1.0.0'}
                           serviceName={result.provider || result.provider}
-                          serviceType="provider"
                         />
                       </td>
                       <td>
@@ -528,7 +525,6 @@ function Verification() {
                           <VersionBadge
                             version={result.consumerVersion || 'N/A'}
                             serviceName={result.consumer || result.consumer}
-                            serviceType="consumer"
                           />
                         ) : (
                           <span className="text-sm text-base-content/50">N/A</span>

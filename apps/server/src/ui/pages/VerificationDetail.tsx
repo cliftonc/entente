@@ -150,7 +150,6 @@ function VerificationDetail() {
             <VersionBadge
               version={verification.providerVersion}
               serviceName={verification.provider}
-              serviceType="provider"
             />
           </li>
         </ul>
@@ -176,7 +175,6 @@ function VerificationDetail() {
                 <VersionBadge
                   version={verification.providerVersion}
                   serviceName={verification.provider}
-                  serviceType="provider"
                 />
               </div>
               <div>
@@ -198,7 +196,6 @@ function VerificationDetail() {
                   <VersionBadge
                     version={verification.consumerVersion || 'N/A'}
                     serviceName={verification.consumer}
-                    serviceType="consumer"
                   />
                 ) : (
                   <span>N/A</span>

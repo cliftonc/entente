@@ -16,7 +16,6 @@ export const specs = pgTable(
     service: varchar('service', { length: 255 }).notNull(), // Keep for backward compatibility
     version: varchar('version', { length: 100 }).notNull(),
     branch: varchar('branch', { length: 255 }).notNull(),
-    environment: varchar('environment', { length: 100 }).notNull(),
 
     // NEW: Support for different specification types
     specType: specTypeEnum('spec_type').notNull().default('openapi'), // enum spec type

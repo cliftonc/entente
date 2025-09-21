@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import { githubAppInstallations, tenantUsers, tenants, users } from '../../db/schema'
@@ -1372,6 +1372,39 @@ authRouter.get('/invite/accept', async c => {
       </body>
     </html>
   `)
+})
+
+// Demo login endpoint - allows login as demo@entente.dev without GitHub OAuth
+authRouter.get('/demo', async c => {
+  const db = c.get('db')
+
+  try {
+    // Find demo user by hardcoded email (demo users have negative GitHub IDs)
+    const demoUser = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.email, 'demo@entente.dev'), sql`${users.githubId} < 0`))
+      .limit(1)
+
+    if (demoUser.length === 0) {
+      return c.json({ error: 'Demo user not found' }, 404)
+    }
+
+    const user = demoUser[0]
+
+    // Create session for demo user
+    const sessionId = await createSession(db, user.id)
+
+    // Set session cookie
+    const sessionCookieString = createSessionCookie(sessionId)
+    c.header('Set-Cookie', sessionCookieString)
+
+    // Redirect to dashboard
+    return c.redirect('/')
+  } catch (error) {
+    console.error('Demo login error:', error)
+    return c.json({ error: 'Demo login failed' }, 500)
+  }
 })
 
 export { authRouter }

@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 interface TimestampDisplayProps {
   timestamp: string | Date
   className?: string
+  relative?: boolean
 }
 
 function formatRelativeTime(date: Date): string {
@@ -40,7 +41,7 @@ function formatRelativeTime(date: Date): string {
   })
 }
 
-function TimestampDisplay({ timestamp, className = '' }: TimestampDisplayProps) {
+function TimestampDisplay({ timestamp, className = '', relative = true }: TimestampDisplayProps) {
   const date = useMemo(() => {
     if (!timestamp) return null
     const parsedDate = timestamp instanceof Date ? timestamp : new Date(timestamp)
@@ -49,8 +50,19 @@ function TimestampDisplay({ timestamp, className = '' }: TimestampDisplayProps) 
 
   const formattedTime = useMemo(() => {
     if (!date) return 'N/A'
-    return formatRelativeTime(date)
-  }, [date])
+    if (relative) {
+      return formatRelativeTime(date)
+    } else {
+      return date.toLocaleString('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
+    }
+  }, [date, relative])
 
   const fullTimestamp = useMemo(() => {
     if (!date) return 'Invalid Date'

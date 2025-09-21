@@ -74,7 +74,6 @@ export class NotificationService {
       service: string
       version: string
       environment: string
-      type: 'consumer' | 'provider'
       status: string
       deployedAt: Date
       deployedBy: string

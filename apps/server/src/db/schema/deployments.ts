@@ -8,7 +8,6 @@ export const deployments = pgTable('deployments', {
   tenantId: uuid('tenant_id')
     .references(() => tenants.id)
     .notNull(),
-  type: varchar('type', { length: 50 }).notNull(), // 'provider' | 'consumer'
   serviceId: uuid('service_id').references(() => services.id), // Unified reference to services
   service: varchar('service', { length: 255 }).notNull(), // Keep for backward compatibility
   version: varchar('version', { length: 100 }).notNull(),

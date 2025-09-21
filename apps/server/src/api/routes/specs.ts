@@ -38,8 +38,7 @@ specsRouter.post('/:service', async c => {
   const provider = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
-      eq(services.name, metadata.service),
-      eq(services.type, 'provider')
+      eq(services.name, metadata.service)
     ),
   })
 
@@ -73,7 +72,6 @@ specsRouter.post('/:service', async c => {
       eq(specs.tenantId, tenantId),
       eq(specs.providerId, provider.id),
       eq(specs.version, metadata.version),
-      eq(specs.environment, metadata.environment),
       eq(specs.branch, metadata.branch)
     ),
   })
@@ -95,7 +93,7 @@ specsRouter.post('/:service', async c => {
       .returning()
 
     resultSpec = updated
-    debugLog(`📋 Updated spec for ${service}@${metadata.version} (${metadata.environment})`)
+    debugLog(`📋 Updated spec for ${service}@${metadata.version}`)
   } else {
     // Create new spec
     const [created] = await db
@@ -106,7 +104,6 @@ specsRouter.post('/:service', async c => {
         service: metadata.service,
         version: metadata.version,
         branch: metadata.branch,
-        environment: metadata.environment,
         specType: detectedSpecType, // Include the detected spec type
         spec,
         uploadedBy: metadata.uploadedBy,
@@ -115,7 +112,7 @@ specsRouter.post('/:service', async c => {
 
     resultSpec = created
     isNew = true
-    debugLog(`📋 Uploaded new spec for ${service}@${metadata.version} (${metadata.environment})`)
+    debugLog(`📋 Uploaded new spec for ${service}@${metadata.version}`)
   }
 
   // Update service specType if it's different from detected type
@@ -139,7 +136,6 @@ specsRouter.post('/:service', async c => {
       service: resultSpec.service,
       version: resultSpec.version,
       branch: resultSpec.branch,
-      environment: resultSpec.environment,
       uploadedAt: resultSpec.uploadedAt,
       isNew,
     },
@@ -203,7 +199,6 @@ specsRouter.get('/:service', async c => {
     service: spec.service,
     version: spec.version,
     branch: spec.branch,
-    environment: spec.environment,
     uploadedAt: spec.uploadedAt,
   }
 
@@ -231,7 +226,6 @@ specsRouter.get('/:service/versions', async c => {
     columns: {
       version: true,
       branch: true,
-      environment: true,
       uploadedAt: true,
     },
     orderBy: desc(specs.uploadedAt),
@@ -310,7 +304,6 @@ specsRouter.get('/:service/by-provider-version', async c => {
     where: and(
       eq(deployments.tenantId, tenantId),
       eq(deployments.service, service),
-      eq(deployments.type, 'provider'),
       eq(deployments.version, selectedVersion.version),
       eq(deployments.environment, environment),
       eq(deployments.active, true)

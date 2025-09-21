@@ -68,21 +68,20 @@ export function useProviders(options?: HookConfig): ListHookState<Service> {
 }
 
 /**
- * Hook to get a single service by name and type
+ * Hook to get a single service by name
  */
 export function useService(
   name: string,
-  type: 'consumer' | 'provider',
   options?: HookConfig
 ): HookState<Service> {
   const mergedOptions = mergeHookConfig(options)
 
   const query = useQuery({
-    queryKey: queryKeys.services.detail(name, type),
-    queryFn: () => serviceApi.getOne(name, type),
+    queryKey: queryKeys.services.detail(name),
+    queryFn: () => serviceApi.getOne(name),
     ...defaultQueryOptions,
     ...mergedOptions,
-    enabled: !!name && !!type,
+    enabled: !!name,
   })
 
   return {
@@ -131,7 +130,7 @@ export function useServiceVersions(
 }
 
 /**
- * Hook to get a specific service version
+ * Hook to get a specific service version by ID
  */
 export function useServiceVersion(id: string, options?: HookConfig): HookState<ServiceVersion> {
   const mergedOptions = mergeHookConfig(options)
@@ -142,6 +141,35 @@ export function useServiceVersion(id: string, options?: HookConfig): HookState<S
     ...defaultQueryOptions,
     ...mergedOptions,
     enabled: !!id,
+  })
+
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error as ApiError | null,
+    isFetching: query.isFetching,
+    isSuccess: query.isSuccess,
+    refetch: query.refetch,
+  }
+}
+
+/**
+ * Hook to get a specific service version by service name and version
+ */
+export function useServiceVersionByNameAndVersion(
+  serviceName: string,
+  version: string,
+  options?: HookConfig
+): HookState<ServiceVersion> {
+  const mergedOptions = mergeHookConfig(options)
+
+  const query = useQuery({
+    queryKey: queryKeys.serviceVersions.detailByServiceAndVersion(serviceName, version),
+    queryFn: () => serviceVersionApi.getByServiceAndVersion(serviceName, version),
+    ...defaultQueryOptions,
+    ...mergedOptions,
+    enabled: !!(serviceName && version),
   })
 
   return {
@@ -168,10 +196,10 @@ export function usePrefetchService() {
   const queryClient = useQueryClient()
 
   const prefetchService = useCallback(
-    (name: string, type: 'consumer' | 'provider') => {
+    (name: string) => {
       queryClient.prefetchQuery({
-        queryKey: queryKeys.services.detail(name, type),
-        queryFn: () => serviceApi.getOne(name, type),
+        queryKey: queryKeys.services.detail(name),
+        queryFn: () => serviceApi.getOne(name),
         staleTime: defaultQueryOptions.staleTime,
       })
     },
@@ -206,8 +234,8 @@ export function useInvalidateServices() {
   }, [queryClient])
 
   const invalidateService = useCallback(
-    (name: string, type: 'consumer' | 'provider') => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.services.detail(name, type) })
+    (name: string) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.services.detail(name) })
     },
     [queryClient]
   )

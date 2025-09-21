@@ -40,7 +40,6 @@ function VersionBadgeList({
             key={version.id}
             version={version.version}
             serviceName={version.serviceName}
-            serviceType={version.serviceType}
             serviceVersionId={version.id}
           />
         ))}

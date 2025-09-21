@@ -15,8 +15,7 @@ dependenciesRouter.get('/consumer/:name', async c => {
   const consumer = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
-      eq(services.name, consumerName),
-      eq(services.type, 'consumer')
+      eq(services.name, consumerName)
     ),
   })
 
@@ -54,8 +53,7 @@ dependenciesRouter.get('/provider/:name', async c => {
   const provider = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
-      eq(services.name, providerName),
-      eq(services.type, 'provider')
+      eq(services.name, providerName)
     ),
   })
 

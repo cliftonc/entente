@@ -180,7 +180,6 @@ function InteractionDetails() {
                 <VersionBadge
                   version={interaction.consumerVersion}
                   serviceName={interaction.consumer}
-                  serviceType="consumer"
                 />
               </div>
               <div>

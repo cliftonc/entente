@@ -1,69 +1,90 @@
-import { Link, useLocation } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
-import { useDraftFixturesCount } from '../hooks/useFixtures'
-import TenantSelector from './TenantSelector'
-import { WebSocketStatus as WebSocketStatusCompact } from './WebSocketStatus'
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import { useDraftFixturesCount } from "../hooks/useFixtures";
+import TenantSelector from "./TenantSelector";
+import { WebSocketStatus as WebSocketStatusCompact } from "./WebSocketStatus";
+
+// Helper function to check if a user is a demo user
+function isDemoUser(user: any): boolean {
+  return user?.githubId && user.githubId < 0;
+}
 
 interface NavItem {
-  path: string
-  label: string
-  icon: string
-  badge?: string
+  path: string;
+  label: string;
+  icon: string;
+  badge?: string;
 }
 
 const navItems: NavItem[] = [
   {
-    path: '/',
-    label: 'Dashboard',
-    icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+    path: "/",
+    label: "Dashboard",
+    icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
   },
   {
-    path: '/services',
-    label: 'Services',
-    icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10',
+    path: "/system-view",
+    label: "System View",
+    icon: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z",
   },
   {
-    path: '/contracts',
-    label: 'Contracts',
-    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    path: "/services",
+    label: "Services",
+    icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10",
   },
   {
-    path: '/fixtures',
-    label: 'Fixtures',
-    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    path: "/contracts",
+    label: "Contracts",
+    icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
   },
   {
-    path: '/deployments',
-    label: 'Deployments',
-    icon: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12',
+    path: "/fixtures",
+    label: "Fixtures",
+    icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
   },
   {
-    path: '/verification',
-    label: 'Verification',
-    icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+    path: "/deployments",
+    label: "Deployments",
+    icon: "M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12",
   },
   {
-    path: '/settings',
-    label: 'Settings',
-    icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
+    path: "/verification",
+    label: "Verification",
+    icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
   },
-]
+  {
+    path: "/settings",
+    label: "Settings",
+    icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+  },
+];
 
 function SideNav() {
-  const location = useLocation()
-  const { data: draftCount = 0 } = useDraftFixturesCount()
-  const { user, logout } = useAuth()
+  const location = useLocation();
+  const { data: draftCount = 0 } = useDraftFixturesCount();
+  const { user, logout } = useAuth();
+
+  // Filter navigation items based on user type
+  const visibleNavItems = navItems.filter((item) => {
+    // Hide settings for demo users
+    if (item.path === "/settings" && isDemoUser(user)) {
+      return false;
+    }
+    return true;
+  });
 
   const handleLogout = async () => {
-    await logout()
-  }
+    await logout();
+  };
 
   const handleNavClick = () => {
-    const drawerToggle = document.getElementById('drawer-toggle') as HTMLInputElement
+    const drawerToggle = document.getElementById(
+      "drawer-toggle",
+    ) as HTMLInputElement;
     if (drawerToggle && window.innerWidth < 1024) {
-      drawerToggle.checked = false
+      drawerToggle.checked = false;
     }
-  }
+  };
 
   return (
     <aside className="min-h-full w-80 bg-base-100 text-base-content">
@@ -95,7 +116,12 @@ function SideNav() {
             className="flex items-center gap-1 px-2 py-1 text-sm text-base-content/70 hover:text-base-content hover:bg-base-200 rounded transition-colors"
             title="Documentation"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -117,11 +143,11 @@ function SideNav() {
 
       {/* Navigation Menu */}
       <ul className="menu p-4 space-y-2">
-        {navItems.map(item => {
+        {visibleNavItems.map((item) => {
           const isActive =
-            item.path === '/settings'
-              ? location.pathname.startsWith('/settings')
-              : location.pathname === item.path
+            item.path === "/settings"
+              ? location.pathname.startsWith("/settings")
+              : location.pathname === item.path;
 
           return (
             <li key={item.path}>
@@ -130,11 +156,16 @@ function SideNav() {
                 onClick={handleNavClick}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm hover:from-blue-700 hover:to-indigo-700 focus:from-blue-700 focus:to-indigo-700 active:from-blue-700 active:to-indigo-700 hover:text-white focus:text-white active:text-white'
-                    : 'text-base-content hover:bg-base-200 hover:text-base-content focus:bg-base-200 focus:text-base-content active:bg-base-300 active:text-base-content'
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm hover:from-blue-700 hover:to-indigo-700 focus:from-blue-700 focus:to-indigo-700 active:from-blue-700 active:to-indigo-700 hover:text-white focus:text-white active:text-white"
+                    : "text-base-content hover:bg-base-200 hover:text-base-content focus:bg-base-200 focus:text-base-content active:bg-base-300 active:text-base-content"
                 }`}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -143,15 +174,19 @@ function SideNav() {
                   />
                 </svg>
                 <span className="flex-1">{item.label}</span>
-                {item.path === '/fixtures' && draftCount > 0 && (
-                  <span className="badge badge-primary badge-sm">{draftCount}</span>
+                {item.path === "/fixtures" && draftCount > 0 && (
+                  <span className="badge badge-primary badge-sm">
+                    {draftCount}
+                  </span>
                 )}
-                {item.badge && item.path !== '/fixtures' && (
-                  <span className="badge badge-primary badge-sm">{item.badge}</span>
+                {item.badge && item.path !== "/fixtures" && (
+                  <span className="badge badge-primary badge-sm">
+                    {item.badge}
+                  </span>
                 )}
               </Link>
             </li>
-          )
+          );
         })}
       </ul>
 
@@ -173,15 +208,29 @@ function SideNav() {
                 </div>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{user.name}</div>
-                <div className="text-xs text-base-content/70 truncate">@{user.username}</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-medium truncate">
+                    {user.name}
+                  </div>
+                  {isDemoUser(user) && (
+                    <span className="badge badge-accent badge-xs">DEMO</span>
+                  )}
+                </div>
+                <div className="text-xs text-base-content/70 truncate">
+                  @{user.username}
+                </div>
               </div>
               <button
                 onClick={handleLogout}
                 className="btn btn-ghost btn-sm btn-circle text-error"
                 title="Logout"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -195,7 +244,7 @@ function SideNav() {
         </div>
       )}
     </aside>
-  )
+  );
 }
 
-export default SideNav
+export default SideNav;

@@ -260,7 +260,7 @@ interactionsRouter.get('/', async c => {
     .from(interactions)
     .leftJoin(
       services,
-      and(eq(interactions.consumerId, services.id), eq(services.type, 'consumer'))
+      eq(interactions.consumerId, services.id)
     )
     .leftJoin(contracts, eq(interactions.contractId, contracts.id))
     .where(and(...whereConditions))
@@ -373,8 +373,7 @@ interactionsRouter.post('/', async c => {
   const provider = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
-      eq(services.name, interaction.service),
-      eq(services.type, 'provider')
+      eq(services.name, interaction.service)
     ),
     columns: { id: true },
   })
@@ -383,8 +382,7 @@ interactionsRouter.post('/', async c => {
   const consumer = await db.query.services.findFirst({
     where: and(
       eq(services.tenantId, tenantId),
-      eq(services.name, interaction.consumer),
-      eq(services.type, 'consumer')
+      eq(services.name, interaction.consumer)
     ),
     columns: { id: true },
   })
@@ -777,8 +775,7 @@ interactionsRouter.post('/batch', async c => {
       const provider = await db.query.services.findFirst({
         where: and(
           eq(services.tenantId, tenantId),
-          eq(services.name, interaction.service),
-          eq(services.type, 'provider')
+          eq(services.name, interaction.service)
         ),
         columns: { id: true },
       })
@@ -786,8 +783,7 @@ interactionsRouter.post('/batch', async c => {
       const consumer = await db.query.services.findFirst({
         where: and(
           eq(services.tenantId, tenantId),
-          eq(services.name, interaction.consumer),
-          eq(services.type, 'consumer')
+          eq(services.name, interaction.consumer)
         ),
         columns: { id: true },
       })

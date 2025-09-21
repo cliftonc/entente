@@ -8,7 +8,6 @@ interface ContractsPanelProps {
   contracts?: Contract[]
   isLoading: boolean
   serviceName: string
-  serviceType: 'provider' | 'consumer'
   totalInteractions: number
   viewAllUrl: string
   getContractInteractionCount: (contract: Contract) => number
@@ -19,13 +18,10 @@ function ContractsPanel({
   contracts,
   isLoading,
   serviceName,
-  serviceType,
   totalInteractions,
   viewAllUrl,
   getContractInteractionCount,
 }: ContractsPanelProps) {
-  const otherServiceType = serviceType === 'provider' ? 'consumer' : 'provider'
-  const otherServiceLabel = serviceType === 'provider' ? 'Consumers' : 'Providers'
 
   return (
     <div className="card bg-base-100 shadow-xl">
@@ -55,15 +51,9 @@ function ContractsPanel({
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-secondary">
-                  {
-                    new Set(
-                      contracts.map(c =>
-                        serviceType === 'provider' ? c.consumerName : c.providerName
-                      )
-                    ).size
-                  }
+                  {new Set(contracts.map(c => c.consumerName)).size}
                 </div>
-                <div className="text-sm text-base-content/70">{otherServiceLabel}</div>
+                <div className="text-sm text-base-content/70">Connected Services</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-accent">{totalInteractions}</div>
@@ -88,7 +78,6 @@ function ContractsPanel({
                           <VersionBadge
                             version={contract.consumerVersion}
                             serviceName={contract.consumerName}
-                            serviceType="consumer"
                           />
                         </div>
                         <span className="text-base-content/40">→</span>
@@ -97,7 +86,6 @@ function ContractsPanel({
                           <VersionBadge
                             version={contract.providerVersion}
                             serviceName={contract.providerName}
-                            serviceType="provider"
                           />
                         </div>
                         <span className="text-xs text-base-content/70">
@@ -142,12 +130,10 @@ function ContractsPanel({
               />
             </svg>
             <div className="font-medium">
-              {serviceType === 'provider' ? 'No consumer contracts' : 'No provider contracts'}
+              No contracts found
             </div>
             <div className="text-sm">
-              {serviceType === 'provider'
-                ? 'No consumers have established contracts with this provider yet'
-                : "This consumer hasn't established any contracts yet"}
+              No contracts have been established yet
             </div>
           </div>
         )}

@@ -184,8 +184,8 @@ function VerificationBar({ days = 7, className = '' }: VerificationBarProps) {
           const startDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
           const endDateStr = startDateStr // Same day for both start and end
 
+          const key = `${square.date}-${index}`
           const baseProps = {
-            key: `${square.date}-${index}`,
             className: `
               w-[14px] h-[14px] rounded-sm transition-all duration-200
               ${getSquareColor(square)}
@@ -204,13 +204,14 @@ function VerificationBar({ days = 7, className = '' }: VerificationBarProps) {
           if (hasData) {
             return (
               <Link
+                key={key}
                 {...baseProps}
                 to={`/verification?startDate=${startDateStr}&endDate=${endDateStr}`}
               />
             )
           }
 
-          return <div {...baseProps} />
+          return <div key={key} {...baseProps} />
         })}
       </div>
 

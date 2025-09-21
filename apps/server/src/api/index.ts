@@ -20,10 +20,12 @@ import {
 } from '../db/schema/index.js'
 import { authMiddleware } from './middleware/auth.js'
 import { databaseMiddleware } from './middleware/database.js'
+import { demoRestrictionsMiddleware } from './middleware/demo-restrictions.js'
 import { envMiddleware } from './middleware/env.js'
 import { performanceMiddleware } from './middleware/performance.js'
 
 import { getEnv } from './middleware/env.js'
+import { adminRouter } from './routes/admin.js'
 import { authRouter } from './routes/auth.js'
 import { contractsRouter } from './routes/contracts.js'
 import { dependenciesRouter } from './routes/dependencies.js'
@@ -39,6 +41,7 @@ import { servicesRouter } from './routes/services.js'
 import settingsRouter from './routes/settings.js'
 import { specsRouter } from './routes/specs.js'
 import { statsRouter } from './routes/stats.js'
+import { systemViewRouter } from './routes/system-view.js'
 import { verificationRouter } from './routes/verification.js'
 import { websocketRouter } from './routes/websocket.js'
 
@@ -66,6 +69,9 @@ app.get('/health', c => {
 // Auth routes (no auth required for login)
 app.route('/auth', authRouter)
 
+// Admin routes (secret key protected)
+app.route('/admin', adminRouter)
+
 // Public GitHub app name endpoint (no auth required)
 app.get('/api/github/app-name', async c => {
   const env = c.get('env')
@@ -89,6 +95,12 @@ app.use('/api/settings/*', authMiddleware)
 app.use('/api/github/*', authMiddleware)
 app.use('/api/mock/*', authMiddleware)
 app.use('/api/events/*', authMiddleware)
+app.use('/api/system-view/*', authMiddleware)
+
+// Apply demo restrictions to protected routes (after auth middleware)
+app.use('/api/settings/*', demoRestrictionsMiddleware)
+app.use('/api/keys/*', demoRestrictionsMiddleware)
+app.use('/admin/*', demoRestrictionsMiddleware)
 
 app.route('/api/keys', keysRouter)
 app.route('/api/specs', specsRouter)
@@ -101,6 +113,7 @@ app.route('/api/services', servicesRouter)
 app.route('/api/service-versions', serviceVersionsRouter)
 app.route('/api/dependencies', dependenciesRouter)
 app.route('/api/stats', statsRouter)
+app.route('/api/system-view', systemViewRouter)
 app.route('/api/settings', settingsRouter)
 app.route('/api/github', githubRoutes)
 app.route('/api/mock', mockRouter)
@@ -191,9 +204,7 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
     // Find the service record, optionally filtered by type
     const whereConditions = [eq(services.tenantId, tenantId), eq(services.name, service)]
 
-    if (type) {
-      whereConditions.push(eq(services.type, type))
-    }
+    // Type filtering is no longer needed as services don't have types
 
     const serviceRecords = await db
       .select()
@@ -209,9 +220,10 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
       })
     }
 
-    // Determine service types
-    const isConsumer = serviceRecords.some(s => s.type === 'consumer')
-    const isProvider = serviceRecords.some(s => s.type === 'provider')
+    // Determine service roles from contracts
+    // For now, assume it can be both until we can query contracts
+    const isConsumer = true
+    const isProvider = true
 
     const compatibleServices = []
     let allVerified = true
@@ -485,10 +497,8 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
     // Record failed deployment attempt if can't deploy
     if (!canDeploy) {
       try {
-        // Find the service to get serviceId
-        const primaryService =
-          serviceRecords.find(s => s.type === (type || (isConsumer ? 'consumer' : 'provider'))) ||
-          serviceRecords[0]
+        // Use the first service record
+        const primaryService = serviceRecords[0]
 
         const canIDeployResult = {
           canDeploy,
@@ -503,7 +513,6 @@ app.get('/api/can-i-deploy', authMiddleware, async c => {
         // Record the failed deployment attempt
         await db.insert(deployments).values({
           tenantId,
-          type: primaryService.type,
           serviceId: primaryService.id,
           service,
           version,

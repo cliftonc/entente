@@ -6,7 +6,6 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { WebSocketProvider } from './components/WebSocketProvider'
 import { AuthProvider } from './hooks/useAuth'
 import { initializeQueryClient } from './lib/queryClient'
-import ConsumerDetail from './pages/ConsumerDetail'
 import ContractDetail from './pages/ContractDetail'
 import Contracts from './pages/Contracts'
 import Dashboard from './pages/Dashboard'
@@ -18,11 +17,12 @@ import GraphQLPlayground from './pages/GraphQLPlayground'
 import InteractionDetails from './pages/InteractionDetails'
 import InviteAccept from './pages/InviteAccept'
 import OpenAPIViewer from './pages/OpenAPIViewer'
-import ProviderDetail from './pages/ProviderDetail'
 import ServiceVersionDetail from './pages/ServiceVersionDetail'
 import ServiceVersions from './pages/ServiceVersions'
+import ServiceDetail from './pages/ServiceDetail'
 import Services from './pages/Services'
 import Settings from './pages/Settings'
+import SystemView from './pages/SystemView'
 import Verification from './pages/Verification'
 import VerificationDetail from './pages/VerificationDetail'
 
@@ -47,9 +47,10 @@ function App() {
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/services" element={<Services />} />
-                      <Route path="/services/provider/:name" element={<ProviderDetail />} />
-                      <Route path="/services/consumer/:name" element={<ConsumerDetail />} />
+                      {/* Unified service route - ServiceDetail page handles both consumer and provider roles */}
+                      <Route path="/services/:name" element={<ServiceDetail />} />
                       <Route path="/services/:serviceName/versions" element={<ServiceVersions />} />
+                      <Route path="/services/:serviceName/versions/:version" element={<ServiceVersionDetail />} />
                       <Route path="/service-versions/:id" element={<ServiceVersionDetail />} />
                       <Route path="/contracts" element={<Contracts />} />
                       <Route path="/contracts/:id" element={<ContractDetail />} />
@@ -57,6 +58,7 @@ function App() {
                       <Route path="/fixtures" element={<Fixtures />} />
                       <Route path="/fixtures/:id" element={<FixtureDetails />} />
                       <Route path="/deployments" element={<Deployments />} />
+                      <Route path="/system-view" element={<SystemView />} />
                       <Route path="/verification" element={<Verification />} />
                       <Route path="/verification/:id" element={<VerificationDetail />} />
                       <Route path="/openapi/service/:serviceName" element={<OpenAPIViewer />} />

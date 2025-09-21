@@ -10,7 +10,6 @@ interface VerificationPanelProps {
   pendingTasks?: VerificationTask[]
   isLoading: boolean
   serviceName: string
-  serviceType: 'provider' | 'consumer'
   viewAllUrl: string
   isPending?: boolean
 }
@@ -21,7 +20,6 @@ function VerificationPanel({
   pendingTasks,
   isLoading,
   serviceName,
-  serviceType,
   viewAllUrl,
   isPending = false,
 }: VerificationPanelProps) {
@@ -49,12 +47,11 @@ function VerificationPanel({
                     <div className="badge badge-warning">pending</div>
                     <div className="flex items-center gap-1">
                       <span className="text-sm font-medium">
-                        {serviceType === 'consumer' ? serviceName : task.consumer}
+                        {task.consumer}
                       </span>
                       <VersionBadge
                         version={task.consumerVersion}
-                        serviceName={serviceType === 'consumer' ? serviceName : task.consumer}
-                        serviceType="consumer"
+                        serviceName={task.consumer}
                       />
                     </div>
                     <span className="text-sm text-base-content/80">→</span>
@@ -63,7 +60,6 @@ function VerificationPanel({
                       <VersionBadge
                         version={task.providerVersion}
                         serviceName={task.provider}
-                        serviceType="provider"
                       />
                     </div>
                     <span className="text-xs text-base-content/70">
@@ -111,18 +107,11 @@ function VerificationPanel({
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-sm font-medium">
-                        {serviceType === 'consumer'
-                          ? serviceName
-                          : verification.consumer || 'Unknown'}
+                        {verification.consumer || 'Unknown'}
                       </span>
                       <VersionBadge
                         version={verification.consumerVersion || 'latest'}
-                        serviceName={
-                          serviceType === 'consumer'
-                            ? serviceName
-                            : verification.consumer || 'Unknown'
-                        }
-                        serviceType="consumer"
+                        serviceName={verification.consumer || 'Unknown'}
                       />
                     </div>
                     <span className="text-sm text-base-content/80">→</span>
@@ -133,7 +122,6 @@ function VerificationPanel({
                       <VersionBadge
                         version={verification.providerVersion || 'latest'}
                         serviceName={verification.provider || 'Unknown'}
-                        serviceType="provider"
                       />
                     </div>
                     <span className="text-xs text-base-content/70">
@@ -172,16 +160,12 @@ function VerificationPanel({
             <div className="font-medium">
               {isPending
                 ? 'No pending verifications'
-                : serviceType === 'provider'
-                  ? 'No verification results'
-                  : 'No test results'}
+                : 'No verification results'}
             </div>
             <div className="text-sm">
               {isPending
                 ? 'All verification tasks have been completed'
-                : serviceType === 'provider'
-                  ? 'Run verification to see test results'
-                  : 'Run contract tests to see test results'}
+                : 'Run verification to see test results'}
             </div>
           </div>
         )}
