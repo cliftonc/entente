@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist/cjs",
+    "module": "CommonJS",
+    "target": "ES2020",
+    "moduleResolution": "node"
+  },
+  "include": ["src/index.ts", "src/commands/**/*", "src/auth.ts", "src/git-utils.ts", "src/config.ts", "src/utils.ts"],
+  "exclude": ["src/cli.ts", "src/**/*.test.ts"],
+  "references": [{ "path": "../types/tsconfig.cjs.json" }, { "path": "../fixtures/tsconfig.cjs.json" }, { "path": "../metadata/tsconfig.cjs.json" }]
+}

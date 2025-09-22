@@ -3,19 +3,24 @@
   "version": "0.1.15",
   "description": "Fixture management utilities for Entente contract testing",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "pnpm run clean && pnpm run build:esm && pnpm run build:cjs && pnpm run build:cjs-package",
+    "build:esm": "tsc -p tsconfig.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:cjs-package": "echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
     "dev": "tsc --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
     "test": "vitest run"

@@ -1,14 +1,16 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": "./dist",
+    "outDir": "./dist/esm",
     "rootDir": "./src",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
     "composite": true,
     "noEmit": false,
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": false,
+    "module": "ESNext",
+    "target": "ES2022"
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules", "test"]
