@@ -14,6 +14,7 @@ NC='\033[0m' # No Color
 # Package order based on dependencies
 PACKAGES=(
   "types"
+  "metadata"
   "fixtures"
   "consumer"
   "provider"
