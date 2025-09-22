@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import CodeBlock from '../components/CodeBlock'
+import GraphQLRequestDisplay from '../components/GraphQLRequestDisplay'
 import SpecBadge from '../components/SpecBadge'
 import TimestampDisplay from '../components/TimestampDisplay'
 import VersionBadge from '../components/VersionBadge'
@@ -267,18 +268,24 @@ function InteractionDetails() {
 
                 {interaction.request.body != null && (
                   <div>
-                    <h4 className="font-medium text-sm text-base-content/70 mb-2">Body</h4>
-                    <div className="bg-base-200 p-1 rounded">
-                      <CodeBlock
-                        code={
-                          typeof interaction.request.body === 'string'
-                            ? interaction.request.body
-                            : JSON.stringify(interaction.request.body, null, 2) || ''
-                        }
-                        language={typeof interaction.request.body === 'string' ? 'json' : 'json'}
-                        showLineNumbers={false}
-                      />
-                    </div>
+                    {interaction.specType === 'graphql' ? (
+                      <GraphQLRequestDisplay body={interaction.request.body} />
+                    ) : (
+                      <div>
+                        <h4 className="font-medium text-sm text-base-content/70 mb-2">Body</h4>
+                        <div className="bg-base-200 p-1 rounded">
+                          <CodeBlock
+                            code={
+                              typeof interaction.request.body === 'string'
+                                ? interaction.request.body
+                                : JSON.stringify(interaction.request.body, null, 2) || ''
+                            }
+                            language={typeof interaction.request.body === 'string' ? 'json' : 'json'}
+                            showLineNumbers={false}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

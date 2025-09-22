@@ -3,7 +3,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 interface CodeBlockProps {
   code: string
-  language: 'bash' | 'typescript' | 'javascript' | 'json' | 'prisma'
+  language: 'bash' | 'typescript' | 'javascript' | 'json' | 'prisma' | 'graphql'
   showLineNumbers?: boolean
 }
 
