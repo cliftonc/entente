@@ -9,9 +9,9 @@ describe('AsyncAPI Integration Tests', () => {
   let client: any
   let mocks: ReturnType<typeof setupDefaultMocks>
 
-  beforeAll(() => {
+  beforeAll(async () => {
     mocks = setupDefaultMocks()
-    client = createClient({
+    client = await createClient({
       serviceUrl: 'http://localhost:3000',
       apiKey: 'test-key',
       consumer: 'test-consumer',

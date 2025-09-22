@@ -21,7 +21,7 @@ describe('@entente/consumer', () => {
         environment: 'test',
       }
 
-      const client = createClient(config)
+      const client = await createClient(config)
 
       expect(client).toBeDefined()
       expect(client.createMock).toBeDefined()
@@ -39,7 +39,7 @@ describe('@entente/consumer', () => {
         environment: 'test',
       }
 
-      const client = createClient(config)
+      const client = await createClient(config)
       expect(client).toBeDefined()
       expect(typeof client.createMock).toBe('function')
       expect(typeof client.uploadSpec).toBe('function')
@@ -48,7 +48,8 @@ describe('@entente/consumer', () => {
     it('should warn when using fallback values', async () => {
       const { createClient } = await import('../src/index.js')
 
-      mocks.fs.removeMockFile(`${process.cwd()}/package.json`)
+      // Enable fallback mode for metadata
+      mocks.metadata.setFallbackMode(true)
 
       const config: ClientConfig = {
         serviceUrl: 'https://test.entente.com',
@@ -58,13 +59,16 @@ describe('@entente/consumer', () => {
 
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      const client = createClient(config)
+      const client = await createClient(config)
       expect(client).toBeDefined()
 
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('⚠️  Entente client using fallback values')
       )
       consoleSpy.mockRestore()
+
+      // Reset fallback mode
+      mocks.metadata.setFallbackMode(false)
     })
   })
 
@@ -80,7 +84,7 @@ describe('@entente/consumer', () => {
         environment: 'test',
       }
 
-      const client = createClient(config)
+      const client = await createClient(config)
       const mock = await client.createMock('test-service', '1.0.0')
 
       expect(mock).toBeDefined()
@@ -108,7 +112,7 @@ describe('@entente/consumer', () => {
         environment: 'test',
       }
 
-      const client = createClient(config)
+      const client = await createClient(config)
       await client.createMock('test-service', '2.1.0')
 
       expect(mocks.fetch.fetch).toHaveBeenCalledWith(
@@ -132,7 +136,7 @@ describe('@entente/consumer', () => {
         environment: 'test',
       }
 
-      const client = createClient(config)
+      const client = await createClient(config)
       const mock = await client.createMock('test-service', '2.1.0')
 
       expect(mocks.fetch.fetch).toHaveBeenCalledWith(
@@ -158,7 +162,7 @@ describe('@entente/consumer', () => {
         environment: 'test',
       }
 
-      const client = createClient(config)
+      const client = await createClient(config)
       const mock = await client.createMock('test-service', '1.0.0', {
         useFixtures: false,
       })
@@ -191,7 +195,7 @@ describe('@entente/consumer', () => {
         environment: 'test',
       }
 
-      const client = createClient(config)
+      const client = await createClient(config)
       const mock = await client.createMock('test-service', '1.0.0', {
         port: 4000,
       })
@@ -221,7 +225,7 @@ describe('@entente/consumer', () => {
         paths: {},
       }
 
-      const client = createClient(config)
+      const client = await createClient(config)
       await client.uploadSpec('test-service', '1.0.0', spec, {
         environment: 'test',
         branch: 'main',
@@ -243,7 +247,8 @@ describe('@entente/consumer', () => {
     it('should skip upload when using fallback values', async () => {
       const { createClient } = await import('../src/index.js')
 
-      mocks.fs.removeMockFile(`${process.cwd()}/package.json`)
+      // Enable fallback mode for metadata
+      mocks.metadata.setFallbackMode(true)
 
       // Enable debug logging for this test
       const originalDebug = process.env.ENTENTE_DEBUG
@@ -263,7 +268,7 @@ describe('@entente/consumer', () => {
 
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-      const client = createClient(config)
+      const client = await createClient(config)
       await client.uploadSpec('test-service', '1.0.0', spec, {
         environment: 'test',
       })
@@ -276,6 +281,9 @@ describe('@entente/consumer', () => {
       )
 
       consoleSpy.mockRestore()
+
+      // Reset fallback mode
+      mocks.metadata.setFallbackMode(false)
 
       // Restore original debug setting
       if (originalDebug !== undefined) {
@@ -309,7 +317,7 @@ describe('@entente/consumer', () => {
         paths: {},
       }
 
-      const client = createClient(config)
+      const client = await createClient(config)
 
       await expect(
         client.uploadSpec('test-service', '1.0.0', spec, {
@@ -331,7 +339,7 @@ describe('@entente/consumer', () => {
         environment: 'test',
       }
 
-      const client = createClient(config)
+      const client = await createClient(config)
       const mock = await client.createMock('test-service', '1.0.0')
 
       const fixtures = mock.getFixtures()
@@ -351,7 +359,7 @@ describe('@entente/consumer', () => {
         environment: 'test',
       }
 
-      const client = createClient(config)
+      const client = await createClient(config)
       const mock = await client.createMock('test-service', '2.1.0')
 
       const fixtureData = {
@@ -377,7 +385,8 @@ describe('@entente/consumer', () => {
     it('should skip fixture proposal when using fallback values', async () => {
       const { createClient } = await import('../src/index.js')
 
-      mocks.fs.removeMockFile(`${process.cwd()}/package.json`)
+      // Enable fallback mode for metadata
+      mocks.metadata.setFallbackMode(true)
 
       // Enable debug logging for this test
       const originalDebug = process.env.ENTENTE_DEBUG
@@ -391,7 +400,7 @@ describe('@entente/consumer', () => {
 
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-      const client = createClient(config)
+      const client = await createClient(config)
       const mock = await client.createMock('test-service', '1.0.0')
 
       const fixtureData = {
@@ -409,6 +418,9 @@ describe('@entente/consumer', () => {
 
       consoleSpy.mockRestore()
       await mock.close()
+
+      // Reset fallback mode
+      mocks.metadata.setFallbackMode(false)
 
       // Restore original debug setting
       if (originalDebug !== undefined) {

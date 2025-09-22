@@ -48,7 +48,7 @@ export function getGitSha(): string | null {
     return head
   } catch (_error) {
     console.log(
-      chalk.yellow('⚠️'),
+      chalk.yellow('!'),
       'Could not get git SHA - not in a git repository or git not available'
     )
     return null
@@ -73,7 +73,7 @@ export async function getGitRepositoryUrl(): Promise<string | null> {
 
     return remoteUrl
   } catch (_error) {
-    console.log(chalk.yellow('⚠️'), 'Could not get git repository URL')
+    console.log(chalk.yellow('!'), 'Could not get git repository URL')
     return null
   }
 }

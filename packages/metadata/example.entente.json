@@ -1,0 +1,7 @@
+{
+  "metadata": {
+    "removeScope": true,
+    "serviceNameOverride": "my-custom-service-name",
+    "preferredProjectFile": "package.json"
+  }
+}

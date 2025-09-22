@@ -9,6 +9,14 @@ vi.mock('./config.js')
 vi.mock('./git-utils.js')
 vi.mock('@entente/fixtures')
 
+// Mock metadata for tests
+const mockMetadata = {
+  name: 'test-service',
+  version: '1.0.0',
+  projectType: 'node' as const,
+  raw: { name: 'test-service', version: '1.0.0' }
+}
+
 // Mock chalk - return the input string for testing
 vi.mock('chalk', () => ({
   default: {
@@ -24,16 +32,14 @@ vi.mock('chalk', () => ({
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
-// Import the functions after mocking
-const {
-  uploadSpec,
-  recordDeployment,
-  canIDeploy,
-  getDeploymentStatus,
-  registerService,
-  deployConsumer,
-  deployProvider,
-} = await import('./index.js')
+// Import the functions directly from their command files
+const { uploadSpec } = await import('./commands/upload-spec.js')
+const { recordDeployment } = await import('./commands/record-deployment.js')
+const { canIDeploy } = await import('./commands/can-i-deploy.js')
+const { getDeploymentStatus } = await import('./commands/status.js')
+const { registerService } = await import('./commands/register-service.js')
+const { deployConsumer } = await import('./commands/deploy-consumer.js')
+const { deployProvider } = await import('./commands/deploy-provider.js')
 
 describe('CLI Core Functions', () => {
   const mockReadFile = vi.mocked(fs.readFile)
@@ -65,7 +71,7 @@ describe('CLI Core Functions', () => {
         service: 'test-service',
         version: '1.0.0',
         spec: '/path/to/spec.json',
-      })
+      }, mockMetadata)
 
       expect(mockReadFile).toHaveBeenCalledWith('/path/to/spec.json', 'utf-8')
       expect(mockFetch).toHaveBeenCalledWith(
@@ -89,7 +95,7 @@ describe('CLI Core Functions', () => {
           service: 'test-service',
           version: '1.0.0',
           spec: '/invalid/path.json',
-        })
+        }, mockMetadata)
       ).rejects.toThrow('Failed to read spec file')
     })
 
@@ -110,7 +116,7 @@ describe('CLI Core Functions', () => {
           service: 'test-service',
           version: '1.0.0',
           spec: '/path/to/spec.json',
-        })
+        }, mockMetadata)
       ).rejects.toThrow('Failed to upload spec: Invalid spec')
     })
   })
@@ -127,7 +133,7 @@ describe('CLI Core Functions', () => {
         service: 'test-service',
         version: '1.0.0',
         environment: 'production',
-      })
+      }, mockMetadata)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://test.entente.dev/api/deployments',
@@ -152,7 +158,7 @@ describe('CLI Core Functions', () => {
           service: 'test-service',
           version: '1.0.0',
           environment: 'production',
-        })
+        }, mockMetadata)
       ).rejects.toThrow('Failed to record deployment: 500 Internal Server Error - Server error')
     })
   })
@@ -174,7 +180,7 @@ describe('CLI Core Functions', () => {
         service: 'test-consumer',
         version: '1.0.0',
         environment: 'production',
-      })
+      }, mockMetadata)
 
       expect(result).toEqual(mockResult)
       expect(mockFetch).toHaveBeenCalledWith(
@@ -199,7 +205,7 @@ describe('CLI Core Functions', () => {
         consumer: 'legacy-consumer',
         version: '1.0.0',
         environment: 'production',
-      })
+      }, mockMetadata)
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('service=legacy-consumer'),
@@ -214,13 +220,6 @@ describe('CLI Core Functions', () => {
 
   describe('registerService', () => {
     it('should register a new service', async () => {
-      const mockPackageJson = {
-        name: 'test-service',
-        version: '1.0.0',
-        description: 'Test service',
-      }
-      mockReadFile.mockResolvedValue(JSON.stringify(mockPackageJson))
-
       const mockResponse = {
         ok: true,
         json: vi.fn().mockResolvedValue({
@@ -233,11 +232,9 @@ describe('CLI Core Functions', () => {
 
       await registerService({
         name: 'test-service',
-        packagePath: './package.json',
         description: 'Test service',
-      })
+      }, mockMetadata)
 
-      expect(mockReadFile).toHaveBeenCalledWith('./package.json', 'utf-8')
       expect(mockFetch).toHaveBeenCalledWith(
         'https://test.entente.dev/api/services',
         expect.objectContaining({
@@ -247,15 +244,19 @@ describe('CLI Core Functions', () => {
       )
     })
 
-    it('should handle package.json reading failure', async () => {
-      mockReadFile.mockRejectedValue(new Error('File not found'))
+    it('should handle API registration failure', async () => {
+      const mockResponse = {
+        ok: false,
+        statusText: 'Bad Request',
+        json: vi.fn().mockResolvedValue({ error: 'Service already exists' }),
+      }
+      mockFetch.mockResolvedValue(mockResponse)
 
       await expect(
         registerService({
           name: 'test-service',
-          packagePath: './invalid.json',
-        })
-      ).rejects.toThrow('Failed to read package.json from ./invalid.json')
+        }, mockMetadata)
+      ).rejects.toThrow('Failed to register service: Service already exists')
     })
   })
 
@@ -279,7 +280,7 @@ describe('CLI Core Functions', () => {
       }
       mockFetch.mockResolvedValue(mockResponse)
 
-      await getDeploymentStatus('production')
+      await getDeploymentStatus('production', false, mockMetadata)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://test.entente.dev/api/deployments/active?environment=production',
@@ -298,7 +299,7 @@ describe('CLI Core Functions', () => {
       }
       mockFetch.mockResolvedValue(mockResponse)
 
-      await getDeploymentStatus('staging')
+      await getDeploymentStatus('staging', false, mockMetadata)
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('environment=staging'),
@@ -325,7 +326,7 @@ describe('CLI Core Functions', () => {
         name: 'test-consumer',
         version: '1.0.0',
         environment: 'production',
-      })
+      }, mockMetadata)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://test.entente.dev/api/deployments/consumer',
@@ -351,7 +352,7 @@ describe('CLI Core Functions', () => {
         name: 'test-provider',
         version: '2.0.0',
         environment: 'staging',
-      })
+      }, mockMetadata)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://test.entente.dev/api/deployments/provider',
@@ -372,7 +373,7 @@ describe('CLI Core Functions', () => {
           service: 'test-service',
           version: '1.0.0',
           environment: 'production',
-        })
+        }, mockMetadata)
       ).rejects.toThrow('Cannot connect to Entente server')
     })
 
@@ -386,7 +387,7 @@ describe('CLI Core Functions', () => {
           service: 'test-service',
           version: '1.0.0',
           spec: '/path/to/spec.json',
-        })
+        }, mockMetadata)
       ).rejects.toThrow('Not authenticated. Please run "entente login" first.')
     })
 
@@ -405,7 +406,7 @@ describe('CLI Core Functions', () => {
           service: 'test-service',
           version: '1.0.0',
           spec: '/path/to/spec.json',
-        })
+        }, mockMetadata)
       ).rejects.toThrow('Authentication failed. Please run "entente login" to re-authenticate.')
     })
   })
@@ -420,7 +421,7 @@ describe('CLI Core Functions', () => {
       }
       mockFetch.mockResolvedValue(mockResponse)
 
-      await getDeploymentStatus('production')
+      await getDeploymentStatus('production', false, mockMetadata)
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://custom.entente.dev/api/deployments/active?environment=production',
@@ -447,7 +448,7 @@ describe('CLI Core Functions', () => {
         service: 'test-service',
         version: '1.0.0',
         environment: 'production',
-      })
+      }, mockMetadata)
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
@@ -470,7 +471,7 @@ describe('CLI Core Functions', () => {
         service: 'test-service',
         version: '1.0.0',
         environment: 'production',
-      })
+      }, mockMetadata)
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),

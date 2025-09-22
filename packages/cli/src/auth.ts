@@ -7,7 +7,7 @@ import { clearConfig, loadConfig, saveConfig, updateConfig } from './config.js'
 const CALLBACK_PORT = 8765
 
 export async function loginFlow(serverUrl: string): Promise<void> {
-  console.log(chalk.blue('🔐 Starting authentication flow...'))
+  console.log('▶ Starting authentication flow...')
 
   const _config = await loadConfig()
 
@@ -20,7 +20,7 @@ export async function loginFlow(serverUrl: string): Promise<void> {
     console.log(chalk.gray(`Opening browser to: ${authUrl}`))
 
     await open(authUrl)
-    console.log(chalk.yellow('⏳ Waiting for authentication in browser...'))
+    console.log(chalk.yellow('▶ Waiting for authentication in browser...'))
 
     // Wait for callback with API key and tenant info
     const callbackData = await waitForCallback(server)
@@ -41,7 +41,7 @@ export async function loginFlow(serverUrl: string): Promise<void> {
       tenantName: callbackData.tenantName,
     })
 
-    console.log(chalk.green('✅ Authentication successful!'))
+    console.log(chalk.green('✓ Authentication successful!'))
     console.log(chalk.gray(`Logged in as: ${userInfo.username}`))
     if (callbackData.tenantName) {
       console.log(chalk.gray(`Tenant: ${callbackData.tenantName}`))
@@ -49,7 +49,7 @@ export async function loginFlow(serverUrl: string): Promise<void> {
     console.log(chalk.gray(`Server: ${serverUrl}`))
   } catch (error) {
     console.error(
-      chalk.red('❌ Authentication failed:'),
+      chalk.red('✗ Authentication failed:'),
       error instanceof Error ? error.message : 'Unknown error'
     )
     throw error
@@ -62,26 +62,26 @@ export async function logoutFlow(): Promise<void> {
   const config = await loadConfig()
 
   if (!config.apiKey) {
-    console.log(chalk.yellow('ℹ️  Not currently logged in'))
+    console.log(chalk.yellow('▶ Not currently logged in'))
     return
   }
 
   await clearConfig()
-  console.log(chalk.green('✅ Logged out successfully'))
+  console.log(chalk.green('✓ Logged out successfully'))
 }
 
 export async function whoAmI(): Promise<void> {
   const config = await loadConfig()
 
   if (!config.apiKey || !config.username) {
-    console.log(chalk.yellow('ℹ️  Not currently logged in'))
+    console.log(chalk.yellow('▶ Not currently logged in'))
     console.log(chalk.gray('Run "entente login" to authenticate'))
     return
   }
 
   try {
     if (!config.serverUrl) {
-      console.log(chalk.red('❌ No server URL configured'))
+      console.log(chalk.red('✗ No server URL configured'))
       console.log(chalk.gray('Run "entente login" to authenticate'))
       return
     }
@@ -93,7 +93,7 @@ export async function whoAmI(): Promise<void> {
     console.log(chalk.gray(`Server: ${config.serverUrl}`))
     console.log(chalk.gray(`API Key: ${config.apiKey.substring(0, 12)}...`))
   } catch (_error) {
-    console.log(chalk.red('❌ Invalid credentials'))
+    console.log(chalk.red('✗ Invalid credentials'))
     console.log(chalk.gray('Run "entente login" to re-authenticate'))
   }
 }

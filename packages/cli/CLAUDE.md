@@ -64,13 +64,13 @@ pnpm test
 - `USER` - Default user for deployment recording
 
 ## Implementation Status
-- ✅ All core commands implemented
-- ✅ Colored output with chalk
-- ✅ Proper error handling
-- ✅ Help text and examples
-- ❌ Configuration file support
-- ❌ Interactive prompts
-- ❌ Command aliases
+- ✓ All core commands implemented
+- ✓ Colored output with chalk
+- ✓ Proper error handling
+- ✓ Help text and examples
+- ✗ Configuration file support
+- ✗ Interactive prompts
+- ✗ Command aliases
 
 ## Command Structure
 ```

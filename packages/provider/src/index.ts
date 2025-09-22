@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { getProjectMetadata } from '@entente/metadata'
 import type {
   ClientInteraction,
   Fixture,
@@ -28,19 +29,15 @@ export interface EntenteProvider {
   getVerificationTasks: (environment?: string) => Promise<VerificationTask[]>
 }
 
-const getPackageInfo = (): { name: string; version: string } => {
+const getPackageInfo = async (): Promise<{ name: string; version: string }> => {
   try {
-    // Look for package.json starting from current working directory
-    const packageJsonPath = resolve(process.cwd(), 'package.json')
-    const packageJsonContent = readFileSync(packageJsonPath, 'utf-8')
-    const packageJson = JSON.parse(packageJsonContent)
-
+    const metadata = await getProjectMetadata()
     return {
-      name: packageJson.name || 'unknown-service',
-      version: packageJson.version || '0.0.0',
+      name: metadata.name,
+      version: metadata.version,
     }
   } catch (_error) {
-    // Fallback if package.json can't be read
+    // Fallback if no project metadata can be read
     return {
       name: 'unknown-service',
       version: '0.0.0',
@@ -48,9 +45,9 @@ const getPackageInfo = (): { name: string; version: string } => {
   }
 }
 
-export const createProvider = (config: ProviderConfig): EntenteProvider => {
+export const createProvider = async (config: ProviderConfig): Promise<EntenteProvider> => {
   // Get package info for fallbacks
-  const packageInfo = getPackageInfo()
+  const packageInfo = await getPackageInfo()
 
   // Create resolved config with fallbacks
   const resolvedConfig = {
@@ -65,7 +62,7 @@ export const createProvider = (config: ProviderConfig): EntenteProvider => {
 
   if (usingFallbackName || usingFallbackVersion) {
     console.warn(
-      '⚠️  Entente provider using fallback values - verification will be skipped. Please provide provider name/version or ensure package.json exists.'
+      '⚠️  Entente provider using fallback values - verification will be skipped. Please provide provider name/version or ensure project files exist.'
     )
     console.warn(`   Provider: ${resolvedConfig.provider}${usingFallbackName ? ' (fallback)' : ''}`)
     console.warn(

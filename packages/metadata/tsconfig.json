@@ -3,11 +3,13 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
     "composite": true,
     "noEmit": false,
     "allowImportingTsExtensions": false
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "tests"],
-  "references": [{ "path": "../types" }, { "path": "../fixtures" }, { "path": "../metadata" }]
+  "exclude": ["dist", "node_modules", "test"]
 }

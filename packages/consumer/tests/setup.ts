@@ -4,6 +4,7 @@ import { setupFsMock } from './mocks/filesystem.js'
 import { setupFixturesMock } from './mocks/fixtures.js'
 import { setupGitUtilsMock } from './mocks/git-utils.js'
 import { setupPrismMock } from './mocks/prism.js'
+import { setupMetadataMock } from './mocks/metadata.js'
 
 // Setup all mocks before each test
 beforeEach(() => {
@@ -18,6 +19,7 @@ export const createTestMocks = () => {
   const fsMock = setupFsMock()
   const fixturesMock = setupFixturesMock()
   const gitUtilsMock = setupGitUtilsMock()
+  const metadataMock = setupMetadataMock()
 
   return {
     fetch: fetchMock,
@@ -25,6 +27,7 @@ export const createTestMocks = () => {
     fs: fsMock,
     fixtures: fixturesMock,
     gitUtils: gitUtilsMock,
+    metadata: metadataMock,
   }
 }
 

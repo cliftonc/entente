@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@entente/fixtures": "workspace:*",
+    "@entente/metadata": "workspace:*",
     "@entente/types": "workspace:*",
     "ws": "^8.14.2"
   },

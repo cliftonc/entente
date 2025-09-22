@@ -6,24 +6,30 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import chalk from 'chalk'
 import { Command } from 'commander'
+import { getProjectMetadata } from '@entente/metadata'
 import { loginFlow, logoutFlow, whoAmI } from './auth.js'
-import {
-  approveFixtures,
-  canIDeploy,
-  deployConsumer,
-  deployProvider,
-  deployService,
-  getDeploymentStatus,
-  listFixtures,
-  registerService,
-  uploadSpec,
-} from './index.js'
+import { canIDeploy } from './commands/can-i-deploy.js'
+import { deployConsumer } from './commands/deploy-consumer.js'
+import { deployProvider } from './commands/deploy-provider.js'
+import { deployService } from './commands/deploy-service.js'
+import { registerService } from './commands/register-service.js'
+import { getDeploymentStatus } from './commands/status.js'
+import { uploadSpec } from './commands/upload-spec.js'
 
 const program = new Command()
 
-// Get the actual package version
+// Get the actual package version using metadata package
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'))
+const cliMetadata = await getProjectMetadata({ cwd: join(__dirname, '..') })
+
+// Get project metadata once for all commands
+let projectMetadata
+try {
+  projectMetadata = await getProjectMetadata()
+} catch (error) {
+  // Set to null if we couldn't read it - commands will require explicit parameters
+  projectMetadata = null
+}
 
 program.name('entente').description('CLI for Entente contract testing')
 
@@ -74,30 +80,55 @@ program
   .description(
     'Register a service with package.json and optionally upload API spec'
   )
-  .requiredOption('-s, --service <service>', 'Service name')
-  .requiredOption('-v, --version <version>', 'Service version')
+  .option('-s, --service <service>', 'Service name (defaults to package.json name)')
+  .option('-v, --version <version>', 'Service version (defaults to package.json version)')
   .option('-p, --package <path>', 'Path to package.json', './package.json')
   .option('-d, --description <desc>', 'Service description')
   .option('--spec <file>', 'Path to API spec file to upload')
   .option('-b, --branch <branch>', 'Git branch for spec', 'main')
   .action(async options => {
     try {
-      console.log(chalk.blue('📦'), `Registering service ${options.service}...`)
+      let service = options.service
+      let version = options.version
+
+      // Use global metadata if available
+      if (!service && projectMetadata) {
+        service = projectMetadata.name
+      }
+
+      if (!version && projectMetadata) {
+        version = projectMetadata.version
+      }
+
+      if (service && version && projectMetadata) {
+        const sourceInfo = projectMetadata.projectType !== 'unknown'
+          ? `${projectMetadata.projectType} project`
+          : options.package
+        console.log(
+          chalk.gray(`Using service "${service}" version "${version}" from ${sourceInfo}`)
+        )
+      }
+
+      if (!service || !version) {
+        console.error(chalk.red('Error: Service name and version are required'))
+        process.exit(1)
+      }
+
+      console.log('▶', `Registering service ${service}...`)
       await registerService({
-        name: options.service,
-        packagePath: options.package,
+        name: service,
         description: options.description,
-      })
+      }, projectMetadata)
 
       // If spec provided, upload it
       if (options.spec) {
-        console.log(chalk.blue('📤'), `Uploading API spec for ${options.service}...`)
+        console.log('▶', `Uploading API spec for ${service}...`)
         await uploadSpec({
-          service: options.service,
+          service: service,
           spec: options.spec,
           branch: options.branch,
-          version: options.version,
-        })
+          version: version,
+        }, projectMetadata)
       }
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
@@ -109,22 +140,49 @@ program
 program
   .command('deploy-service')
   .description('Deploy a service')
-  .requiredOption('-s, --service <service>', 'Service name')
-  .requiredOption('-v, --version <version>', 'Service version')
+  .option('-s, --service <service>', 'Service name (defaults to package.json name)')
+  .option('-v, --version <version>', 'Service version (defaults to package.json version)')
   .requiredOption('-e, --environment <environment>', 'Target environment')
   .option('--deployed-by <user>', 'User who deployed (defaults to $USER)')
+  .option('-p, --package <path>', 'Path to package.json', './package.json')
   .action(async options => {
     try {
+      let service = options.service
+      let version = options.version
+
+      // Use global metadata if available
+      if (!service && projectMetadata) {
+        service = projectMetadata.name
+      }
+
+      if (!version && projectMetadata) {
+        version = projectMetadata.version
+      }
+
+      if (service && version && projectMetadata) {
+        const sourceInfo = projectMetadata.projectType !== 'unknown'
+          ? `${projectMetadata.projectType} project`
+          : options.package
+        console.log(
+          chalk.gray(`Using service "${service}" version "${version}" from ${sourceInfo}`)
+        )
+      }
+
+      if (!service || !version) {
+        console.error(chalk.red('Error: Service name and version are required'))
+        process.exit(1)
+      }
+
       console.log(
-        chalk.blue('🚀'),
-        `Deploying service ${options.service}@${options.version} to ${options.environment}...`
+        '▶',
+        `Deploying service ${service}@${version} to ${options.environment}...`
       )
       await deployService({
-        name: options.service,
-        version: options.version,
+        name: service,
+        version: version,
         environment: options.environment,
         deployedBy: options.deployedBy,
-      })
+      }, projectMetadata)
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
       process.exit(1)
@@ -137,22 +195,49 @@ program
   .description(
     'Upload API specification (OpenAPI, GraphQL, AsyncAPI) to central service (auto-registers service if needed)'
   )
-  .requiredOption('-s, --service <service>', 'Service name')
-  .requiredOption('-v, --version <version>', 'Service version')
+  .option('-s, --service <service>', 'Service name (defaults to package.json name)')
+  .option('-v, --version <version>', 'Service version (defaults to package.json version)')
   .requiredOption('--spec <file>', 'Path to API spec file (JSON, GraphQL, etc.)')
   .option('-b, --branch <branch>', 'Git branch', 'main')
+  .option('-p, --package <path>', 'Path to package.json', './package.json')
   .action(async options => {
     try {
+      let service = options.service
+      let version = options.version
+
+      // Use global metadata if available
+      if (!service && projectMetadata) {
+        service = projectMetadata.name
+      }
+
+      if (!version && projectMetadata) {
+        version = projectMetadata.version
+      }
+
+      if (service && version && projectMetadata) {
+        const sourceInfo = projectMetadata.projectType !== 'unknown'
+          ? `${projectMetadata.projectType} project`
+          : options.package
+        console.log(
+          chalk.gray(`Using service "${service}" version "${version}" from ${sourceInfo}`)
+        )
+      }
+
+      if (!service || !version) {
+        console.error(chalk.red('Error: Service name and version are required'))
+        process.exit(1)
+      }
+
       console.log(
-        chalk.blue('📤'),
-        `Uploading API spec for ${options.service}@${options.version}...`
+        '▶',
+        `Uploading API spec for ${service}@${version}...`
       )
       await uploadSpec({
-        service: options.service,
-        version: options.version,
+        service: service,
+        version: version,
         spec: options.spec,
         branch: options.branch,
-      })
+      }, projectMetadata)
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
       process.exit(1)
@@ -169,61 +254,35 @@ program
   )
   .option('-v, --version <version>', 'Service version - defaults to package.json version')
   .requiredOption('-e, --environment <environment>', 'Target environment')
-  .requiredOption('-t, --type <type>', 'Service type: consumer or provider')
+  .option('--semver-compatibility <level>', 'Allow semver-compatible versions (none, patch, minor)', 'none')
   .option('-p, --package <path>', 'Path to package.json', './package.json')
   .action(async options => {
     try {
-      // Validate service type
-      if (!['consumer', 'provider'].includes(options.type)) {
-        throw new Error('Type must be either "consumer" or "provider"')
+      // Validate semver compatibility option
+      if (!['none', 'patch', 'minor'].includes(options.semverCompatibility)) {
+        console.error(chalk.red('Error: --semver-compatibility must be one of: none, patch, minor'))
+        process.exit(1)
       }
 
       let service = options.service
       let version = options.version
 
-      // If service or version not provided, read from package.json
-      if (!service || !version) {
-        try {
-          const packageJsonPath = options.package
-          const packageJsonContent = await fs.readFile(packageJsonPath, 'utf-8')
-          const packageJson = JSON.parse(packageJsonContent)
+      // Use global metadata if available
+      if (!service && projectMetadata) {
+        service = projectMetadata.name
+      }
 
-          if (!service) {
-            // Try to extract service name from package name
-            // Handle scoped packages like @entente/example-castle-client -> castle-client
-            const packageName = packageJson.name
-            if (packageName) {
-              // Remove scope and common prefixes
-              service = packageName
-                .replace(/^@[^\/]+\//, '') // Remove scope like @entente/
-                .replace(/^example-/, '') // Remove example- prefix
-                .replace(/^entente-/, '') // Remove entente- prefix
-            }
-          }
+      if (!version && projectMetadata) {
+        version = projectMetadata.version
+      }
 
-          if (!version) {
-            version = packageJson.version
-          }
-
-          if (service && version) {
-            console.log(
-              chalk.gray(`Using service "${service}" version "${version}" from ${packageJsonPath}`)
-            )
-          }
-        } catch (error) {
-          console.error(
-            chalk.red('Error reading package.json:'),
-            error instanceof Error ? error.message : 'Unknown error'
-          )
-          if (!service || !version) {
-            console.error(
-              chalk.red(
-                'Service name and version are required. Provide them via --service and --version or ensure package.json exists.'
-              )
-            )
-            process.exit(1)
-          }
-        }
+      if (service && version && projectMetadata) {
+        const sourceInfo = projectMetadata.projectType !== 'unknown'
+          ? `${projectMetadata.projectType} project`
+          : options.package
+        console.log(
+          chalk.gray(`Using service "${service}" version "${version}" from ${sourceInfo}`)
+        )
       }
 
       if (!service || !version) {
@@ -232,47 +291,127 @@ program
       }
 
       console.log(
-        chalk.blue('🔍'),
+        '▶',
         `Checking if ${service}@${version} can deploy to ${options.environment}...`
       )
       const result = await canIDeploy({
         service: service,
         version: version,
         environment: options.environment,
-      })
+        semverCompatibility: options.semverCompatibility,
+      }, projectMetadata)
 
       if (result.canDeploy) {
+        const compatibilityNote = options.semverCompatibility !== 'none' &&
+          [...(result.providers || []), ...(result.consumers || [])].some(s => s.semverCompatible && s.semverCompatible !== 'none')
+          ? ` (with ${options.semverCompatibility} compatibility)`
+          : ''
+
         console.log(
-          chalk.green('✅'),
-          `${service} v${version} can deploy to ${options.environment}`
+          chalk.green('✓'),
+          `${service} v${version} can deploy to ${options.environment}${compatibilityNote}`
         )
         console.log('')
 
-        if (result.compatibleServices && result.compatibleServices.length > 0) {
-          console.log('Compatible services:')
-          for (const compatibleService of result.compatibleServices) {
-            const status = compatibleService.verified ? chalk.green('✅') : chalk.yellow('⚠️')
-            const roleLabel = compatibleService.role ? `[${compatibleService.role}]` : ''
-            const deployedLabel =
-              compatibleService.activelyDeployed === false ? ' (not deployed)' : ''
+        // Display providers (dependencies)
+        if (result.providers && result.providers.length > 0) {
+          console.log(`Providers (${result.providers.length}):`)
+          for (const provider of result.providers) {
+            const status = provider.verified ? chalk.green('✓') : chalk.yellow('!')
+            const compatibilityLabel = provider.semverCompatible && provider.semverCompatible !== 'none'
+              ? chalk.blue(` [${provider.semverCompatible}-compatible]`)
+              : ''
+            const nearestLabel = provider.nearestVerifiedVersion && provider.nearestVerifiedVersion !== provider.version
+              ? chalk.gray(` (verified at v${provider.nearestVerifiedVersion})`)
+              : ''
             console.log(
-              `  - ${compatibleService.service} v${compatibleService.version} ${status} (${compatibleService.interactionCount} interactions) ${roleLabel}${deployedLabel}`
+              `  ${status} ${provider.service} v${provider.version} (${provider.interactionCount} interactions)${compatibilityLabel}${nearestLabel}`
             )
           }
+          console.log('')
         }
 
-        console.log('')
-        console.log(chalk.green('Safe to deploy ✅'))
+        // Display consumers (dependents)
+        if (result.consumers && result.consumers.length > 0) {
+          console.log(`Consumers (${result.consumers.length}):`)
+          for (const consumer of result.consumers) {
+            const status = consumer.verified ? chalk.green('✓') : chalk.yellow('!')
+            const compatibilityLabel = consumer.semverCompatible && consumer.semverCompatible !== 'none'
+              ? chalk.blue(` [${consumer.semverCompatible}-compatible]`)
+              : ''
+            console.log(
+              `  ${status} ${consumer.service} v${consumer.version} (${consumer.interactionCount} interactions)${compatibilityLabel}`
+            )
+          }
+          console.log('')
+        }
+
+        console.log(chalk.green('Safe to deploy ✓'))
       } else {
         console.log(
-          chalk.red('❌'),
+          chalk.red('✗'),
           `${service} v${version} cannot deploy to ${options.environment}`
         )
         console.log('')
+
+        // Display structured issues
+        if (result.issues && result.issues.length > 0) {
+          console.log('Issues blocking deployment:')
+          for (const issue of result.issues) {
+            console.log(`  • ${issue.service}@${issue.version} - ${issue.reason}`)
+            if (issue.suggestion) {
+              console.log(`    > ${issue.suggestion}`)
+            }
+          }
+          console.log('')
+        }
+
+        // Display providers (dependencies) with status
+        if (result.providers && result.providers.length > 0) {
+          console.log(`Providers (${result.providers.length}):`)
+          for (const provider of result.providers) {
+            if (!provider.activelyDeployed) {
+              // Special format for non-deployed services
+              console.log(`  ${chalk.red('✗')} ${provider.service} is not deployed in ${options.environment}`)
+            } else {
+              const status = provider.verified ? chalk.green('✓') : chalk.red('✗')
+              const compatibilityLabel = provider.semverCompatible && provider.semverCompatible !== 'none'
+                ? chalk.blue(` [${provider.semverCompatible}-compatible]`)
+                : ''
+              const nearestLabel = provider.nearestVerifiedVersion && provider.nearestVerifiedVersion !== provider.version
+                ? chalk.gray(` (nearest: v${provider.nearestVerifiedVersion})`)
+                : ''
+              console.log(
+                `  ${status} ${provider.service} v${provider.version} (${provider.interactionCount} interactions)${compatibilityLabel}${nearestLabel}`
+              )
+            }
+          }
+          console.log('')
+        }
+
+        // Display consumers (dependents) with status
+        if (result.consumers && result.consumers.length > 0) {
+          console.log(`Consumers (${result.consumers.length}):`)
+          for (const consumer of result.consumers) {
+            if (!consumer.activelyDeployed) {
+              // Special format for non-deployed services
+              console.log(`  ${chalk.red('✗')} ${consumer.service} is not deployed in ${options.environment}`)
+            } else {
+              const status = consumer.verified ? chalk.green('✓') : chalk.red('✗')
+              const compatibilityLabel = consumer.semverCompatible && consumer.semverCompatible !== 'none'
+                ? chalk.blue(` [${consumer.semverCompatible}-compatible]`)
+                : ''
+              console.log(
+                `  ${status} ${consumer.service} v${consumer.version} (${consumer.interactionCount} interactions)${compatibilityLabel}`
+              )
+            }
+          }
+          console.log('')
+        }
+
         console.log(chalk.red(result.message))
-        // Service type information is no longer available
         console.log('')
-        console.log(chalk.gray('📝 Failed deployment attempt has been recorded for analysis'))
+        console.log(chalk.gray('NOTE: Failed deployment attempt has been recorded for analysis'))
         process.exit(1)
       }
     } catch (error) {
@@ -281,38 +420,6 @@ program
     }
   })
 
-// Fixture management
-const fixtureCommand = program.command('fixtures').description('Manage fixtures')
-
-fixtureCommand
-  .command('approve')
-  .description('Approve fixture proposals')
-  .requiredOption('--approved-by <user>', 'User approving the fixtures')
-  .option('--test-run <id>', 'Approve all fixtures from a test run')
-  .option('--service <service>', 'Approve fixtures for specific service')
-  .action(async options => {
-    try {
-      const count = await approveFixtures(options)
-      console.log(chalk.green('✅'), `Approved ${count} fixture(s)`)
-    } catch (error) {
-      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
-      process.exit(1)
-    }
-  })
-
-fixtureCommand
-  .command('list')
-  .description('List fixture proposals')
-  .option('--service <service>', 'Filter by service')
-  .option('--status <status>', 'Filter by status', 'draft')
-  .action(async options => {
-    try {
-      await listFixtures(options)
-    } catch (error) {
-      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
-      process.exit(1)
-    }
-  })
 
 // Deployment status
 program
@@ -322,7 +429,7 @@ program
   .option('--include-failures', 'Include failed deployment attempts', false)
   .action(async options => {
     try {
-      await getDeploymentStatus(options.environment, options.includeFailures)
+      await getDeploymentStatus(options.environment, options.includeFailures, projectMetadata)
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
       process.exit(1)
@@ -336,7 +443,7 @@ if (process.argv.length === 2) {
 
 // Handle --entente-version flag before parsing
 if (process.argv.includes('--entente-version')) {
-  console.log(`@entente/cli version ${packageJson.version}`)
+  console.log(`@entente/cli version ${cliMetadata.version}`)
   process.exit(0)
 }
 

@@ -491,26 +491,34 @@ export interface CanIDeployOptions {
   consumer?: string // Legacy parameter for backward compatibility
   version: string
   environment: string
+  semverCompatibility?: 'none' | 'patch' | 'minor' // Semver compatibility level
+}
+
+interface ServiceInfo {
+  service: string
+  version: string
+  verified: boolean
+  nearestVerifiedVersion?: string
+  semverCompatible: 'none' | 'patch' | 'minor' | null
+  interactionCount: number
+  activelyDeployed: boolean
+}
+
+interface Issue {
+  type: 'verification_failed' | 'not_deployed' | 'no_interactions'
+  service: string
+  version: string
+  reason: string
+  suggestion?: string
 }
 
 export interface CanIDeployResult {
   canDeploy: boolean
-  compatibleServices?: Array<{
-    service: string
-    version: string
-    verified: boolean
-    interactionCount: number // Dynamically calculated
-    role: 'consumer' | 'provider' // Role in this specific contract/relationship
-    activelyDeployed?: boolean
-  }>
-  // Legacy field for backward compatibility
-  compatibleProviders?: Array<{
-    service: string
-    version: string
-    verified: boolean
-    interactionCount: number // Dynamically calculated
-  }>
-  message: string
+  providers: ServiceInfo[] // Services this service depends on
+  consumers: ServiceInfo[] // Services that depend on this service
+  issues: Issue[] // Structured list of blocking issues
+  message: string // Human-readable summary
+  serviceType: string
 }
 
 // Settings and team management types

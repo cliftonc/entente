@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@entente/fixtures": "workspace:*",
+    "@entente/metadata": "workspace:*",
     "@entente/types": "workspace:*",
     "chalk": "^5.4.1",
     "commander": "^12.1.0",

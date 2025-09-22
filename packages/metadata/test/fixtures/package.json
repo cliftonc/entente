@@ -1,0 +1,6 @@
+{
+  "name": "@entente/test-service",
+  "version": "1.2.3",
+  "description": "Test service for metadata extraction",
+  "type": "module"
+}

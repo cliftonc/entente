@@ -132,7 +132,7 @@ describe('Provider Integration Tests', () => {
         }
       }
 
-      const provider = createProvider({
+      const provider = await createProvider({
         ...mockConfig,
         useNormalizedFixtures: true,
         dataSetupCallback: setupDatabase,
@@ -223,7 +223,7 @@ describe('Provider Integration Tests', () => {
       const setupDatabase = vi.fn()
       const customStateHandler = vi.fn()
 
-      const provider = createProvider({
+      const provider = await createProvider({
         ...mockConfig,
         useNormalizedFixtures: true,
         dataSetupCallback: setupDatabase,
@@ -315,7 +315,7 @@ describe('Provider Integration Tests', () => {
 
       const setupDatabase = vi.fn()
 
-      const provider = createProvider({
+      const provider = await createProvider({
         ...mockConfig,
         useNormalizedFixtures: true,
         dataSetupCallback: setupDatabase,

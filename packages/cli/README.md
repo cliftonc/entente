@@ -56,13 +56,13 @@ entente can-i-deploy \
 
 Example output:
 ```
-✅ web-app v1.5.0 can deploy to production
+✓ web-app v1.5.0 can deploy to production
 
 Compatible with active providers:
-  - order-service v2.1.0 ✅ (verified against 15 interactions)
-  - payment-service v1.8.0 ✅ (verified against 8 interactions)
+  - order-service v2.1.0 ✓ (verified against 15 interactions)
+  - payment-service v1.8.0 ✓ (verified against 8 interactions)
 
-Safe to deploy ✅
+Safe to deploy ✓
 ```
 
 ### Fixture Management
@@ -109,7 +109,7 @@ user-service@3.0.0 (deployed 2024-01-13T09:15:00Z)
 
 ## Implementation Status
 
-### ✅ Complete
+### ✓ Complete
 - All core commands implemented (upload-spec, record-deployment, can-i-deploy, fixtures, status)
 - Colored output with chalk for improved UX
 - Proper error handling and status codes
@@ -120,14 +120,14 @@ user-service@3.0.0 (deployed 2024-01-13T09:15:00Z)
 ### 🔄 In Progress
 - None - core CLI functionality complete
 
-### ❌ TODO - High Priority
+### ✗ TODO - High Priority
 1. **Configuration File Support**: `.ententerc` file for default settings
 2. **Interactive Prompts**: Prompt for missing required parameters
 3. **Command Aliases**: Short aliases for frequently used commands
 4. **Shell Completion**: Bash/Zsh completion scripts
 5. **Enhanced Output**: JSON output mode, verbose logging, quiet mode
 
-### ❌ TODO - Lower Priority
+### ✗ TODO - Lower Priority
 - Plugin system for custom commands
 - Integration with popular CI/CD platforms
 - Advanced filtering and search options

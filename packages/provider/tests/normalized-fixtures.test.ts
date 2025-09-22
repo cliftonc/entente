@@ -26,7 +26,7 @@ describe('Normalized Fixtures', () => {
   describe('successful download and setup', () => {
     it('should download and setup normalized fixtures', async () => {
       const dataSetupCallback = vi.fn()
-      const provider = createProvider({
+      const provider = await createProvider({
         ...mockConfig,
         useNormalizedFixtures: true,
         dataSetupCallback,
@@ -53,7 +53,7 @@ describe('Normalized Fixtures', () => {
     it('should work with mixed normalized fixtures and state handlers', async () => {
       const dataSetupCallback = vi.fn()
       const stateHandler = vi.fn()
-      const provider = createProvider({
+      const provider = await createProvider({
         ...mockConfig,
         useNormalizedFixtures: true,
         dataSetupCallback,
@@ -77,7 +77,7 @@ describe('Normalized Fixtures', () => {
   describe('error handling', () => {
     it('should handle fixture download failure gracefully', async () => {
       const dataSetupCallback = vi.fn()
-      const provider = createProvider({
+      const provider = await createProvider({
         ...mockConfig,
         useNormalizedFixtures: true,
         dataSetupCallback,
@@ -96,7 +96,7 @@ describe('Normalized Fixtures', () => {
 
     it('should handle dataSetupCallback errors gracefully', async () => {
       const dataSetupCallback = vi.fn().mockRejectedValue(new Error('Database error'))
-      const provider = createProvider({
+      const provider = await createProvider({
         ...mockConfig,
         useNormalizedFixtures: true,
         dataSetupCallback,
@@ -115,7 +115,7 @@ describe('Normalized Fixtures', () => {
 
     it('should handle network errors when downloading fixtures', async () => {
       const dataSetupCallback = vi.fn()
-      const provider = createProvider({
+      const provider = await createProvider({
         ...mockConfig,
         useNormalizedFixtures: true,
         dataSetupCallback,
@@ -139,7 +139,7 @@ describe('Normalized Fixtures', () => {
   describe('configuration options', () => {
     it('should not download fixtures when useNormalizedFixtures is false', async () => {
       const dataSetupCallback = vi.fn()
-      const provider = createProvider({
+      const provider = await createProvider({
         ...mockConfig,
         useNormalizedFixtures: false,
         dataSetupCallback,
@@ -162,7 +162,7 @@ describe('Normalized Fixtures', () => {
     })
 
     it('should not download fixtures when dataSetupCallback is not provided', async () => {
-      const provider = createProvider({
+      const provider = await createProvider({
         ...mockConfig,
         useNormalizedFixtures: true,
         // No dataSetupCallback
@@ -198,7 +198,7 @@ describe('Normalized Fixtures', () => {
       }
 
       const dataSetupCallback = vi.fn()
-      const provider = createProvider({
+      const provider = await createProvider({
         ...mockConfig,
         useNormalizedFixtures: true,
         dataSetupCallback,
