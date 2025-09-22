@@ -40,12 +40,16 @@ import { debugLog } from '@entente/types'
 import { getGitSha } from './git-utils.js'
 import { createWebSocketMockServer, extractChannelsFromOperations } from './websocket-handler.js'
 import type { WebSocketMockServer } from './websocket-handler.js'
+import { EntenteRequestInterceptor } from './interceptor/index.js'
+import type { InterceptOptions, RequestInterceptor } from './interceptor/index.js'
 
 // Type alias for all supported specification formats
 type SupportedSpec = OpenAPISpec | GraphQLSchema | AsyncAPISpec | GRPCProto | SOAPWsdl
 
 export interface EntenteClient {
   createMock: (service: string, version: string, options?: MockOptions) => Promise<EntenteMock>
+  patchRequests: (service: string, version: string, options?: InterceptOptions) => Promise<RequestInterceptor>
+  downloadFixtures: (service: string, version: string) => Promise<Fixture[]>
   uploadSpec: (
     service: string,
     version: string,
@@ -249,6 +253,89 @@ export const createClient = async (config: ClientConfig): Promise<EntenteClient>
 
       if (!response.ok) {
         throw new Error(`Failed to upload spec: ${response.status} ${response.statusText}`)
+      }
+    },
+
+    patchRequests: async (
+      service: string,
+      providerVersion: string,
+      options?: InterceptOptions
+    ): Promise<RequestInterceptor> => {
+      // Skip if using fallback values and warn user
+      if (usingFallbackName || usingFallbackVersion) {
+        console.warn(
+          '⚠️  Entente request interception using fallback values - operations will be skipped.'
+        )
+        console.warn(`   Consumer: ${resolvedConfig.consumer}${usingFallbackName ? ' (fallback)' : ''}`)
+        console.warn(
+          `   Version: ${resolvedConfig.consumerVersion}${usingFallbackVersion ? ' (fallback)' : ''}`
+        )
+      }
+
+      // Fetch spec from central service using provider deployment version
+      const { spec, providerVersion: actualProviderVersion, specType } = await fetchSpec(
+        resolvedConfig.serviceUrl,
+        resolvedConfig.apiKey,
+        service,
+        providerVersion,
+        resolvedConfig.environment,
+        options?.filter ? undefined : 'main' // No branch filtering for intercept mode by default
+      )
+
+      // Fetch existing fixtures for operation matching context
+      const fixtures = await fetchFixtures(
+        resolvedConfig.serviceUrl,
+        resolvedConfig.apiKey,
+        service,
+        actualProviderVersion
+      )
+
+      // Create and configure interceptor
+      const interceptor = new EntenteRequestInterceptor(
+        spec,
+        fixtures,
+        service,
+        actualProviderVersion,
+        resolvedConfig,
+        options || {},
+        usingFallbackName || usingFallbackVersion // Skip operations if using fallbacks
+      )
+
+      // Apply interceptors
+      interceptor.apply()
+
+      return interceptor
+    },
+
+    downloadFixtures: async (service: string, version: string): Promise<Fixture[]> => {
+      // Skip if using fallback values
+      if (usingFallbackName || usingFallbackVersion) {
+        debugLog(`🚫 Skipping fixture download for ${service}@${version} - consumer info unavailable`)
+        return []
+      }
+
+      try {
+        const response = await fetch(
+          `${resolvedConfig.serviceUrl}/api/fixtures/service/${service}?version=${version}&status=approved`,
+          {
+            headers: {
+              Authorization: `Bearer ${resolvedConfig.apiKey}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+
+        if (response.ok) {
+          const fixtures = await response.json()
+          debugLog(`📥 Downloaded ${fixtures.length} fixtures for ${service}@${version}`)
+          return prioritizeFixtures(fixtures)
+        } else {
+          console.warn(`⚠️  Failed to download fixtures: ${response.status} ${response.statusText}`)
+          return []
+        }
+      } catch (error) {
+        console.warn(`⚠️  Error downloading fixtures: ${error}`)
+        return []
       }
     },
   }
@@ -1339,6 +1426,9 @@ const pathMatchesSpec = (specPath: string, requestPath: string): boolean => {
 
 // Export mock server utilities for use by other packages
 export type { MockServer, MockRequest, MockResponse }
+
+// Export interceptor utilities
+export type { InterceptedCall, InterceptOptions, RequestInterceptor } from './interceptor/index.js'
 
 // Export auto-detection utilities
 export { detectRequestType, createRequestDetector, defaultRequestDetector } from './mock-detector.js'
