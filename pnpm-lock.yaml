@@ -305,6 +305,9 @@ importers:
       '@entente/types':
         specifier: workspace:*
         version: link:../types
+      diff:
+        specifier: ^8.0.2
+        version: 8.0.2
     devDependencies:
       '@types/node':
         specifier: ^22.10.6
@@ -2930,6 +2933,10 @@ packages:
 
   diff@5.2.0:
     resolution: {integrity: sha512-uIFDxqpRZGZ6ThOk84hEfqWoHx2devRFvpTZcTHur85vImfaxUbTW9Ryh4CpCuDnToOP1CEtXKIgytHBPVff5A==}
+    engines: {node: '>=0.3.1'}
+
+  diff@8.0.2:
+    resolution: {integrity: sha512-sSuxWU5j5SR9QQji/o2qMvqRNYRDOcBTgsJ/DeCf4iSN4gW+gNMXM7wFIP+fdXZxoNiAnHUTGjCr+TSWXdRDKg==}
     engines: {node: '>=0.3.1'}
 
   diffie-hellman@5.0.3:
@@ -7510,6 +7517,14 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
+  '@vitest/mocker@2.1.9(vite@5.4.20(@types/node@22.18.3)(lightningcss@1.30.1))':
+    dependencies:
+      '@vitest/spy': 2.1.9
+      estree-walker: 3.0.3
+      magic-string: 0.30.19
+    optionalDependencies:
+      vite: 5.4.20(@types/node@22.18.3)(lightningcss@1.30.1)
+
   '@vitest/mocker@2.1.9(vite@5.4.20(@types/node@24.3.3)(lightningcss@1.30.1))':
     dependencies:
       '@vitest/spy': 2.1.9
@@ -8450,6 +8465,8 @@ snapshots:
   didyoumean@1.2.2: {}
 
   diff@5.2.0: {}
+
+  diff@8.0.2: {}
 
   diffie-hellman@5.0.3:
     dependencies:
@@ -11512,7 +11529,7 @@ snapshots:
   vitest@2.1.9(@types/node@22.18.3)(lightningcss@1.30.1):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.20(@types/node@24.3.3)(lightningcss@1.30.1))
+      '@vitest/mocker': 2.1.9(vite@5.4.20(@types/node@22.18.3)(lightningcss@1.30.1))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9

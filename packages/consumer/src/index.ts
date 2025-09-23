@@ -857,8 +857,11 @@ const createFixtureCollector = (
 
     uploadCollected: async () => {
       if (collectedFixtures.size === 0) {
+        debugLog(`📋 No fixtures collected for ${service}@${providerVersion} - skipping upload`)
         return
       }
+
+      debugLog(`📤 Preparing to upload ${collectedFixtures.size} fixtures for ${service}@${providerVersion}`)
 
       // Convert collected fixtures to fixture proposals
       const fixtureProposals: FixtureProposal[] = Array.from(collectedFixtures.values()).map(
@@ -881,6 +884,7 @@ const createFixtureCollector = (
 
       // Batch upload all fixtures
       try {
+        debugLog(`🌐 POSTing to ${serviceUrl}/api/fixtures/batch with ${fixtureProposals.length} fixtures`)
         const response = await fetch(`${serviceUrl}/api/fixtures/batch`, {
           method: 'POST',
           headers: {
@@ -896,12 +900,15 @@ const createFixtureCollector = (
             `✅ Batch uploaded ${fixtureProposals.length} fixtures: ${result.created} created, ${result.duplicates} duplicates`
           )
         } else {
+          const errorText = await response.text().catch(() => 'No error details')
           console.error(
             `❌ Failed to batch upload fixtures: ${response.status} ${response.statusText}`
           )
+          debugLog(`❌ Upload error details: ${errorText}`)
         }
       } catch (error) {
         console.error(`❌ Error batch uploading fixtures: ${error}`)
+        debugLog(`❌ Upload error details: ${error}`)
       }
 
       collectedFixtures.clear()
@@ -972,7 +979,9 @@ const createEntenteMock = (mockConfig: {
   }
 
   // Set up fixture collection in CI environment and not skipping operations
+  debugLog(`🔍 CI environment check: CI=${process.env.CI}, skipOperations=${mockConfig.skipOperations}`)
   if (process.env.CI && !mockConfig.skipOperations) {
+    debugLog(`✅ Enabling fixture collection for ${mockConfig.service}@${mockConfig.providerVersion}`)
     mockConfig.mockServer.onRequest(async (request, response) => {
       // Only collect fixtures for successful responses
       if (response.status >= 200 && response.status < 300) {
@@ -980,6 +989,7 @@ const createEntenteMock = (mockConfig: {
         const matchMeta = (request as any).__match
         const operation = matchMeta?.selectedOperationId || 'unknown'
 
+        debugLog(`📋 Collecting fixture for operation: ${operation} (${request.method} ${request.path})`)
         await fixtureCollector.collect(operation, {
           request: {
             method: request.method,
@@ -998,6 +1008,8 @@ const createEntenteMock = (mockConfig: {
     })
   } else if (process.env.CI && mockConfig.skipOperations) {
     debugLog('🚫 Skipping fixture collection - consumer info unavailable')
+  } else if (!process.env.CI) {
+    debugLog('🚫 Not in CI environment - fixture collection disabled')
   }
 
   const result: EntenteMock = {
@@ -1005,6 +1017,8 @@ const createEntenteMock = (mockConfig: {
     port: mockConfig.mockServer.port,
     close: async () => {
       // Upload collected fixtures before closing
+      const collectedCount = fixtureCollector.getCollectedCount()
+      debugLog(`🔄 Uploading ${collectedCount} collected fixtures for ${mockConfig.service}@${mockConfig.providerVersion}`)
       await fixtureCollector.uploadCollected()
 
       await mockConfig.mockServer.close()

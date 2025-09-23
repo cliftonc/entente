@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { diffJson, diffLines } from 'diff'
 import { getProjectMetadata } from '@entente/metadata'
 import type {
   ClientInteraction,
@@ -136,7 +137,7 @@ export const createProvider = async (config: ProviderConfig): Promise<EntentePro
 
 
             // Validate response matches recorded response
-            const validation = validateResponse(interaction.response, actualResponse)
+            const validation = validateResponse(interaction.response, actualResponse, options.logger)
 
             const result: VerificationResult = {
               interactionId: interaction.id,
@@ -257,9 +258,68 @@ export const replayRequest = async (
   }
 }
 
+const createResponseDiff = (expected: unknown, actual: unknown): string => {
+  const expectedJson = JSON.stringify(expected, null, 2)
+  const actualJson = JSON.stringify(actual, null, 2)
+
+  try {
+    const diff = diffJson(expected as any, actual as any)
+    const lines: string[] = []
+
+    lines.push('\n📊 Response Comparison:')
+    lines.push('─'.repeat(80))
+
+    // Create side-by-side diff
+    diff.forEach((part: any) => {
+      if (part.removed) {
+        const removedLines = part.value.split('\n').filter((line: string) => line.trim())
+        removedLines.forEach((line: string) => {
+          lines.push(`❌ Expected: ${line}`)
+        })
+      } else if (part.added) {
+        const addedLines = part.value.split('\n').filter((line: string) => line.trim())
+        addedLines.forEach((line: string) => {
+          lines.push(`✅ Actual:   ${line}`)
+        })
+      }
+    })
+
+    lines.push('─'.repeat(80))
+
+    // Also show full JSON diff for complex cases
+    const jsonDiff = diffLines(expectedJson, actualJson)
+    let hasChanges = false
+
+    jsonDiff.forEach((part: any) => {
+      if (part.added || part.removed) {
+        hasChanges = true
+      }
+    })
+
+    if (hasChanges) {
+      lines.push('\n📄 Full JSON Diff:')
+      jsonDiff.forEach((part: any) => {
+        const prefix = part.added ? '+ ' : part.removed ? '- ' : '  '
+        const color = part.added ? '✅' : part.removed ? '❌' : '  '
+        part.value.split('\n').forEach((line: string) => {
+          if (line.trim()) {
+            lines.push(`${color} ${prefix}${line}`)
+          }
+        })
+      })
+    }
+
+    return lines.join('\n')
+  } catch (error) {
+    // Fallback to simple text diff if JSON diff fails
+    return `\n📊 Simple Text Comparison:\n❌ Expected:\n${expectedJson}\n✅ Actual:\n${actualJson}`
+  }
+}
+
 export const validateResponse = (
   expected: HTTPResponse,
-  actual: HTTPResponse
+  actual: HTTPResponse,
+  logger?: (level: 'info' | 'warn' | 'error', message: string) => void
 ): { success: boolean; error?: string; errorDetails?: VerificationErrorDetails } => {
   // Add debug logging for response validation
   debugLog('🔍 Validating response structure:')
@@ -271,6 +331,17 @@ export const validateResponse = (
   // Validate status code
   if (expected.status !== actual.status) {
     const error = `Status code mismatch: expected ${expected.status}, got ${actual.status}`
+
+    // Show response bodies for context when status doesn't match
+    const diff = createResponseDiff(expected.body, actual.body)
+    const fullMessage = `🔍 Status Code Mismatch:\n${error}${diff}`
+
+    if (logger) {
+      logger('error', fullMessage)
+    } else {
+      console.error(fullMessage)
+    }
+
     return {
       success: false,
       error,
@@ -288,6 +359,17 @@ export const validateResponse = (
     const structureResult = validateJsonStructure(expected.body, actual.body, 'body')
     if (!structureResult.success) {
       debugLog(`❌ Structure validation failed: ${structureResult.error}`)
+
+      // Generate detailed diff for better debugging
+      const diff = createResponseDiff(expected.body, actual.body)
+      const fullMessage = `🔍 Response Structure Mismatch:\n${structureResult.error}${diff}`
+
+      if (logger) {
+        logger('error', fullMessage)
+      } else {
+        console.error(fullMessage)
+      }
+
       return {
         success: false,
         error: `Response structure mismatch: ${structureResult.error}`,

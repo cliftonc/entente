@@ -947,12 +947,16 @@ export const extractGraphQLEntitiesFromFixture = (
       debugLog('🔍 Full GraphQL response data:', JSON.stringify(responseData, null, 2))
 
       if (operationData) {
+        // Determine operation type based on GraphQL operation name
+        const operationType = inferOperationType(operationName)
+        debugLog(`🎯 Inferred operation type: ${operationType} for operation: ${operationName}`)
+
         if (Array.isArray(operationData)) {
           // Multiple entities (e.g., listRulers, getRulersByCastle)
           debugLog(`📋 Found ${operationData.length} entities in array`)
           for (const item of operationData) {
             debugLog(`🔍 Processing array item:`, JSON.stringify(item, null, 2))
-            const entity = extractEntityFromData(item, entityType, 'create', fixture.operation)
+            const entity = extractEntityFromData(item, entityType, operationType, fixture.operation)
             if (entity) {
               debugLog(`✅ Extracted entity:`, entity)
               entities.push(entity)
@@ -967,7 +971,7 @@ export const extractGraphQLEntitiesFromFixture = (
           const entity = extractEntityFromData(
             operationData,
             entityType,
-            'create',
+            operationType,
             fixture.operation
           )
           if (entity) {
@@ -984,6 +988,36 @@ export const extractGraphQLEntitiesFromFixture = (
   }
 
   return { entities, relationships }
+}
+
+// Helper function to infer operation type from GraphQL operation name
+const inferOperationType = (operationName: string): 'create' | 'update' | 'delete' => {
+  debugLog('🔍 Inferring operation type for:', operationName)
+
+  const lowerName = operationName.toLowerCase()
+
+  // Check for update operations
+  if (lowerName.startsWith('update') ||
+      lowerName.startsWith('edit') ||
+      lowerName.startsWith('modify') ||
+      lowerName.startsWith('patch') ||
+      lowerName.includes('update')) {
+    debugLog('✅ Identified as update operation')
+    return 'update'
+  }
+
+  // Check for delete operations
+  if (lowerName.startsWith('delete') ||
+      lowerName.startsWith('remove') ||
+      lowerName.startsWith('destroy') ||
+      lowerName.includes('delete')) {
+    debugLog('✅ Identified as delete operation')
+    return 'delete'
+  }
+
+  // Default to create for all other operations (including queries)
+  debugLog('✅ Defaulting to create operation')
+  return 'create'
 }
 
 const extractEntityFromData = (

@@ -662,6 +662,45 @@ const generateBasicRequestData = (
   }
 }
 
+// Helper function to infer operation type from OpenAPI operation name and HTTP method
+const inferOpenAPIOperationType = (operationName: string, requestData?: unknown): 'create' | 'update' | 'delete' => {
+  const lowerName = operationName.toLowerCase()
+
+  // Check for update operations (both operation name and HTTP method)
+  if (lowerName.startsWith('update') ||
+      lowerName.startsWith('edit') ||
+      lowerName.startsWith('modify') ||
+      lowerName.startsWith('patch') ||
+      lowerName.includes('update')) {
+    return 'update'
+  }
+
+  // Check HTTP method from request data
+  if (requestData && typeof requestData === 'object') {
+    const request = requestData as any
+    const method = request.method?.toUpperCase()
+
+    if (method === 'PUT' || method === 'PATCH') {
+      return 'update'
+    }
+
+    if (method === 'DELETE') {
+      return 'delete'
+    }
+  }
+
+  // Check for delete operations in operation name
+  if (lowerName.startsWith('delete') ||
+      lowerName.startsWith('remove') ||
+      lowerName.startsWith('destroy') ||
+      lowerName.includes('delete')) {
+    return 'delete'
+  }
+
+  // Default to create for all other operations (including GET operations)
+  return 'create'
+}
+
 export const extractOpenAPIEntitiesFromFixture = (
   fixture: Fixture
 ): {
@@ -676,12 +715,15 @@ export const extractOpenAPIEntitiesFromFixture = (
     return { entities, relationships }
   }
 
+  // Determine operation type based on operation name and HTTP method
+  const operationType = inferOpenAPIOperationType(fixture.operation, fixture.data.request)
+
   // Extract entity from request data (for create/update operations)
   if (fixture.data.request) {
     const requestEntity = extractEntityFromData(
       fixture.data.request,
       entityType,
-      'create',
+      operationType,
       fixture.operation
     )
     if (requestEntity) {
@@ -707,7 +749,7 @@ export const extractOpenAPIEntitiesFromFixture = (
         }
       } else if (typeof bodyData === 'object' && bodyData !== null) {
         // Single entity response
-        const entity = extractEntityFromData(bodyData, entityType, 'create', fixture.operation)
+        const entity = extractEntityFromData(bodyData, entityType, operationType, fixture.operation)
         if (entity) {
           entities.push(entity)
         }

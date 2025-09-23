@@ -17,7 +17,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "pnpm run clean && pnpm run build:esm && pnpm run build:cjs && pnpm run build:cjs-package",
+    "build": "node ../../scripts/build-packages.js provider",
+    "build:verbose": "pnpm run clean && pnpm run build:esm && pnpm run build:cjs && pnpm run build:cjs-package",
     "build:esm": "tsc -p tsconfig.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build:cjs-package": "echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
@@ -27,7 +28,8 @@
   },
   "dependencies": {
     "@entente/metadata": "workspace:*",
-    "@entente/types": "workspace:*"
+    "@entente/types": "workspace:*",
+    "diff": "^8.0.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.6",

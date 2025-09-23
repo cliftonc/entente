@@ -20,7 +20,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "pnpm run clean && pnpm run build:esm && pnpm run build:cjs && pnpm run build:cjs-package",
+    "build": "node ../../scripts/build-packages.js cli",
+    "build:verbose": "pnpm run clean && pnpm run build:esm && pnpm run build:cjs && pnpm run build:cjs-package",
     "build:esm": "tsc -p tsconfig.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build:cjs-package": "echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",

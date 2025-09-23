@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm --workspace-concurrency=1 -r build",
+    "build": "node scripts/build-packages.js",
+    "build:verbose": "pnpm --workspace-concurrency=1 -r build:verbose",
     "dev": "pnpm -r dev",
     "test": "pnpm -r test",
     "lint": "biome check .",

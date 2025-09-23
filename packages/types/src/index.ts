@@ -421,6 +421,7 @@ export interface VerifyOptions {
   environment?: string
   stateHandlers?: Record<string, () => Promise<void>>
   cleanup?: () => Promise<void>
+  logger?: (level: 'info' | 'warn' | 'error', message: string) => void
 }
 
 // OpenAPI related types
@@ -689,6 +690,7 @@ export interface EntityRelationship {
 
 export interface NormalizedFixtures {
   entities: Record<string, EntityData[]>
+  mutations: Record<string, EntityData[]>
   relationships: EntityRelationship[]
   metadata: {
     service: string

@@ -429,6 +429,7 @@ export const normalizeFixtures = (
   version: string
 ): NormalizedFixtures => {
   const entities: Record<string, EntityData[]> = {}
+  const mutations: Record<string, EntityData[]> = {}
   const relationships: EntityRelationship[] = []
 
   debugLog(`🔧 normalizeFixtures called with ${fixtures.length} fixtures for ${service}@${version}`)
@@ -439,33 +440,49 @@ export const normalizeFixtures = (
     const entityData = extractEntitiesFromFixture(fixture)
 
     for (const entity of entityData.entities) {
-      if (!entities[entity.type]) {
-        entities[entity.type] = []
-      }
+      debugLog(`🔧 Processing entity ${entity.id} (type: ${entity.type}, operation: ${entity.operation})`)
 
-      // Check if entity already exists (by ID)
-      const existingIndex = entities[entity.type].findIndex(e => e.id === entity.id)
-      if (existingIndex >= 0) {
-        // Update existing entity if this operation is newer or higher priority
-        const existing = entities[entity.type][existingIndex]
-        if (entity.operation === 'delete' || shouldReplaceEntity(existing, entity, fixture)) {
-          entities[entity.type][existingIndex] = entity
+      // Separate mutations from base entities
+      if (entity.operation === 'update') {
+        debugLog(`🔄 Adding entity ${entity.id} to mutations collection`)
+        if (!mutations[entity.type]) {
+          mutations[entity.type] = []
         }
+        mutations[entity.type].push(entity)
       } else {
-        entities[entity.type].push(entity)
+        // Handle create/read operations as base entities
+        debugLog(`🏗️ Processing base entity ${entity.id} (operation: ${entity.operation})`)
+        if (!entities[entity.type]) {
+          entities[entity.type] = []
+        }
+
+        // Check if entity already exists (by ID)
+        const existingIndex = entities[entity.type].findIndex(e => e.id === entity.id)
+        if (existingIndex >= 0) {
+          debugLog(`🔍 Found existing entity ${entity.id}, checking if should replace`)
+          // Update existing entity if this operation is newer or higher priority
+          const existing = entities[entity.type][existingIndex]
+          if (entity.operation === 'delete' || shouldReplaceEntity(existing, entity, fixture)) {
+            debugLog(`✅ Replacing existing entity ${entity.id}`)
+            entities[entity.type][existingIndex] = entity
+          } else {
+            debugLog(`⏭️ Keeping existing entity ${entity.id}`)
+          }
+        } else {
+          debugLog(`➕ Adding new base entity ${entity.id}`)
+          entities[entity.type].push(entity)
+        }
       }
     }
 
     relationships.push(...entityData.relationships)
   }
 
-  // // Remove deleted entities
-  // for (const entityType in entities) {
-  //   entities[entityType] = entities[entityType].filter(e => e.operation !== 'delete')
-  // }
+  debugLog(`🎯 Normalization complete: ${Object.keys(entities).reduce((total, type) => total + entities[type].length, 0)} base entities, ${Object.keys(mutations).reduce((total, type) => total + mutations[type].length, 0)} mutations`)
 
   return {
     entities,
+    mutations,
     relationships,
     metadata: {
       service,
