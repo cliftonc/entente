@@ -261,6 +261,13 @@ export const validateResponse = (
   expected: HTTPResponse,
   actual: HTTPResponse
 ): { success: boolean; error?: string; errorDetails?: VerificationErrorDetails } => {
+  // Add debug logging for response validation
+  debugLog('🔍 Validating response structure:')
+  debugLog(`  Expected status: ${expected.status}`)
+  debugLog(`  Actual status: ${actual.status}`)
+  debugLog(`  Expected body: ${JSON.stringify(expected.body, null, 2)}`)
+  debugLog(`  Actual body: ${JSON.stringify(actual.body, null, 2)}`)
+
   // Validate status code
   if (expected.status !== actual.status) {
     const error = `Status code mismatch: expected ${expected.status}, got ${actual.status}`
@@ -280,6 +287,7 @@ export const validateResponse = (
   if (expected.body && actual.body) {
     const structureResult = validateJsonStructure(expected.body, actual.body, 'body')
     if (!structureResult.success) {
+      debugLog(`❌ Structure validation failed: ${structureResult.error}`)
       return {
         success: false,
         error: `Response structure mismatch: ${structureResult.error}`,

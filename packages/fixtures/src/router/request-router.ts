@@ -2,8 +2,6 @@ import type {
   APISpec,
   Fixture,
   FixtureSelectionResult,
-  OperationMatchCandidate,
-  OperationMatchContext,
   OperationMatchResult,
   SpecHandler,
   UnifiedRequest,
@@ -11,6 +9,7 @@ import type {
 } from '@entente/types'
 import { debugLog } from '@entente/types'
 import { scoreFixturesDefault } from '../scoring/fixture-scoring.js'
+import { createOperationMatcher } from '../matching/operation-matcher.js'
 
 export interface RequestRouterOptions {
   debug?: boolean
@@ -39,32 +38,20 @@ export const createRequestRouter = ({
   handler: SpecHandler
   options?: RequestRouterOptions
 }): RequestRouter => {
-  // Cache operations once
-  const operations = handler.extractOperations(spec)
   const debug = !!options.debug || process.env.ENTENTE_DEBUG === 'true'
+
+  // Create operation matcher for reusable matching logic
+  const operationMatcher = createOperationMatcher({
+    spec,
+    handler,
+    options: { debug },
+  })
 
   const scoreFn = handler.scoreFixtures ?? scoreFixturesDefault
 
   const handle = (request: UnifiedRequest): MatchOutcome => {
-    const ctx: OperationMatchContext = {
-      request,
-      specType: spec.type,
-      spec,
-      operations,
-    }
-
-    const matchResult: OperationMatchResult = handler.matchOperation(ctx)
-
-    if (debug) {
-      debugLog(
-        '[entente][router] candidates',
-        matchResult.candidates.map(c => ({
-          op: c.operation.id,
-          conf: c.confidence,
-          reasons: c.reasons,
-        }))
-      )
-    }
+    // Use the shared operation matcher
+    const matchResult: OperationMatchResult = operationMatcher.match(request)
 
     if (!matchResult.selected) {
       return {

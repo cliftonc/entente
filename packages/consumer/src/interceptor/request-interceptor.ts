@@ -1,15 +1,16 @@
 import { BatchInterceptor } from '@mswjs/interceptors'
 import { ClientRequestInterceptor } from '@mswjs/interceptors/ClientRequest'
 import { FetchInterceptor } from '@mswjs/interceptors/fetch'
-import { createRequestRouter } from '@entente/fixtures'
+import { createOperationMatcher, createFixtureManager } from '@entente/fixtures'
 import { specRegistry } from '@entente/fixtures'
-import { convertHTTPToUnified, generateInteractionHash } from '@entente/fixtures'
+import { convertHTTPToUnified, generateInteractionHash, generateFixtureHash } from '@entente/fixtures'
 import type {
   APISpec,
   ClientConfig,
   ClientInteraction,
   Fixture,
   FixtureProposal,
+  SpecType,
   SupportedSpec,
   UnifiedRequest,
 } from '@entente/types'
@@ -20,14 +21,14 @@ import type { InterceptedCall, InterceptOptions, RequestInterceptor } from './ty
 interface PendingRequest {
   startTime: number
   unifiedRequest: UnifiedRequest
-  matchOutcome: any
+  matchResult: any
   requestType: 'fetch' | 'http'
 }
 
 export class EntenteRequestInterceptor implements RequestInterceptor {
   private interceptor: BatchInterceptor<any>
   private spec: APISpec
-  private router: any
+  private operationMatcher: any
   private isActive = false
 
   // Recording state
@@ -36,6 +37,10 @@ export class EntenteRequestInterceptor implements RequestInterceptor {
   private recordedInteractions: ClientInteraction[] = []
   private seenHashes = new Set<string>()
   private cachedGitSha: string | null = null
+
+  // Fixture collection state
+  private collectedFixtures = new Map<string, { operation: string; data: { request?: unknown; response: unknown } }>()
+  private fixtureManager: any
 
   // Statistics
   private stats = { fetch: 0, http: 0, total: 0 }
@@ -62,6 +67,9 @@ export class EntenteRequestInterceptor implements RequestInterceptor {
     this.options = options
     this.skipOperations = skipOperations
 
+    // Initialize fixture manager for fixture proposals
+    this.fixtureManager = createFixtureManager(config.serviceUrl, config.apiKey)
+
     // Parse spec and create router
     const parsedSpec = specRegistry.parseSpec(spec)
     if (!parsedSpec) {
@@ -71,22 +79,21 @@ export class EntenteRequestInterceptor implements RequestInterceptor {
 
     debugLog(`🔍 [Interceptor] Detected spec type: ${parsedSpec.type}`)
 
-    // Create router for operation matching
+    // Create operation matcher for recording (no response generation)
     try {
       const handler = specRegistry.getHandler(parsedSpec.type)
       if (!handler) {
         throw new Error(`No handler found for spec type: ${parsedSpec.type}`)
       }
 
-      this.router = createRequestRouter({
+      this.operationMatcher = createOperationMatcher({
         spec: parsedSpec as any,
-        fixtures,
         handler: handler as any,
         options: { debug: process.env.ENTENTE_DEBUG === 'true' },
       })
-      debugLog(`✅ [Interceptor] Router created successfully for ${parsedSpec.type}`)
+      debugLog(`✅ [Interceptor] Operation matcher created successfully for ${parsedSpec.type}`)
     } catch (e) {
-      console.warn('[entente][interceptor] failed to initialize request router', e)
+      console.warn('[entente][interceptor] failed to initialize operation matcher', e)
     }
 
     // Setup MSW interceptors
@@ -141,12 +148,12 @@ export class EntenteRequestInterceptor implements RequestInterceptor {
           }
         }
 
-        // Match against spec operations
-        let matchOutcome: any = { match: { selected: null, candidates: [] } }
-        if (this.router && typeof this.router.handle === 'function') {
+        // Match against spec operations (for recording purposes only)
+        let matchResult: any = { selected: null, candidates: [] }
+        if (this.operationMatcher && typeof this.operationMatcher.match === 'function') {
           try {
-            matchOutcome = this.router.handle(unifiedRequest)
-            debugLog(`✅ [Interceptor] Operation matched: ${matchOutcome.match.selected?.operation.id || 'unknown'}`)
+            matchResult = this.operationMatcher.match(unifiedRequest)
+            debugLog(`✅ [Interceptor] Operation matched: ${matchResult.selected?.operation.id || 'unknown'}`)
           } catch (e) {
             debugLog(`⚠️ [Interceptor] Operation matching failed: ${e}`)
           }
@@ -156,7 +163,7 @@ export class EntenteRequestInterceptor implements RequestInterceptor {
         this.pendingRequests.set(requestId, {
           startTime,
           unifiedRequest,
-          matchOutcome,
+          matchResult,
           requestType,
         })
       } catch (error) {
@@ -206,11 +213,11 @@ export class EntenteRequestInterceptor implements RequestInterceptor {
             headers: responseHeaders,
             body: responseBody,
           },
-          operation: pending.matchOutcome.match.selected?.operation.id || 'unknown',
+          operation: pending.matchResult.selected?.operation.id || 'unknown',
           matchContext: {
-            selectedOperationId: pending.matchOutcome.match.selected?.operation.id || 'unknown',
-            candidates: pending.matchOutcome.match.candidates || [],
-            confidence: pending.matchOutcome.match.selected?.confidence,
+            selectedOperationId: pending.matchResult.selected?.operation.id || 'unknown',
+            candidates: pending.matchResult.candidates || [],
+            confidence: pending.matchResult.selected?.confidence,
           },
           duration,
           timestamp: new Date(),
@@ -224,6 +231,15 @@ export class EntenteRequestInterceptor implements RequestInterceptor {
         // Record interaction if recording is enabled
         if (this.shouldRecordInteraction()) {
           await this.recordInteraction(interceptedCall)
+        }
+
+        // Collect fixture proposals in CI environment for successful responses
+        const shouldCollect = this.shouldCollectFixtures()
+        const isSuccessful = response.status >= 200 && response.status < 300
+        debugLog(`🔍 [Interceptor] Fixture collection check: shouldCollect=${shouldCollect}, status=${response.status}, isSuccessful=${isSuccessful}`)
+        if (shouldCollect && isSuccessful) {
+          debugLog(`📥 [Interceptor] Triggering fixture collection for operation: ${interceptedCall.operation}`)
+          await this.collectFixture(interceptedCall)
         }
 
         // Clean up pending request
@@ -387,6 +403,48 @@ export class EntenteRequestInterceptor implements RequestInterceptor {
     return `int_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   }
 
+  private shouldCollectFixtures(): boolean {
+    const shouldCollect = (
+      process.env.CI === 'true' && // Only collect in CI
+      !this.skipOperations && // Don't collect if using fallback values
+      this.options.recording !== false // Only if recording is enabled
+    )
+    debugLog(`🔍 [Interceptor] shouldCollectFixtures: CI=${process.env.CI}, skipOperations=${this.skipOperations}, recording=${this.options.recording}, result=${shouldCollect}`)
+    return shouldCollect
+  }
+
+  private async collectFixture(call: InterceptedCall): Promise<void> {
+    if (this.skipOperations || call.operation === 'unknown') {
+      debugLog(`🚫 [Interceptor] Skipping fixture collection - operation unavailable`)
+      return
+    }
+
+    // Prepare fixture data
+    const fixtureData = {
+      operation: call.operation,
+      data: {
+        request: call.request,
+        response: {
+          status: call.response.status,
+          headers: call.response.headers || {},
+          body: call.response.body,
+        },
+      },
+    }
+
+    // Generate hash for deduplication
+    const hash = await generateFixtureHash(call.operation, fixtureData.data)
+
+    // Skip if we've already collected this fixture
+    if (this.collectedFixtures.has(hash)) {
+      debugLog(`⏭️ [Interceptor] Skipping duplicate fixture: ${hash}`)
+      return
+    }
+
+    this.collectedFixtures.set(hash, fixtureData)
+    debugLog(`📥 [Interceptor] Collected fixture for operation: ${call.operation}`)
+  }
+
   // Public API methods
 
   apply(): void {
@@ -403,12 +461,21 @@ export class EntenteRequestInterceptor implements RequestInterceptor {
   async unpatch(): Promise<void> {
     if (!this.isActive) return
 
+    debugLog('🔄 [Interceptor] Starting unpatch process...')
+
     // Dispose of interceptor
     this.interceptor.dispose()
     this.isActive = false
 
     // Flush any remaining interactions
+    debugLog('🔄 [Interceptor] About to flush interactions...')
     await this.flushInteractions()
+    debugLog('✅ [Interceptor] Interactions flushed')
+
+    // Upload collected fixtures
+    debugLog('🔄 [Interceptor] About to flush fixtures...')
+    await this.flushFixtures()
+    debugLog('✅ [Interceptor] Fixtures flushed')
 
     debugLog('🛑 [Interceptor] Request interception deactivated')
   }
@@ -434,11 +501,15 @@ export class EntenteRequestInterceptor implements RequestInterceptor {
   }
 
   private async flushInteractions(): Promise<void> {
+    debugLog(`🔄 [Interceptor] Flushing ${this.recordedInteractions.length} recorded interactions`)
     if (this.recordedInteractions.length === 0) return
 
     try {
+      const url = `${this.config.serviceUrl}/api/interactions/batch`
+      debugLog(`🌐 [Interceptor] Uploading interactions to: ${url}`)
+
       // Send all interactions in one batch request
-      const response = await fetch(`${this.config.serviceUrl}/api/interactions/batch`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.config.apiKey}`,
@@ -462,6 +533,58 @@ export class EntenteRequestInterceptor implements RequestInterceptor {
       this.seenHashes.clear() // Clear deduplication cache
     } catch (error) {
       console.error(`❌ [Interceptor] Error uploading interactions batch: ${error}`)
+    }
+  }
+
+  private async flushFixtures(): Promise<void> {
+    debugLog(`🔄 [Interceptor] Flushing ${this.collectedFixtures.size} collected fixtures`)
+    if (this.collectedFixtures.size === 0) return
+
+    try {
+      // Convert collected fixtures to fixture proposals (matching mock server format)
+      const fixtureProposals = Array.from(this.collectedFixtures.values()).map(({ operation, data }) => ({
+        service: this.service,
+        serviceVersion: this.providerVersion,
+        specType: this.spec.type,
+        operation,
+        source: 'consumer' as const,
+        data,
+        createdFrom: {
+          type: 'test_output',
+          timestamp: new Date(),
+          generatedBy: 'consumer-interceptor',
+          testRun: process.env.BUILD_ID || 'local',
+        },
+        notes: 'Auto-generated fixture from consumer interceptor test',
+      }))
+
+      const url = `${this.config.serviceUrl}/api/fixtures/batch`
+      debugLog(`🌐 [Interceptor] Uploading fixture proposals to: ${url}`)
+
+      // Send fixture proposals to server (matching mock server format)
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ fixtures: fixtureProposals }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        debugLog(
+          `✅ [Interceptor] Batch uploaded ${fixtureProposals.length} fixtures: ${result.created} created, ${result.duplicates} duplicates`
+        )
+      } else {
+        console.error(
+          `❌ [Interceptor] Failed to upload fixtures batch: ${response.status} ${response.statusText}`
+        )
+      }
+
+      this.collectedFixtures.clear() // Clear collected fixtures
+    } catch (error) {
+      console.error(`❌ [Interceptor] Error uploading fixture proposals batch: ${error}`)
     }
   }
 }

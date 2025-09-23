@@ -282,13 +282,9 @@ export const createClient = async (config: ClientConfig): Promise<EntenteClient>
         options?.filter ? undefined : 'main' // No branch filtering for intercept mode by default
       )
 
-      // Fetch existing fixtures for operation matching context
-      const fixtures = await fetchFixtures(
-        resolvedConfig.serviceUrl,
-        resolvedConfig.apiKey,
-        service,
-        actualProviderVersion
-      )
+      // Interceptor mode should not use fixtures for mocking - it only records interactions
+      // Pass empty fixtures array so router doesn't mock responses
+      const fixtures: Fixture[] = []
 
       // Create and configure interceptor
       const interceptor = new EntenteRequestInterceptor(

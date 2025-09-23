@@ -779,3 +779,6 @@ export { extractGraphQLOperationName } from './spec-handlers/graphql.js'
 // V2 Router & Scoring (experimental)
 export { createRequestRouter } from './router/request-router.js'
 export { scoreFixturesDefault } from './scoring/fixture-scoring.js'
+
+// Operation matching (for interceptors)
+export { createOperationMatcher } from './matching/operation-matcher.js'
