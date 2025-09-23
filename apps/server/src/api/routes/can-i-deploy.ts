@@ -342,13 +342,16 @@ canIDeployRouter.get('/', async c => {
         .from(serviceDependencies)
         .innerJoin(providerServices, eq(serviceDependencies.providerId, providerServices.id))
         .innerJoin(consumerServices, eq(serviceDependencies.consumerId, consumerServices.id))
-        .innerJoin(deployments, eq(serviceDependencies.consumerId, deployments.serviceId))
+        .innerJoin(deployments, and(
+          eq(serviceDependencies.consumerId, deployments.serviceId),
+          eq(serviceDependencies.consumerVersion, deployments.version),
+          eq(deployments.environment, environment),
+          eq(deployments.active, true)
+        ))
         .where(
           and(
             eq(serviceDependencies.tenantId, tenantId),
-            eq(providerServices.name, service),
-            eq(deployments.environment, environment),
-            eq(deployments.active, true)
+            eq(providerServices.name, service)
           )
         )
 
