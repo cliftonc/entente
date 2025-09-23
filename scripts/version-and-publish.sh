@@ -47,9 +47,20 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
   fi
 fi
 
-echo -e "${GREEN}🧪 Building and testing each package in dependency order...${NC}"
+echo -e "${GREEN}🧪 Building all packages and apps...${NC}"
 
-# Process each package in order - build and test first
+# Use the consolidated build script
+echo "  📦 Building all packages and apps..."
+if node scripts/build-packages.js; then
+  echo -e "${GREEN}✅ All packages and apps built successfully!${NC}"
+else
+  echo -e "${RED}❌ Build failed${NC}"
+  exit 1
+fi
+
+echo -e "${GREEN}🧪 Running tests for each package in dependency order...${NC}"
+
+# Process each package in order - test only (build already done)
 for PACKAGE in "${PACKAGES[@]}"; do
   PACKAGE_DIR="packages/$PACKAGE"
 
@@ -58,19 +69,9 @@ for PACKAGE in "${PACKAGES[@]}"; do
     continue
   fi
 
-  echo -e "${GREEN}🔨 Building and testing @entente/$PACKAGE...${NC}"
+  echo -e "${GREEN}🧪 Testing @entente/$PACKAGE...${NC}"
 
   cd "$PACKAGE_DIR"
-
-  # Build the package
-  echo "  📦 Building @entente/$PACKAGE..."
-  if pnpm build; then
-    echo "  ✅ Build successful"
-  else
-    echo -e "${RED}❌ Build failed for @entente/$PACKAGE${NC}"
-    cd ../..
-    exit 1
-  fi
 
   # Run tests if test script exists
   if grep -q '"test"' package.json; then
@@ -89,7 +90,7 @@ for PACKAGE in "${PACKAGES[@]}"; do
   cd ../..
 done
 
-echo -e "${GREEN}✅ All packages built and tested successfully!${NC}"
+echo -e "${GREEN}✅ All tests passed successfully!${NC}"
 
 # Process each package in order for versioning and publishing
 for PACKAGE in "${PACKAGES[@]}"; do

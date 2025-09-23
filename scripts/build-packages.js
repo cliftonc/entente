@@ -77,11 +77,9 @@ async function buildPackage(packageName) {
     // Clean
     await runCommand('pnpm', ['run', 'clean'], packageDir)
 
-    // Build ESM and CJS in parallel
-    await Promise.all([
-      runCommand('pnpm', ['run', 'build:esm'], packageDir),
-      runCommand('pnpm', ['run', 'build:cjs'], packageDir)
-    ])
+    // Build ESM and CJS sequentially to avoid typescript reference issues
+    await runCommand('pnpm', ['run', 'build:esm'], packageDir)
+    await runCommand('pnpm', ['run', 'build:cjs'], packageDir)
 
     // Create CJS package.json
     await runCommand('pnpm', ['run', 'build:cjs-package'], packageDir)

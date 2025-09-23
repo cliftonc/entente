@@ -66,9 +66,20 @@ for PACKAGE in "${PACKAGES[@]}"; do
   cd ../..
 done
 
-echo -e "${BLUE}🔨 Running build and test for each package...${NC}"
+echo -e "${BLUE}🔨 Building all packages and apps...${NC}"
 
-# Process each package in order - build and test
+# Use the consolidated build script
+echo -e "  📦 Building all packages and apps..."
+if node scripts/build-packages.js; then
+  echo -e "${GREEN}✅ All packages and apps built successfully!${NC}"
+else
+  echo -e "${RED}❌ Build failed${NC}"
+  exit 1
+fi
+
+echo -e "${BLUE}🧪 Running tests for each package in dependency order...${NC}"
+
+# Process each package in order - test only (build already done)
 for PACKAGE in "${PACKAGES[@]}"; do
   PACKAGE_DIR="packages/$PACKAGE"
 
@@ -77,19 +88,9 @@ for PACKAGE in "${PACKAGES[@]}"; do
     continue
   fi
 
-  echo -e "${BLUE}🔨 Building and testing @entente/$PACKAGE...${NC}"
+  echo -e "${BLUE}🧪 Testing @entente/$PACKAGE...${NC}"
 
   cd "$PACKAGE_DIR"
-
-  # Build the package
-  echo -e "  📦 Building @entente/$PACKAGE..."
-  if pnpm build; then
-    echo -e "  ✅ Build successful"
-  else
-    echo -e "${RED}❌ Build failed for @entente/$PACKAGE${NC}"
-    cd ../..
-    exit 1
-  fi
 
   # Run tests if test script exists
   if grep -q '"test"' package.json; then
@@ -108,7 +109,7 @@ for PACKAGE in "${PACKAGES[@]}"; do
   cd ../..
 done
 
-echo -e "${GREEN}✅ All packages built and tested successfully!${NC}"
+echo -e "${GREEN}✅ All tests passed successfully!${NC}"
 echo -e "${BLUE}📝 What publishing would do:${NC}"
 echo "  1. For each package (in order):"
 echo "     - Increment patch version"
