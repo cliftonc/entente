@@ -321,7 +321,8 @@ export class EntenteRequestInterceptor implements RequestInterceptor {
   private async extractResponseBody(response: Response): Promise<unknown> {
     try {
       const contentType = response.headers.get('content-type') || ''
-      if (contentType.includes('application/json')) {
+      if (contentType.includes('application/json') ||
+          contentType.includes('application/graphql-response+json')) {
         return await response.json()
       } else {
         return await response.text()
