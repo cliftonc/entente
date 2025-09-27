@@ -1,242 +1,322 @@
 # @entente/consumer
 
-Consumer testing library for Entente contract testing. This package implements the client-side functionality from the ContractFlow specification, enabling schema-first contract testing with automatic interaction recording and smart fixture support.
+Consumer testing library for schema-first contract testing. Supports both mock server creation and lightweight request interception with automatic interaction recording and smart fixture support.
 
-## Overview
+## Installation
 
-The client library allows consumer applications to create mock servers from OpenAPI specifications, automatically record real interactions in CI environments, and use approved fixtures for deterministic testing. It follows ContractFlow's principle of "CI-Only Recording" where local tests run fast and CI builds contribute real data.
+```bash
+npm install @entente/consumer
+```
 
-## Core Features
+## Quick Start
 
-### OpenAPI-First Mock Creation
 ```typescript
 import { createClient } from '@entente/consumer'
-import type { Fixture } from '@entente/types'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const entente = createClient({
-  serviceUrl: process.env.ENTENTE_SERVICE_URL || '',
-  apiKey: process.env.ENTENTE_API_KEY || '',
-  consumer: 'castle-client',
-  environment: 'test', // Test context (not deployment environment)
-  recordingEnabled: process.env.CI === 'true', // Only record in CI
+const entente = await createClient({
+  serviceUrl: 'https://entente.company.com',
+  apiKey: 'your-api-key',
+  consumer: 'my-app',
+  consumerVersion: '1.0.0',
+  environment: 'test'
 })
 
-// Load local fixtures for fallback
-const fixturesPath = join(process.cwd(), 'fixtures', 'castle-service.json')
-const localFixtures: Fixture[] = JSON.parse(readFileSync(fixturesPath, 'utf-8'))
+// Create a mock server
+const mock = await entente.createMock('order-service', '2.1.0')
+console.log(`Mock server running at ${mock.url}`)
 
-// Create mock from centrally managed OpenAPI spec
-const mock = await entente.createMock('castle-service', '0.1.0', {
+// Use in your tests
+const response = await fetch(`${mock.url}/orders/123`)
+await mock.close()
+```
+
+## Two Testing Modes
+
+### Mock Server Mode (OpenAPI/AsyncAPI)
+
+Creates a dedicated mock server for isolated testing with fixture responses. Currently supports OpenAPI REST APIs and AsyncAPI WebSocket services.
+
+```typescript
+const mock = await entente.createMock('order-service', '2.1.0', {
+  port: 3001,
   useFixtures: true,
-  validateRequests: true,
-  validateResponses: true,
-  localFixtures, // Fallback fixtures when service is unavailable
+  validateRequests: true
 })
 
-// Use the mock URL in your API client
-const castleApi = new CastleApiClient(mock.url)
+// Use mock.url in your HTTP client
+const orderApi = new OrderApiClient(mock.url)
+const orders = await orderApi.getOrders()
+
+// Clean up
+await mock.close()
 ```
 
-### Smart Fixture Support
+### Request Interceptor Mode (All Protocols)
 
-The client implements ContractFlow's smart fixture system:
+Intercepts real HTTP requests for integration testing with actual APIs. Works with any service type including GraphQL, gRPC, SOAP, and others.
 
-1. **First Run**: No fixtures exist → Uses OpenAPI schema for dynamic mocking
-2. **CI Recording**: Captures responses → Proposes fixtures automatically
-3. **Fixture Approval**: Team approves fixtures → Deterministic mocking
-4. **Subsequent Runs**: Uses approved fixtures → Consistent test behavior
-
-### Automatic Interaction Recording
-
-When `recordingEnabled: true` (CI environments):
-- All mock interactions are captured
-- Sent to central service for provider verification
-- Includes request/response data, timing, and metadata
-- Zero developer intervention required
-
-## Implementation Status
-
-### ✅ Complete
-- Functional API structure (`createClient`, `createMock`)
-- Integration with `@entente/fixtures` package
-- Interaction recording infrastructure
-- Configuration and typing
-- Mock server lifecycle management
-
-### 🔄 In Progress
-- Mock response fixtures integration (simplified implementation)
-
-### ❌ TODO - High Priority
-1. **Real Prism Integration**: Replace simplified mock with actual `@stoplight/prism-cli`
-2. **Fixture Injection**: Implement `injectFixturesIntoSpec()` to add fixtures as OpenAPI examples
-3. **Operation Derivation**: Implement `deriveOperation()` to map requests to OpenAPI operations
-4. **Request/Response Validation**: Add OpenAPI validation for requests and responses
-5. **WebSocket Support**: Real-time updates for fixture approvals
-
-### ❌ TODO - Lower Priority
-- Enhanced error handling and logging
-- Retry mechanisms for central service communication
-- Metrics and analytics collection
-- Support for multiple OpenAPI versions
-- Custom mock server configurations
-
-## Usage Examples
-
-### Real Consumer Test from Castle Client
 ```typescript
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { createClient } from '@entente/consumer'
-import type { Fixture } from '@entente/types'
-import dotenv from 'dotenv'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { CastleApiClient } from '../src/castle-api.js'
+{
+  using interceptor = await entente.patchRequests('order-service', '2.1.0')
 
-// Load environment variables from .env file
-dotenv.config()
+  // All HTTP requests are now intercepted and recorded
+  await fetch('https://api.example.com/orders/123')  // Real API call
+  await request(app).get('/orders/123')             // Supertest
+  await axios.get('https://api.example.com/orders') // Axios
 
-describe('Castle Client Consumer Contract Tests', () => {
-  let client: ReturnType<typeof createClient>
-  let mock: Awaited<ReturnType<typeof client.createMock>>
-  let castleApi: CastleApiClient
+} // Automatically cleans up and uploads interactions
+```
 
-  beforeAll(async () => {
-    // Load local fixtures
-    const fixturesPath = join(process.cwd(), 'fixtures', 'castle-service.json')
-    const localFixtures: Fixture[] = JSON.parse(readFileSync(fixturesPath, 'utf-8'))
+### Which Mode to Choose?
 
-    client = createClient({
-      serviceUrl: process.env.ENTENTE_SERVICE_URL || '',
-      apiKey: process.env.ENTENTE_API_KEY || '',
-      consumer: 'castle-client',
-      environment: 'test', // Test context (not deployment environment)
-      recordingEnabled: process.env.CI === 'true',
-    })
+**Use Mock Server Mode when:**
+- Testing OpenAPI REST APIs or AsyncAPI WebSocket services
+- You want isolated unit tests with fast, deterministic responses
+- Testing error scenarios with specific fixture data
+- Working offline or with unreliable external services
 
-    mock = await client.createMock('castle-service', '0.1.0', {
-      useFixtures: true,
-      validateRequests: true,
-      validateResponses: true,
-      localFixtures,
-    })
+**Use Request Interceptor Mode when:**
+- Testing GraphQL, gRPC, SOAP, or other non-OpenAPI services
+- You want integration tests against real APIs
+- Testing against live staging/development environments
+- Recording real interaction patterns for provider verification
 
-    castleApi = new CastleApiClient(mock.url)
-  })
+## Fixture Management
 
-  afterAll(async () => {
-    if (mock) {
-      await mock.close()
-    }
-  })
+The library automatically manages test fixtures through a smart workflow:
 
-  it('should get all castles from the service', async () => {
-    const castles = await castleApi.getAllCastles()
+1. **First run**: Uses OpenAPI schema for dynamic responses
+2. **CI recording**: Captures real responses as fixture proposals
+3. **Team approval**: Approved fixtures become deterministic test data
+4. **Subsequent runs**: Uses approved fixtures for consistent testing
 
-    expect(Array.isArray(castles)).toBe(true)
-    expect(castles.length).toBeGreaterThan(0)
-
-    const castle = castles[0]
-    expect(castle).toHaveProperty('id')
-    expect(castle).toHaveProperty('name')
-    expect(castle).toHaveProperty('region')
-    expect(castle).toHaveProperty('yearBuilt')
-
-    expect(typeof castle.id).toBe('string')
-    expect(typeof castle.name).toBe('string')
-    expect(typeof castle.region).toBe('string')
-    expect(typeof castle.yearBuilt).toBe('number')
-  })
-
-  it('should create a new castle', async () => {
-    const newCastleData = {
-      name: 'Château de Test',
-      region: 'Test Region',
-      yearBuilt: 1500,
-    }
-
-    const createdCastle = await castleApi.createCastle(newCastleData)
-
-    expect(createdCastle).toHaveProperty('id')
-    expect(createdCastle.name).toBe(newCastleData.name)
-    expect(createdCastle.region).toBe(newCastleData.region)
-    expect(createdCastle.yearBuilt).toBe(newCastleData.yearBuilt)
-  })
-
-  it('should handle validation errors for castle creation', async () => {
-    const invalidCastleData = {
-      name: '',
-      region: 'Test Region',
-      yearBuilt: 999,
-    }
-
-    await expect(castleApi.createCastle(invalidCastleData)).rejects.toThrow()
-  })
+```typescript
+// Propose a custom fixture
+await mock.proposeFixture('getOrder', {
+  request: { orderId: '123' },
+  response: { id: '123', total: 99.99, status: 'completed' }
 })
+
+// View fixture statistics
+const stats = mock.getStats()
+console.log(`Collected ${stats.fixturesCollected} fixtures`)
 ```
 
-### Self-Bootstrapping Workflow
+## Automatic Resource Management
 
-**First Run (No Fixtures)**:
+Both modes support automatic cleanup using JavaScript's disposal pattern:
+
 ```typescript
-// Mock server uses OpenAPI schema for dynamic response generation
-// In CI: Responses are captured and proposed as fixtures
-console.log('🚀 No fixtures found - using schema-based mocking')
+// Automatic cleanup with 'using'
+{
+  using mock = await entente.createMock('order-service', '2.1.0')
+  // Test your code here
+} // Mock automatically closed
+
+// Manual cleanup
+const mock = await entente.createMock('order-service', '2.1.0')
+try {
+  // Test your code here
+} finally {
+  await mock.close()
+}
 ```
 
-**After Fixture Approval**:
+## Multi-Protocol Support
+
+### Request Interceptor Mode (All Protocols)
+
+Interceptors work with any specification format - they record real HTTP traffic regardless of the underlying protocol:
+
 ```typescript
-// Mock server uses approved fixtures for deterministic responses
-console.log('📋 Using approved fixtures for deterministic mocking')
+// Works with any service type
+{
+  using interceptor = await entente.patchRequests('graphql-service', '1.0.0')
+  // GraphQL queries are intercepted and recorded
+  await fetch('/graphql', { method: 'POST', body: graphqlQuery })
+}
+
+{
+  using interceptor = await entente.patchRequests('grpc-gateway', '2.0.0')
+  // gRPC-Web requests are intercepted and recorded
+  await grpcClient.getUserProfile({ userId: '123' })
+}
+```
+
+### Mock Server Mode (OpenAPI + AsyncAPI Only)
+
+Mock servers currently support OpenAPI REST APIs and AsyncAPI WebSocket services:
+
+```typescript
+// OpenAPI REST service - full support
+const restMock = await entente.createMock('user-service', '1.0.0')
+
+// AsyncAPI WebSocket service - full support
+const asyncMock = await entente.createMock('notification-service', '1.5.0')
+if (asyncMock.websocket) {
+  asyncMock.sendEvent('user/123', { type: 'welcome' })
+}
+
+// GraphQL, gRPC, SOAP - use interceptor mode instead
+// Mock server mode not yet supported for these protocols
 ```
 
 ## Configuration
 
-### Environment Variables
-- `ENTENTE_SERVICE_URL` - URL of your Entente service
-- `ENTENTE_API_KEY` - API key for authentication
-- `CI` - Enables interaction recording when 'true'
-- `ENVIRONMENT` - Target environment (test, staging, production)
+### Client Configuration
 
-### Mock Options
 ```typescript
-interface MockOptions {
-  useFixtures?: boolean       // Use approved fixtures when available (default: true)
-  validateRequests?: boolean  // Validate requests against OpenAPI (default: true)
-  validateResponses?: boolean // Validate responses against OpenAPI (default: true)
-  localFixtures?: Fixture[]   // Local fallback fixtures
-  port?: number              // Specific port (default: random)
+interface ClientConfig {
+  serviceUrl: string           // Entente service URL
+  apiKey: string              // Authentication key
+  consumer?: string           // Consumer name (auto-detected from package.json)
+  consumerVersion?: string    // Consumer version (auto-detected)
+  environment: string         // Test environment name
+  recordingEnabled?: boolean  // Enable interaction recording (default: CI === 'true')
 }
 ```
 
-## ContractFlow Specification Alignment
+### Mock Options
 
-This package implements ContractFlow's core principles:
+```typescript
+interface MockOptions {
+  port?: number               // Specific port (default: random)
+  useFixtures?: boolean       // Use approved fixtures (default: true)
+  validateRequests?: boolean  // Validate against schema (default: true)
+  validateResponses?: boolean // Validate responses (default: true)
+  localFixtures?: Fixture[]   // Fallback fixtures for offline testing
+  localMockData?: LocalMockData // Alternative fixture format
+}
+```
 
-- **Schema-First Always**: Specs fetched from central service, code follows
-- **Centralized Contract Management**: All specs managed centrally
-- **Automatic Recording**: Transparent capture during CI testing  
-- **CI-Only Recording**: Local tests fast, CI builds contribute real data
-- **Provider Verification**: Recorded interactions drive provider testing
+### Interceptor Options
+
+```typescript
+interface InterceptOptions {
+  recording?: boolean         // Enable recording (default: true)
+  filter?: (url: string) => boolean // URL filter function
+}
+```
+
+## Real-World Example
+
+```typescript
+import { createClient } from '@entente/consumer'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+
+describe('Order Service Integration', () => {
+  let entente: any
+  let mock: any
+
+  beforeAll(async () => {
+    entente = await createClient({
+      serviceUrl: process.env.ENTENTE_SERVICE_URL,
+      apiKey: process.env.ENTENTE_API_KEY,
+      consumer: 'checkout-service',
+      consumerVersion: '2.1.0',
+      environment: 'test'
+    })
+
+    mock = await entente.createMock('order-service', '3.0.0', {
+      validateRequests: true,
+      validateResponses: true
+    })
+  })
+
+  afterAll(async () => {
+    await mock?.close()
+  })
+
+  it('should create orders successfully', async () => {
+    const orderData = {
+      customerId: 'cust-123',
+      items: [{ productId: 'prod-456', quantity: 2 }],
+      total: 199.98
+    }
+
+    const response = await fetch(`${mock.url}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderData)
+    })
+
+    expect(response.status).toBe(201)
+    const order = await response.json()
+    expect(order.id).toBeDefined()
+    expect(order.status).toBe('pending')
+  })
+
+  it('should handle validation errors', async () => {
+    const invalidOrder = { customerId: '', items: [] }
+
+    const response = await fetch(`${mock.url}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(invalidOrder)
+    })
+
+    expect(response.status).toBe(400)
+  })
+})
+```
+
+## Environment Variables
+
+Set these in your CI/CD pipeline and local development:
+
+```bash
+ENTENTE_SERVICE_URL=https://entente.company.com
+ENTENTE_API_KEY=your-api-key
+CI=true  # Enables automatic recording in CI environments
+```
+
+## API Reference
+
+### Client Methods
+
+- `createMock(service, version, options?)` - Create mock server
+- `patchRequests(service, version, options?)` - Create request interceptor
+- `uploadSpec(service, version, spec, metadata)` - Upload specification
+- `downloadFixtures(service, version)` - Download approved fixtures
+
+### Mock Instance Methods
+
+- `close()` - Stop mock server and upload data
+- `getFixtures()` - Get current fixture list
+- `proposeFixture(operation, data)` - Propose new fixture
+- `getStats()` - Get usage statistics
+- `[Symbol.dispose]()` - Automatic cleanup support
+
+### Interceptor Methods
+
+- `unpatch()` - Remove interceptors and upload data
+- `isPatched()` - Check if interceptors are active
+- `getInterceptedCalls()` - Get recorded calls
+- `getStats()` - Get interception statistics
+- `[Symbol.dispose]()` - Automatic cleanup support
 
 ## Development
 
 ```bash
+# Install dependencies
+pnpm install
+
 # Build package
 pnpm build
 
-# Watch for changes during development
-pnpm dev
-
 # Run tests
 pnpm test
+
+# Watch mode
+pnpm dev
 ```
 
-## Dependencies
+## Architecture
 
-- `@entente/types` - Shared type definitions
-- `@entente/fixtures` - Fixture management utilities
-- `@stoplight/prism-cli` - OpenAPI mock server (peer dependency)
+Built on functional programming principles with:
 
-The package uses functional programming patterns and avoids classes, following the project's architectural principles.
+- Shared operation matching across modes
+- Unified fixture collection and interaction recording
+- Consistent error handling and resource management
+- Support for multiple specification formats
+- Automatic cleanup and resource disposal

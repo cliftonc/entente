@@ -42,6 +42,7 @@ import { createWebSocketMockServer, extractChannelsFromOperations } from './webs
 import type { WebSocketMockServer } from './websocket-handler.js'
 import { EntenteRequestInterceptor } from './interceptor/index.js'
 import type { InterceptOptions, RequestInterceptor } from './interceptor/index.js'
+import { createMockServer as createNewMockServer } from './mock/mock-server.js'
 
 // Type alias for all supported specification formats
 type SupportedSpec = OpenAPISpec | GraphQLSchema | AsyncAPISpec | GRPCProto | SOAPWsdl
@@ -59,6 +60,7 @@ export interface EntenteClient {
       environment: string
     }
   ) => Promise<void>
+
 }
 
 export interface EntenteMock {
@@ -70,8 +72,16 @@ export interface EntenteMock {
     operation: string,
     data: { request?: unknown; response: unknown }
   ) => Promise<void>
+  getStats(): {
+    requestsHandled: number
+    fixturesCollected: number
+    interactionsRecorded: number
+  }
 
-  // AsyncAPI-specific methods
+  // Symbol.dispose for consistent cleanup
+  [Symbol.dispose](): Promise<void>
+
+  // AsyncAPI-specific methods (optional)
   websocket?: WebSocketMockServer
   sendEvent?: (channel: string, data: any) => void
   getChannels?: () => string[]
@@ -138,11 +148,7 @@ export const createClient = async (config: ClientConfig): Promise<EntenteClient>
       providerVersion: string,
       options?: MockOptions
     ): Promise<EntenteMock> => {
-      // NOTE: This creates a mock for testing but does NOT register dependencies.
-      // Dependencies should be registered at deployment time using the CLI:
-      // entente deploy-consumer -n my-app -v 1.0.0 -e production -D order-service:2.1.0
-
-      // Fetch spec from central service using provider deployment version
+      // Fetch spec and fixtures
       const { spec, providerVersion: actualProviderVersion, specType } = await fetchSpec(
         resolvedConfig.serviceUrl,
         resolvedConfig.apiKey,
@@ -152,7 +158,6 @@ export const createClient = async (config: ClientConfig): Promise<EntenteClient>
         options?.branch
       )
 
-      // Fetch existing fixtures if requested
       let fixtures: Fixture[] = []
       if (options?.useFixtures !== false) {
         fixtures = await fetchFixtures(
@@ -165,17 +170,59 @@ export const createClient = async (config: ClientConfig): Promise<EntenteClient>
         )
       }
 
-      // Use spec type from API response (preferred) or auto-detect as fallback
+      // Detect spec type
       const detectedSpecType = specType || specRegistry.detectType(spec) || 'openapi'
-      debugLog(`🔍 [Consumer] Spec type: ${detectedSpecType} for service ${service} (from API: ${specType})`)
+      debugLog(`🔍 [Consumer] Spec type: ${detectedSpecType} for service ${service}`)
 
-      // Convert LocalMockData to fixtures if provided
+      // For AsyncAPI specs, use the legacy implementation that supports WebSockets
+      if (detectedSpecType === 'asyncapi') {
+        debugLog(`🔄 [Consumer] Using legacy implementation for AsyncAPI spec`)
+
+        // Convert LocalMockData to fixtures if provided
+        let allFixtures = fixtures
+        if (options?.localMockData && fixtures.length === 0) {
+          const convertedFixtures = convertMockDataToFixtures(
+            options.localMockData,
+            service,
+            actualProviderVersion,
+            spec,
+            detectedSpecType as SpecType
+          )
+          allFixtures = prioritizeFixtures(convertedFixtures)
+        }
+
+        // Create legacy mock server for AsyncAPI
+        const legacyMockServer = await createMockServer({
+          spec,
+          fixtures: allFixtures,
+          port: options?.port || 0,
+          validateRequest: options?.validateRequests ?? true,
+          validateResponse: options?.validateResponses ?? true,
+        })
+
+        // Set up recording if enabled and not using fallback values
+        let recorder: InteractionRecorder | undefined
+        if (resolvedConfig.recordingEnabled && !usingFallbackName && !usingFallbackVersion) {
+          recorder = createInteractionRecorder(resolvedConfig)
+        }
+
+        return createLegacyEntenteMock({
+          service,
+          providerVersion: actualProviderVersion,
+          mockServer: legacyMockServer,
+          recorder,
+          fixtures: allFixtures,
+          fixtureManager,
+          hasFixtures: allFixtures.length > 0,
+          config: resolvedConfig,
+          skipOperations: usingFallbackName || usingFallbackVersion,
+          specType: detectedSpecType,
+        })
+      }
+
+      // Convert LocalMockData to fixtures if provided for non-AsyncAPI specs
       let allFixtures = fixtures
       if (options?.localMockData && fixtures.length === 0) {
-        debugLog(
-          `📋 Converting local mock data to fixtures for ${service}@${actualProviderVersion}`
-        )
-
         const convertedFixtures = convertMockDataToFixtures(
           options.localMockData,
           service,
@@ -186,35 +233,62 @@ export const createClient = async (config: ClientConfig): Promise<EntenteClient>
         allFixtures = prioritizeFixtures(convertedFixtures)
       }
 
-      // Create mock server with fixture support
-      const mockServer = await createMockServer({
+      // Create new mock server for other spec types
+      const mockServer = await createNewMockServer({
         spec,
         fixtures: allFixtures,
-        port: options?.port || 0,
-        validateRequest: options?.validateRequests ?? true,
-        validateResponse: options?.validateResponses ?? true,
-      })
-
-      // Set up recording if enabled and not using fallback values
-      let recorder: InteractionRecorder | undefined
-      if (resolvedConfig.recordingEnabled && !usingFallbackName && !usingFallbackVersion) {
-        recorder = createInteractionRecorder(resolvedConfig)
-      } else if (resolvedConfig.recordingEnabled && (usingFallbackName || usingFallbackVersion)) {
-        debugLog('🚫 Skipping interaction recording - consumer info unavailable')
-      }
-
-      return createEntenteMock({
+        port: options?.port,
         service,
         providerVersion: actualProviderVersion,
-        mockServer,
-        recorder,
-        fixtures: allFixtures,
-        fixtureManager,
-        hasFixtures: allFixtures.length > 0,
-        config: resolvedConfig, // Pass the resolved config for access to consumer info
-        skipOperations: usingFallbackName || usingFallbackVersion, // Skip operations if using fallbacks
-        specType: detectedSpecType, // Pass spec type for operation extraction
+        serviceUrl: resolvedConfig.serviceUrl,
+        apiKey: resolvedConfig.apiKey,
+        consumer: resolvedConfig.consumer,
+        consumerVersion: resolvedConfig.consumerVersion,
+        environment: resolvedConfig.environment,
+        enableRecording: resolvedConfig.recordingEnabled && !usingFallbackName && !usingFallbackVersion,
+        enableFixtureCollection: !usingFallbackName && !usingFallbackVersion,
       })
+
+      return {
+        url: mockServer.url,
+        port: mockServer.port,
+        close: mockServer.close,
+        getFixtures: () => allFixtures,
+        proposeFixture: async (operation: string, data: { request?: unknown; response: unknown }) => {
+          if (usingFallbackName || usingFallbackVersion) {
+            debugLog(`🚫 Skipping fixture proposal for ${operation} - consumer info unavailable`)
+            return
+          }
+          // Use the legacy fixture manager for now
+          await fixtureManager.propose({
+            service,
+            serviceVersion: actualProviderVersion,
+            specType: 'openapi', // Default for now
+            operation,
+            source: 'consumer',
+            data,
+            createdFrom: {
+              type: 'manual',
+              timestamp: new Date(),
+              generatedBy: 'manual-proposal',
+            },
+            notes: 'Manually proposed fixture',
+          })
+        },
+        getStats: () => ({
+          requestsHandled: 0, // Would need to be tracked in mockServer
+          fixturesCollected: 0, // Would need to be tracked in mockServer
+          interactionsRecorded: 0, // Would need to be tracked in mockServer
+        }),
+        [Symbol.dispose]: mockServer.close,
+
+        // AsyncAPI support (if websocket is available)
+        ...(mockServer.websocket && {
+          websocket: mockServer.websocket,
+          sendEvent: mockServer.sendEvent,
+          getChannels: mockServer.getChannels,
+        }),
+      }
     },
 
     uploadSpec: async (
@@ -261,7 +335,7 @@ export const createClient = async (config: ClientConfig): Promise<EntenteClient>
       providerVersion: string,
       options?: InterceptOptions
     ): Promise<RequestInterceptor> => {
-      // Skip if using fallback values and warn user
+      // Warn if using fallback values
       if (usingFallbackName || usingFallbackVersion) {
         console.warn(
           '⚠️  Entente request interception using fallback values - operations will be skipped.'
@@ -272,29 +346,25 @@ export const createClient = async (config: ClientConfig): Promise<EntenteClient>
         )
       }
 
-      // Fetch spec from central service using provider deployment version
-      const { spec, providerVersion: actualProviderVersion, specType } = await fetchSpec(
+      // Fetch spec
+      const { spec } = await fetchSpec(
         resolvedConfig.serviceUrl,
         resolvedConfig.apiKey,
         service,
         providerVersion,
         resolvedConfig.environment,
-        options?.filter ? undefined : 'main' // No branch filtering for intercept mode by default
+        options?.filter ? undefined : 'main'
       )
 
-      // Interceptor mode should not use fixtures for mocking - it only records interactions
-      // Pass empty fixtures array so router doesn't mock responses
-      const fixtures: Fixture[] = []
-
-      // Create and configure interceptor
+      // Create interceptor
       const interceptor = new EntenteRequestInterceptor(
         spec,
-        fixtures,
+        [], // No fixtures needed for interceptor mode
         service,
-        actualProviderVersion,
+        providerVersion,
         resolvedConfig,
         options || {},
-        usingFallbackName || usingFallbackVersion // Skip operations if using fallbacks
+        usingFallbackName || usingFallbackVersion
       )
 
       // Apply interceptors
@@ -918,7 +988,7 @@ const createFixtureCollector = (
   }
 }
 
-const createEntenteMock = (mockConfig: {
+const createLegacyEntenteMock = (mockConfig: {
   service: string
   providerVersion: string
   mockServer: MockServer
@@ -926,9 +996,9 @@ const createEntenteMock = (mockConfig: {
   fixtures: Fixture[]
   fixtureManager: ReturnType<typeof createFixtureManager>
   hasFixtures: boolean
-  config: ClientConfig & { consumer: string; consumerVersion: string } // Resolved config with required fields
-  skipOperations: boolean // Skip operations when using fallback values
-  specType?: string // Specification type for operation extraction
+  config: ClientConfig & { consumer: string; consumerVersion: string }
+  skipOperations: boolean
+  specType: string
 }): EntenteMock => {
   // Create fixture collector for deduplication
   const fixtureCollector = createFixtureCollector(
@@ -942,7 +1012,6 @@ const createEntenteMock = (mockConfig: {
   // Set up recording if enabled
   if (mockConfig.recorder) {
     mockConfig.mockServer.onRequest(async (request, response) => {
-      // Get operation from router match metadata - router is now always used
       const matchMeta = (request as any).__match
       const operation = matchMeta?.selectedOperationId || 'unknown'
 
@@ -978,18 +1047,13 @@ const createEntenteMock = (mockConfig: {
     })
   }
 
-  // Set up fixture collection in CI environment and not skipping operations
-  debugLog(`🔍 CI environment check: CI=${process.env.CI}, skipOperations=${mockConfig.skipOperations}`)
+  // Set up fixture collection in CI environment
   if (process.env.CI && !mockConfig.skipOperations) {
-    debugLog(`✅ Enabling fixture collection for ${mockConfig.service}@${mockConfig.providerVersion}`)
     mockConfig.mockServer.onRequest(async (request, response) => {
-      // Only collect fixtures for successful responses
       if (response.status >= 200 && response.status < 300) {
-        // Get operation from router match metadata - router is now always used
         const matchMeta = (request as any).__match
         const operation = matchMeta?.selectedOperationId || 'unknown'
 
-        debugLog(`📋 Collecting fixture for operation: ${operation} (${request.method} ${request.path})`)
         await fixtureCollector.collect(operation, {
           request: {
             method: request.method,
@@ -1006,23 +1070,14 @@ const createEntenteMock = (mockConfig: {
         })
       }
     })
-  } else if (process.env.CI && mockConfig.skipOperations) {
-    debugLog('🚫 Skipping fixture collection - consumer info unavailable')
-  } else if (!process.env.CI) {
-    debugLog('🚫 Not in CI environment - fixture collection disabled')
   }
 
   const result: EntenteMock = {
     url: mockConfig.mockServer.url,
     port: mockConfig.mockServer.port,
     close: async () => {
-      // Upload collected fixtures before closing
-      const collectedCount = fixtureCollector.getCollectedCount()
-      debugLog(`🔄 Uploading ${collectedCount} collected fixtures for ${mockConfig.service}@${mockConfig.providerVersion}`)
       await fixtureCollector.uploadCollected()
-
       await mockConfig.mockServer.close()
-
       if (mockConfig.recorder) {
         await mockConfig.recorder.flush()
       }
@@ -1048,6 +1103,18 @@ const createEntenteMock = (mockConfig: {
         },
         notes: 'Manually proposed fixture',
       })
+    },
+    getStats: () => ({
+      requestsHandled: 0,
+      fixturesCollected: fixtureCollector.getCollectedCount(),
+      interactionsRecorded: 0,
+    }),
+    [Symbol.dispose]: async () => {
+      await fixtureCollector.uploadCollected()
+      await mockConfig.mockServer.close()
+      if (mockConfig.recorder) {
+        await mockConfig.recorder.flush()
+      }
     },
   }
 
@@ -1442,3 +1509,13 @@ export type { InterceptedCall, InterceptOptions, RequestInterceptor } from './in
 
 // Export auto-detection utilities
 export { detectRequestType, createRequestDetector, defaultRequestDetector } from './mock-detector.js'
+
+// Export shared services (for advanced usage)
+export type {
+  OperationMatchingService,
+  FixtureCollectionService,
+  InteractionRecordingService,
+  UnifiedTestHelper,
+  TestHelperStats,
+  TestMode,
+} from './shared/index.js'
